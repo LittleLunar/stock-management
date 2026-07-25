@@ -1,0 +1,33 @@
+---
+description: Routes each task to the right agent skill(s). Read matched skills BEFORE acting.
+alwaysApply: true
+---
+
+# Skill Router
+
+On every prompt, classify the task and READ + FOLLOW the matched skill file(s) before doing the work. Skills live at `/Users/lunar/.agents/skills/<name>/SKILL.md`.
+
+## Task → Skill
+
+- Writing/updating docs or the wiki → `documentation-writer` AND `obsidian-markdown`. Also obey `wiki-contract.mdc`.
+- Editing any `.md` in `wiki/` → `obsidian-markdown` (wikilinks, frontmatter, callouts).
+- Tracking tasks / "what's on my plate" → `task-management` (`TASKS.md`).
+- Remember / glossary / people / preferences → `memory-management` (`CLAUDE.md`, `memory/`).
+- Multi-step feature before code → `brainstorming` then `writing-plans` (save under `docs/superpowers/plans/`).
+- Executing an existing plan → `executing-plans` or `subagent-driven-development`.
+- Building/refactoring UI → `impeccable` (and design passes: `critique`, `polish`, `layout`, etc. as needed).
+- TypeScript/API work → `typescript-expert` when types or architecture get hard.
+- Bug fixes → `systematic-debugging` first.
+- Done / verify → `verification-before-completion`.
+
+## Stack-specific
+
+- API under `apps/api/` → follow `stack-conventions.mdc`
+- Web under `apps/web/` → follow `stack-conventions.mdc` + React/TanStack patterns
+- Schema / migrations → Drizzle + Postgres; never mutate stock without movements
+
+## Rules
+
+- Multiple skills can apply at once
+- If no skill matches, proceed normally
+- Do not just mention a skill — read it and apply it
