@@ -1,0 +1,44 @@
+---
+description: Enforce obra/superpowers skills before every response
+alwaysApply: true
+---
+
+# Skill-First Workflow (mandatory)
+
+Before ANY tool call or user-facing response — including clarifying questions:
+
+1. Read `~/.agents/skills/using-superpowers/SKILL.md` when classifying non-trivial work
+2. Classify the task: question / build / bug / review / plan / commit / PR / ingest
+3. Read every potentially relevant skill's `SKILL.md` (1% rule)
+4. Prefer starting replies with a **Skills** section when process skills apply
+
+## Skills section (when process skills apply)
+
+```markdown
+## Skills
+- **Checked:** brainstorming, writing-plans, systematic-debugging
+- **Using:** writing-plans (implementation plan)
+- **Skipped:** systematic-debugging — not a bug
+```
+
+## Task → skill routing
+
+| Task signal | Required skills |
+|-------------|-----------------|
+| build, add, implement, design, feature | brainstorming → writing-plans or executing-plans |
+| bug, fix, broken, error, failing | systematic-debugging |
+| test, TDD, red-green | test-driven-development |
+| done?, verify, ready, complete | verification-before-completion |
+| PR, merge, branch cleanup | finishing-a-development-branch |
+| review my changes | requesting-code-review / review-bugbot |
+| multi-step plan exists | executing-plans |
+| wiki ingest/query | documentation-writer + obsidian-markdown; read `wiki/index.md` |
+| tasks / commitments | task-management (`TASKS.md`) |
+| remember / who is / what does | memory-management (`CLAUDE.md`, `memory/`) |
+
+## Hard rules
+
+- Announce: "Using [skill] to [purpose]" when invoking a process skill
+- User may override explicitly (e.g. "skip brainstorming")
+- Process skills before implementation skills
+- Also follow `.cursor/rules/skills-router.mdc` for this repo

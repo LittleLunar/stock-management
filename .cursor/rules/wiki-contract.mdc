@@ -1,0 +1,35 @@
+---
+description: Wiki read-before / write-after contract and canonical page map.
+alwaysApply: true
+---
+
+# Wiki Contract
+
+The project keeps an Obsidian-style wiki at `wiki/` documenting product vision, domain, architecture, and phases.
+
+**Before any docs ingest, query, lint, or update, read `wiki/index.md` and the relevant linked pages first. After any change, update every affected page, then refresh `wiki/index.md` and `wiki/log.md`.** Full schema: `wiki/AGENTS.md` and root `AGENTS.md`.
+
+## When To Use It
+
+- Onboarding or "how does this work / where is X" → `wiki/Getting Started.md`, then `index.md`
+- Implementing a phase/feature → read `wiki/features/` + related concepts; update after the change
+- Any new page/rename → update `index.md`, append to `log.md` (`## [YYYY-MM-DD] <ingest|query|lint|update> | <title>`)
+
+## Canonical Pages By Topic
+
+- Overview: `wiki/overview.md`
+- Stack: `wiki/concepts/Tech Stack.md`
+- Domain: `wiki/concepts/Domain Model.md`
+- Inventory rules: `wiki/concepts/Document-Driven Inventory.md`
+- Costing: `wiki/concepts/FIFO Costing.md`
+- Accounting: `wiki/concepts/Inventory Accounting.md`
+- Org structure: `wiki/concepts/Org Branch Location.md`
+- POS boundary: `wiki/concepts/POS Integration Boundary.md`
+- Phases: `wiki/features/Feature Phases.md`
+- Spec ingest: `wiki/sources/`
+
+## Page Conventions
+
+- YAML frontmatter (`tags`, `created`, `updated`, plus `source_count` for entity/concept pages)
+- Use `[[wikilinks]]` for internal links; end entity/concept pages with `## Sources`
+- Use the `obsidian-markdown` skill when editing these files

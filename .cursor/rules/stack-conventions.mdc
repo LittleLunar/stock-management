@@ -1,0 +1,40 @@
+---
+description: Locked tech stack and domain coding conventions for stock-management.
+alwaysApply: true
+---
+
+# Stack & Domain Conventions
+
+## Locked stack
+
+- API: **Fastify + TypeScript**
+- DB: **PostgreSQL + Drizzle**
+- Web: **Vite + React + TypeScript**
+- Routing/data: **TanStack Router + TanStack Query**
+- UI: **Tailwind**
+- Jobs: Postgres **outbox** first
+- Monorepo target: `apps/api`, `apps/web`, `packages/shared`
+
+## Do not introduce
+
+- Next.js / Remix / other SSR metaframeworks (app is auth-gated)
+- HTMX as primary UI
+- Mongo/Firebase as system of record
+- Microservices on day one
+- Direct qty edits on product rows
+
+## Domain invariants
+
+1. **Document-driven stock** — only posted documents create `stock_movements` and update balances
+2. **Immutable movements** — void via reversing documents, never UPDATE/DELETE ledger rows
+3. **Org scoping** — every query filters `org_id`; branch via membership
+4. **Lot/serial** — required when product flags say so
+5. **FIFO layers** — primary costing; consume in `received_at` order
+6. **Idempotency** — accept `external_system` + `external_id` on posts
+7. **Same transaction** — post doc → movements → balances → cost layers; enqueue GL via outbox
+
+## API style
+
+- Versioned REST under `/api/v1`
+- Posting endpoints: `POST .../post`, `POST .../void`
+- Zod validation at boundaries; shared schemas in `packages/shared` when present
