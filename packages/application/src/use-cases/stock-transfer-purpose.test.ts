@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { InvalidStateError, NotFoundError } from "@stock-management/domain";
-import type { Location } from "@stock-management/domain";
+import {
+  ForbiddenError,
+  InvalidStateError,
+  NotFoundError,
+} from "@stock-management/domain";
+import type { Location, MembershipAccess } from "@stock-management/domain";
 import type {
   CreateStockTransferInput,
   StockTransferPort,
@@ -12,6 +16,7 @@ import { StockTransferUseCases } from "./stock-transfer.js";
 
 const now = new Date("2026-07-26T00:00:00.000Z");
 const orgId = "org-1";
+const hqAccess: MembershipAccess = { role: "org_admin", branchIds: [] };
 
 function makeLocation(
   id: string,
@@ -133,6 +138,7 @@ function makeHarness(locations: Location[]) {
 
   return {
     useCases: new StockTransferUseCases(fakeTransfers, locationLookup),
+    transferCount: () => transfers.size,
   };
 }
 
@@ -145,13 +151,17 @@ describe("StockTransferUseCases purpose", () => {
     ]);
 
     await expect(
-      useCases.create(orgId, {
-        fromLocationId: "loc-a",
-        toLocationId: "loc-b",
-        transitLocationId: "loc-t",
-        purpose: "replenishment",
-        lines: [{ productId: "p1", qty: "1", lineNumber: 1 }],
-      }),
+      useCases.create(
+        orgId,
+        {
+          fromLocationId: "loc-a",
+          toLocationId: "loc-b",
+          transitLocationId: "loc-t",
+          purpose: "replenishment",
+          lines: [{ productId: "p1", qty: "1", lineNumber: 1 }],
+        },
+        hqAccess,
+      ),
     ).rejects.toBeInstanceOf(InvalidStateError);
   });
 
@@ -162,13 +172,17 @@ describe("StockTransferUseCases purpose", () => {
       makeLocation("loc-t", "hq", "transit"),
     ]);
 
-    const created = await useCases.create(orgId, {
-      fromLocationId: "loc-hq",
-      toLocationId: "loc-store",
-      transitLocationId: "loc-t",
-      purpose: "replenishment",
-      lines: [{ productId: "p1", qty: "1", lineNumber: 1 }],
-    });
+    const created = await useCases.create(
+      orgId,
+      {
+        fromLocationId: "loc-hq",
+        toLocationId: "loc-store",
+        transitLocationId: "loc-t",
+        purpose: "replenishment",
+        lines: [{ productId: "p1", qty: "1", lineNumber: 1 }],
+      },
+      hqAccess,
+    );
 
     expect(created.purpose).toBe("replenishment");
     expect(created.fromBranchId).not.toBe(created.toBranchId);
@@ -181,13 +195,40 @@ describe("StockTransferUseCases purpose", () => {
       makeLocation("loc-t", "b1", "transit"),
     ]);
 
-    const created = await useCases.create(orgId, {
-      fromLocationId: "loc-a",
-      toLocationId: "loc-b",
-      transitLocationId: "loc-t",
-      lines: [{ productId: "p1", qty: "1", lineNumber: 1 }],
-    });
+    const created = await useCases.create(
+      orgId,
+      {
+        fromLocationId: "loc-a",
+        toLocationId: "loc-b",
+        transitLocationId: "loc-t",
+        lines: [{ productId: "p1", qty: "1", lineNumber: 1 }],
+      },
+      hqAccess,
+    );
 
     expect(created.purpose).toBe("standard");
+  });
+
+  it("rejects replenishment without toBranch grant and does not persist", async () => {
+    const { useCases, transferCount } = makeHarness([
+      makeLocation("loc-hq", "hq"),
+      makeLocation("loc-store", "store"),
+      makeLocation("loc-t", "hq", "transit"),
+    ]);
+
+    await expect(
+      useCases.create(
+        orgId,
+        {
+          fromLocationId: "loc-hq",
+          toLocationId: "loc-store",
+          transitLocationId: "loc-t",
+          purpose: "replenishment",
+          lines: [{ productId: "p1", qty: "1", lineNumber: 1 }],
+        },
+        { role: "warehouse", branchIds: ["hq"] },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(transferCount()).toBe(0);
   });
 });

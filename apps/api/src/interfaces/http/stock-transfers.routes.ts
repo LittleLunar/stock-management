@@ -5,7 +5,7 @@ import type {
   StockTransferUseCases,
   VoidStockTransfer,
 } from "@stock-management/application";
-import { assertBranchAccess } from "@stock-management/domain";
+import type { MembershipAccess } from "@stock-management/domain";
 import {
   CreateStockTransferSchema,
   ReceiveStockTransferHeadersSchema,
@@ -15,6 +15,7 @@ import {
   StockTransferIdParamsSchema,
   UpdateStockTransferSchema,
 } from "@stock-management/shared";
+import type { RequestContext } from "../plugins/context.js";
 import {
   assertCanPerform,
   listFilterFromContext,
@@ -26,6 +27,12 @@ export type StockTransferRouteUseCases = {
   receiveStockTransfer: ReceiveStockTransfer;
   voidStockTransfer: VoidStockTransfer;
 };
+
+function membershipAccessFromCtx(
+  ctx: Pick<RequestContext, "role" | "branchIds">,
+): MembershipAccess {
+  return { role: ctx.role, branchIds: ctx.branchIds };
+}
 
 export function stockTransfersRoutes(
   useCases: StockTransferRouteUseCases,
@@ -53,21 +60,11 @@ export function stockTransfersRoutes(
         "Role cannot post inventory documents",
       );
       const body = CreateStockTransferSchema.parse(request.body);
-      const transfer = await useCases.stockTransfers.create(
+      return useCases.stockTransfers.create(
         request.ctx.orgId,
         body,
+        membershipAccessFromCtx(request.ctx),
       );
-      assertBranchAccess(
-        { role: request.ctx.role, branchIds: request.ctx.branchIds },
-        transfer.fromBranchId,
-      );
-      if (transfer.purpose === "replenishment") {
-        assertBranchAccess(
-          { role: request.ctx.role, branchIds: request.ctx.branchIds },
-          transfer.toBranchId,
-        );
-      }
-      return transfer;
     });
 
     app.patch<{ Params: { id: string } }>(
@@ -80,22 +77,12 @@ export function stockTransfersRoutes(
         );
         const { id } = StockTransferIdParamsSchema.parse(request.params);
         const body = UpdateStockTransferSchema.parse(request.body);
-        const transfer = await useCases.stockTransfers.update(
+        return useCases.stockTransfers.update(
           request.ctx.orgId,
           id,
           body,
+          membershipAccessFromCtx(request.ctx),
         );
-        assertBranchAccess(
-          { role: request.ctx.role, branchIds: request.ctx.branchIds },
-          transfer.fromBranchId,
-        );
-        if (transfer.purpose === "replenishment") {
-          assertBranchAccess(
-            { role: request.ctx.role, branchIds: request.ctx.branchIds },
-            transfer.toBranchId,
-          );
-        }
-        return transfer;
       },
     );
 

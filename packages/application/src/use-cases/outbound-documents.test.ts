@@ -805,16 +805,26 @@ describe("stock transfer use cases", () => {
     await expect(drafts.get(orgId, "transfer-1")).resolves.toMatchObject({
       status: "draft",
     });
+    const hqAccess = { role: "org_admin" as const, branchIds: [] as string[] };
     await expect(
-      drafts.create(orgId, {
-        fromLocationId,
-        toLocationId,
-        transitLocationId,
-        lines: [{ productId, qty: "4", lineNumber: 1 }],
-      }),
+      drafts.create(
+        orgId,
+        {
+          fromLocationId,
+          toLocationId,
+          transitLocationId,
+          lines: [{ productId, qty: "4", lineNumber: 1 }],
+        },
+        hqAccess,
+      ),
     ).resolves.toMatchObject({ id: "transfer-1" });
     await expect(
-      drafts.update(orgId, "transfer-1", { documentNumber: "TRF-2" }),
+      drafts.update(
+        orgId,
+        "transfer-1",
+        { documentNumber: "TRF-2" },
+        hqAccess,
+      ),
     ).resolves.toMatchObject({ id: "transfer-1" });
   });
 

@@ -20,7 +20,10 @@ import type {
   StockTransfer,
 } from "@stock-management/domain";
 import { stockTransfersRoutes } from "./stock-transfers.routes.js";
-import { createTestContextPlugin } from "../plugins/context.js";
+import {
+  createContextPlugin,
+  createTestContextPlugin,
+} from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -342,11 +345,13 @@ function makeHarness(
     voidStockTransfer: new VoidStockTransfer(uow),
   };
 
-  async function buildApp() {
+  async function buildApp(
+    contextPlugin: ReturnType<typeof createTestContextPlugin> = createTestContextPlugin(),
+  ) {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(createTestContextPlugin());
+    await app.register(contextPlugin);
     await app.register(stockTransfersRoutes(useCases), { prefix: "/api/v1" });
     return app;
   }
@@ -355,6 +360,7 @@ function makeHarness(
     buildApp,
     getBalance: (locationId: string) => balances.get(locationId),
     getMovements: () => movements,
+    transferCount: () => transfers.size,
   };
 }
 
@@ -573,5 +579,45 @@ describe("stock transfer routes", () => {
     expect(created.purpose).toBe("standard");
     expect(created.fromBranchId).toBe(BRANCH_ID);
     expect(created.toBranchId).toBe(BRANCH_ID);
+  });
+
+  it("rejects replenishment when caller lacks toBranch grant without creating a row", async () => {
+    const harness = makeHarness("transit", { toBranchId: STORE_BRANCH_ID });
+    const branchScopedContext = createContextPlugin({
+      findActiveByUser: async (orgId, userId) => ({
+        id: "00000000-0000-4000-8000-ffffffffbbbb",
+        orgId,
+        userId,
+        role: "warehouse",
+        status: "active",
+        branchIds: [BRANCH_ID],
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      }),
+    });
+    const app = await harness.buildApp(branchScopedContext);
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/stock-transfers",
+      headers,
+      payload: {
+        ...draftPayload,
+        purpose: "replenishment",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: { code: "FORBIDDEN" },
+    });
+    expect(harness.transferCount()).toBe(0);
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/v1/stock-transfers",
+      headers,
+    });
+    expect(list.json<StockTransfer[]>()).toHaveLength(0);
   });
 });

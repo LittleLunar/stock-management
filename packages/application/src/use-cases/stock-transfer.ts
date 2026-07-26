@@ -3,6 +3,7 @@ import {
   InsufficientStockError,
   InvalidStateError,
   NotFoundError,
+  assertBranchAccess,
   assertCanReceiveTransfer,
   assertCanShipTransfer,
   assertCanVoidTransfer,
@@ -13,9 +14,11 @@ import {
   signedQtyForMovement,
 } from "@stock-management/domain";
 import type {
+  MembershipAccess,
   MovementType,
   StockMovement,
   StockTransfer,
+  TransferPurpose,
 } from "@stock-management/domain";
 import type { BranchListFilter } from "../access/list-scope.js";
 import type {
@@ -55,7 +58,11 @@ export class StockTransferUseCases {
     return transfer;
   }
 
-  async create(orgId: string, input: CreateStockTransferInput) {
+  async create(
+    orgId: string,
+    input: CreateStockTransferInput,
+    access: MembershipAccess,
+  ) {
     assertDistinctLocations(input.fromLocationId, input.toLocationId);
     const purpose = input.purpose ?? "standard";
     const { fromBranchId, toBranchId } = await resolveTransferBranches(
@@ -65,10 +72,16 @@ export class StockTransferUseCases {
       input.toLocationId,
     );
     assertTransferPurpose(purpose, fromBranchId, toBranchId);
+    assertTransferBranchWrite(access, purpose, fromBranchId, toBranchId);
     return this.repo.create(orgId, { ...input, purpose });
   }
 
-  async update(orgId: string, id: string, input: UpdateStockTransferInput) {
+  async update(
+    orgId: string,
+    id: string,
+    input: UpdateStockTransferInput,
+    access: MembershipAccess,
+  ) {
     const transfer = await this.get(orgId, id);
     if (transfer.status !== "draft") {
       throw new InvalidStateError("Only draft stock transfers can be updated");
@@ -84,9 +97,22 @@ export class StockTransferUseCases {
       toLocationId,
     );
     assertTransferPurpose(purpose, fromBranchId, toBranchId);
+    assertTransferBranchWrite(access, purpose, fromBranchId, toBranchId);
     const updated = await this.repo.update(orgId, id, { ...input, purpose });
     if (!updated) throw new NotFoundError("Stock transfer");
     return updated;
+  }
+}
+
+function assertTransferBranchWrite(
+  access: MembershipAccess,
+  purpose: TransferPurpose,
+  fromBranchId: string,
+  toBranchId: string,
+): void {
+  assertBranchAccess(access, fromBranchId);
+  if (purpose === "replenishment") {
+    assertBranchAccess(access, toBranchId);
   }
 }
 
