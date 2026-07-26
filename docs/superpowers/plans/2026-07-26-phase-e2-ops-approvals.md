@@ -47,7 +47,7 @@
 | Reservation lock | Reserve always in UoW; `findBalance` with `FOR UPDATE` (already when `lockForUpdate=true`); **prove** with concurrent oversell test |
 | Soft vs hard expiry | Domain still ignores soft-expired opens in `effectiveReservedQty`; E2 job **hard-releases** `open` rows with `expiresAt <= now` and recomputes `qtyReserved` |
 | Expire worker | In-process interval like `OutboxPoller`; env `RESERVATION_EXPIRE_ENABLED` / `RESERVATION_EXPIRE_INTERVAL_MS` |
-| Concurrent oversell | Two overlapping reserve TX against same balance key; one commits, other throws `InvalidStateError` (insufficient available) |
+| Concurrent oversell | Two overlapping reserve TX against same balance key; one commits, other throws `InsufficientAvailabilityError`. **Harness:** in-memory locking fake only (Task 5) — proves use-case serialization contract; Postgres `FOR UPDATE` already in `DrizzleStockRepository.findBalance` |
 | UI | Replenish wizard on transfers page (or `/transfers/replenish` section); Approve on PO + adjustment lists; Policies settings page (org_admin) |
 
 ### Role matrix (E2 approve gate)
@@ -92,12 +92,22 @@ type RequestContext = {
   activeBranchId: string | null;
 };
 
-// packages/domain StockTransfer (E1 shape before purpose)
+// packages/domain StockTransfer after E1 (E2 adds purpose in Task 1)
 type StockTransfer = {
-  /* ... */
+  id: string;
+  orgId: string;
+  fromLocationId: string;
+  toLocationId: string;
+  transitLocationId: string;
   fromBranchId: string;
   toBranchId: string;
-  /* no purpose yet — E2 adds it */
+  documentNumber: string | null;
+  status: TransferStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  shippedAt: Date | null;
+  receivedAt: Date | null;
+  voidedAt: Date | null;
 };
 ```
 
@@ -765,8 +775,9 @@ export const CreateStockTransferSchema = z.object({
   transitLocationId: UuidSchema,
   purpose: TransferPurposeSchema.optional().default("standard"),
   documentNumber: z.string().nullable().optional(),
-  lines: z.array(/* existing line schema */).min(1),
+  lines: z.array(OutboundLineSchema).min(1),
 });
+// OutboundLineSchema = existing line object in packages/shared/src/inventory.ts
 ```
 
 Create path (in `StockTransferUseCases.create` or repository after location lookup):
@@ -808,7 +819,8 @@ import { InvalidStateError } from "@stock-management/domain";
 // Arrange: two locations same branchId "b1"; create with purpose replenishment.
 
 it("rejects replenishment when from and to locations share a branch", async () => {
-  const useCases = new StockTransferUseCases(fakeTransfers /* + location lookup as wired */);
+  // fakeTransfers port + location lookup wired the same way production create resolves branches
+  const useCases = new StockTransferUseCases(fakeTransfers);
   await expect(
     useCases.create("org-1", {
       fromLocationId: "loc-a",
@@ -888,16 +900,18 @@ EOF
 ### Task 5: Reservation harden — FOR UPDATE + concurrent oversell
 
 **Files:**
-- Modify: `packages/application/src/use-cases/reservation.ts` (comments / ensure single lock path; no behavioral change if already correct)
-- Verify: `apps/api/src/infrastructure/persistence/stock.repository.ts` (`findBalance` insert + `FOR UPDATE` when `lockForUpdate`)
-- Verify: `apps/api/src/infrastructure/persistence/unit-of-work.ts` constructs stock repo with `lockForUpdate=true`
-- Test: `apps/api/src/infrastructure/persistence/reservation-concurrent.test.ts` (integration) **or** `packages/application/src/use-cases/reservation-concurrent.lock.test.ts` with a fake that records lock order
+- Modify: `packages/application/src/use-cases/reservation.ts` (header invariant comment; ensure create only via UoW)
+- Verify (read-only): `apps/api/src/infrastructure/persistence/stock.repository.ts` — `findBalance` inserts zero row then `.for("update")` when `lockForUpdate`
+- Verify (read-only): `apps/api/src/infrastructure/persistence/unit-of-work.ts` — stock repo constructed with `lockForUpdate=true`
+- Test: `packages/application/src/use-cases/reservation-concurrent.test.ts` (**only** harness — in-memory locking fake)
+
+**Harness decision (locked):** Use an **in-memory locking fake** that serializes `uow.run` and makes `findBalance` wait on a per-balance mutex (simulates `SELECT … FOR UPDATE` + commit visibility). This proves the **use-case serialization contract**: two overlapping `ReservationUseCases.create` calls against the same key cannot both pass `assertCanReserve` when available qty covers only one. Postgres `FOR UPDATE` itself is already implemented in `DrizzleStockRepository.findBalance` — do **not** add a second DB integration harness in E2.
 
 **Interfaces:**
-- Consumes: existing `ReservationUseCases.create` → `ctx.stock.findBalance` → `assertCanReserve` → create → `recomputeQtyReserved`
-- Produces: documented invariant + failing concurrent test that passes after lock serialization
+- Consumes: `ReservationUseCases.create` → `ctx.stock.findBalance` → `assertCanReserve` → create → `recomputeQtyReserved`
+- Produces: concurrent oversell test green; header invariant on `reservation.ts`
 
-**Invariant (document in use-case file header):**
+**Invariant (document in `reservation.ts` file header):**
 
 ```ts
 /**
@@ -906,76 +920,259 @@ EOF
  */
 ```
 
-If any code path creates reservations outside UoW, fix it.
+**Scenario:** `qtyOnHand = 5`, `qtyReserved = 0`. Two concurrent creates each request `qty: "5"`.
 
-**Concurrent oversell scenario**
+**Expected PASS:**
+- Exactly one fulfilled reservation (`status: "open"`)
+- Other rejected with `InsufficientAvailabilityError` (from `assertCanReserve`)
+- Final `qtyReserved === "5"`; exactly one open reservation in the fake store
 
-Available qty = 5. Two concurrent creates each request qty 5.
-
-Expected: one succeeds (`open`); one throws `InvalidStateError` (from `assertCanReserve`). Final `qtyReserved` = 5; only one open reservation.
-
-Integration test sketch (uses test DB if harness exists — follow patterns in `apps/api` integration tests; if none, use a mutex-fake stock port):
+- [ ] **Step 1: Write the complete concurrent test + locking fake**
 
 ```ts
 // packages/application/src/use-cases/reservation-concurrent.test.ts
 import { describe, expect, it } from "vitest";
-import { InvalidStateError } from "@stock-management/domain";
+import {
+  InsufficientAvailabilityError,
+  type Location,
+  type StockBalance,
+  type StockReservation,
+} from "@stock-management/domain";
+import type { CreateReservationInput } from "../dto/inputs.js";
+import type {
+  ReservationPort,
+  StockBalanceKey,
+  StockPort,
+} from "../ports/inventory.js";
+import type { UnitOfWork, UowContext } from "../ports/unit-of-work.js";
 import { ReservationUseCases } from "./reservation.js";
 
-/**
- * Fake UoW that serializes run() with a mutex and uses a real in-memory
- * balance + FOR UPDATE simulation: findBalance awaits lock; second waiter
- * sees updated qtyReserved after first commits.
- */
-it("prevents concurrent oversell on the same balance key", async () => {
-  const fake = createLockingReservationFake({
-    qtyOnHand: "5",
-    qtyReserved: "0",
-  });
-  const useCases = new ReservationUseCases(fake.reservations, fake.uow);
+const now = new Date("2026-07-26T12:00:00.000Z");
+const orgId = "org-1";
+const branchId = "b1";
+const productId = "p1";
+const locationId = "loc1";
 
-  const input = {
-    branchId: "b1",
-    productId: "p1",
-    locationId: "loc1",
-    lotId: null as string | null,
-    qty: "5",
-    expiresAt: null as Date | null,
+function balanceKeyOf(key: StockBalanceKey): string {
+  return `${key.productId}:${key.locationId}:${key.lotId ?? ""}`;
+}
+
+/**
+ * Serializes uow.run globally and holds a per-balance mutex across findBalance
+ * → commit so the second create sees the first reservation's qtyReserved.
+ * Models Postgres FOR UPDATE + commit visibility for the use-case contract.
+ */
+function createLockingReservationFake(seed: {
+  qtyOnHand: string;
+  qtyReserved: string;
+}) {
+  const location: Location = {
+    id: locationId,
+    orgId,
+    branchId,
+    code: "MAIN",
+    name: "Main",
+    type: "storage",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
   };
 
-  const results = await Promise.allSettled([
-    useCases.create("org-1", input),
-    useCases.create("org-1", input),
-  ]);
+  let balance: StockBalance = {
+    id: "bal-1",
+    orgId,
+    productId,
+    locationId,
+    lotId: null,
+    qtyOnHand: seed.qtyOnHand,
+    qtyReserved: seed.qtyReserved,
+    createdAt: now,
+    updatedAt: now,
+  };
 
-  const fulfilled = results.filter((r) => r.status === "fulfilled");
-  const rejected = results.filter((r) => r.status === "rejected");
-  expect(fulfilled).toHaveLength(1);
-  expect(rejected).toHaveLength(1);
-  expect(rejected[0].status).toBe("rejected");
-  if (rejected[0].status === "rejected") {
-    expect(rejected[0].reason).toBeInstanceOf(InvalidStateError);
+  const reservations = new Map<string, StockReservation>();
+  let seq = 0;
+  let runChain: Promise<unknown> = Promise.resolve();
+  const balanceLocks = new Map<string, Promise<void>>();
+
+  async function withBalanceLock<T>(
+    key: StockBalanceKey,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const id = balanceKeyOf(key);
+    const prev = balanceLocks.get(id) ?? Promise.resolve();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    balanceLocks.set(
+      id,
+      prev.then(() => gate),
+    );
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
   }
-  expect(fake.getQtyReserved()).toBe("5");
+
+  const stock: StockPort = {
+    async findBalance(key) {
+      return withBalanceLock(key, async () => ({ ...balance }));
+    },
+    async setBalance() {
+      throw new Error("not used");
+    },
+    async setQtyReserved(key, qtyReserved) {
+      return withBalanceLock(key, async () => {
+        balance = { ...balance, qtyReserved, updatedAt: now };
+        return { ...balance };
+      });
+    },
+    async insertMovement() {
+      throw new Error("not used");
+    },
+    async updateMovementCosts() {
+      throw new Error("not used");
+    },
+    async listBalances() {
+      return [balance];
+    },
+    async listMovements() {
+      return [];
+    },
+  };
+
+  const reservationPort: ReservationPort = {
+    async list(_orgId, filters) {
+      return [...reservations.values()].filter((row) => {
+        if (filters?.productId && row.productId !== filters.productId)
+          return false;
+        if (filters?.locationId && row.locationId !== filters.locationId)
+          return false;
+        if (filters?.status && row.status !== filters.status) return false;
+        return true;
+      });
+    },
+    async findById(_orgId, id) {
+      return reservations.get(id) ?? null;
+    },
+    async create(_orgId, input: CreateReservationInput) {
+      const id = `r-${++seq}`;
+      const row: StockReservation = {
+        id,
+        orgId,
+        branchId: input.branchId,
+        productId: input.productId,
+        locationId: input.locationId,
+        lotId: input.lotId ?? null,
+        qty: input.qty,
+        status: "open",
+        expiresAt: input.expiresAt ?? null,
+        externalSystem: input.externalSystem ?? null,
+        externalId: input.externalId ?? null,
+        committedIssueId: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      reservations.set(id, row);
+      return row;
+    },
+    async update(_orgId, id, patch) {
+      const current = reservations.get(id)!;
+      const next = { ...current, ...patch, updatedAt: now };
+      reservations.set(id, next);
+      return next;
+    },
+    async listExpiredOpen() {
+      return [];
+    },
+  };
+
+  const uow: UnitOfWork = {
+    run(fn) {
+      const result = runChain.then(() =>
+        fn({
+          stock,
+          reservations: reservationPort,
+          locations: {
+            async findById(_o, id) {
+              return id === location.id ? location : null;
+            },
+          },
+        } as UowContext),
+      );
+      runChain = result.then(
+        () => undefined,
+        () => undefined,
+      );
+      return result;
+    },
+  };
+
+  return {
+    uow,
+    reservations: reservationPort,
+    getQtyReserved: () => balance.qtyReserved,
+    openCount: () =>
+      [...reservations.values()].filter((r) => r.status === "open").length,
+  };
+}
+
+describe("ReservationUseCases concurrent create", () => {
+  it("prevents concurrent oversell on the same balance key", async () => {
+    const fake = createLockingReservationFake({
+      qtyOnHand: "5",
+      qtyReserved: "0",
+    });
+    const useCases = new ReservationUseCases(fake.reservations, fake.uow);
+
+    const input: CreateReservationInput = {
+      branchId,
+      productId,
+      locationId,
+      lotId: null,
+      qty: "5",
+      expiresAt: null,
+    };
+
+    const results = await Promise.allSettled([
+      useCases.create(orgId, input, now),
+      useCases.create(orgId, input, now),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]).toMatchObject({ status: "rejected" });
+    if (rejected[0].status === "rejected") {
+      expect(rejected[0].reason).toBeInstanceOf(InsufficientAvailabilityError);
+    }
+    expect(fake.getQtyReserved()).toBe("5");
+    expect(fake.openCount()).toBe(1);
+  });
 });
 ```
 
-Implement `createLockingReservationFake` so `uow.run` is mutually exclusive per balance key (or globally) and `findBalance` reads committed state — this models Postgres row lock + commit visibility without requiring a live DB.
+> If `ReservationPort` does not yet include `listExpiredOpen`, omit that method until Task 6 or add a stub returning `[]`.
 
-Also keep / extend existing test in `reservation-availability.test.ts`: `"throws when reserve would oversell available"`.
-
-- [ ] **Step 1: Write the concurrent failing/locking test**
-
-If a naive parallel fake without locking lets both succeed, write that first to show the bug, then add mutex to the production-shaped fake used by the real `ReservationUseCases` (production already locks — the test proves the use-case algorithm is safe under serialization).
-
-- [ ] **Step 2: Run test**
+- [ ] **Step 2: Run test — expect FAIL until fake/wiring matches create path, then PASS**
 
 ```bash
 pnpm --filter @stock-management/application test -- src/use-cases/reservation-concurrent.test.ts
+```
+
+Expected first run: FAIL if `listExpiredOpen` missing from port type or location assert fails. After fake matches production create deps: **PASS** with 1 fulfilled / 1 `InsufficientAvailabilityError`.
+
+Also keep existing:
+
+```bash
 pnpm --filter @stock-management/application test -- src/use-cases/reservation-availability.test.ts
 ```
 
-Expected: concurrent test PASS with locking fake; availability oversell still PASS
+Expected: PASS (including `"throws when reserve would oversell available"`)
 
 - [ ] **Step 3: Harden if gaps found**
 
@@ -984,9 +1181,9 @@ Checklist:
 2. `findBalance` before listing opens / assert
 3. Lot filter on open reservations matches create key
 4. `recomputeQtyReserved` after insert uses same `now`
-5. UoW stock repo `lockForUpdate=true`
+5. Production UoW stock repo `lockForUpdate=true` (verify only)
 
-If issue post paths can oversell past reserved qty, **do not** expand into FEFO/issue redesign here — E2 scope is reserve discipline. Optional note in verification: outbound issue respecting `qtyReserved` is out of E2 unless a one-line guard already exists.
+Outbound issue respecting `qtyReserved` is **out of E2**.
 
 - [ ] **Step 4: Commit**
 
@@ -1088,19 +1285,42 @@ async listExpiredOpen(now: Date, limit: number) {
 }
 ```
 
-Worker (mirror `OutboxPoller`):
+Worker (mirror `OutboxPoller` in `apps/api/src/infrastructure/workers/outbox-poller.ts`):
 
 ```ts
 // reservation-expire-poller.ts
 export class ReservationExpirePoller {
+  private timer: ReturnType<typeof setInterval> | null = null;
+
   constructor(
     private readonly expire: ExpireReservations,
     private readonly opts: { intervalMs: number; log: OutboxPollerLog },
   ) {}
-  start(): void { /* setInterval → safeTick */ }
-  stop(): void { /* clearInterval */ }
+
+  start(): void {
+    if (this.timer) return;
+    this.timer = setInterval(() => {
+      void this.tick().catch((err) => {
+        this.opts.log.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          "reservation expire tick failed",
+        );
+      });
+    }, this.opts.intervalMs);
+  }
+
+  stop(): void {
+    if (!this.timer) return;
+    clearInterval(this.timer);
+    this.timer = null;
+  }
+
   async tick(): Promise<number> {
-    return this.expire.execute(new Date());
+    const n = await this.expire.execute(new Date());
+    if (n > 0) {
+      this.opts.log.info({ released: n }, "expired reservations released");
+    }
+    return n;
   }
 }
 ```
@@ -1114,50 +1334,164 @@ RESERVATION_EXPIRE_INTERVAL_MS: z.coerce.number().int().positive().default(60_00
 
 Wire in `apps/api/src/index.ts` next to outbox poller start/stop.
 
-- [ ] **Step 1: Write the failing use-case test**
+- [ ] **Step 1: Write the failing use-case tests**
 
 ```ts
 // packages/application/src/use-cases/expire-reservations.test.ts
 import { describe, expect, it } from "vitest";
+import type { StockBalance, StockReservation } from "@stock-management/domain";
+import type { ReservationPort, StockPort } from "../ports/inventory.js";
+import type { UnitOfWork, UowContext } from "../ports/unit-of-work.js";
 import { ExpireReservations } from "./expire-reservations.js";
 
-it("hard-releases open reservations past expiresAt and recomputes qtyReserved", async () => {
-  const now = new Date("2026-07-26T12:00:00.000Z");
-  const fake = createReservationFake({
-    balance: { qtyOnHand: "10", qtyReserved: "4" },
-    reservations: [
-      {
-        id: "r-expired",
-        orgId: "org-1",
-        branchId: "b1",
-        productId: "p1",
-        locationId: "loc1",
-        lotId: null,
-        qty: "4",
-        status: "open",
-        expiresAt: new Date("2026-07-26T11:00:00.000Z"),
-        externalSystem: null,
-        externalId: null,
-        committedIssueId: null,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ],
+const now = new Date("2026-07-26T12:00:00.000Z");
+
+function createExpireFake(seed: {
+  qtyOnHand: string;
+  qtyReserved: string;
+  reservations: StockReservation[];
+}) {
+  let balance: StockBalance = {
+    id: "bal-1",
+    orgId: "org-1",
+    productId: "p1",
+    locationId: "loc1",
+    lotId: null,
+    qtyOnHand: seed.qtyOnHand,
+    qtyReserved: seed.qtyReserved,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const byId = new Map(seed.reservations.map((r) => [r.id, { ...r }]));
+
+  const reservationPort: ReservationPort = {
+    async list() {
+      return [...byId.values()];
+    },
+    async findById(_orgId, id) {
+      return byId.get(id) ?? null;
+    },
+    async create() {
+      throw new Error("not used");
+    },
+    async update(_orgId, id, patch) {
+      const current = byId.get(id)!;
+      const next = { ...current, ...patch, updatedAt: now };
+      byId.set(id, next);
+      return next;
+    },
+    async listExpiredOpen(at, limit) {
+      return [...byId.values()]
+        .filter(
+          (r) =>
+            r.status === "open" &&
+            r.expiresAt !== null &&
+            r.expiresAt.getTime() <= at.getTime(),
+        )
+        .slice(0, limit);
+    },
+  };
+
+  const stock: StockPort = {
+    async findBalance() {
+      return { ...balance };
+    },
+    async setBalance() {
+      throw new Error("not used");
+    },
+    async setQtyReserved(_key, qtyReserved) {
+      balance = { ...balance, qtyReserved, updatedAt: now };
+      return { ...balance };
+    },
+    async insertMovement() {
+      throw new Error("not used");
+    },
+    async updateMovementCosts() {
+      throw new Error("not used");
+    },
+    async listBalances() {
+      return [balance];
+    },
+    async listMovements() {
+      return [];
+    },
+  };
+
+  const uow: UnitOfWork = {
+    run(fn) {
+      return fn({ stock, reservations: reservationPort } as UowContext);
+    },
+  };
+
+  return {
+    uow,
+    byId,
+    getQtyReserved: () => balance.qtyReserved,
+  };
+}
+
+describe("ExpireReservations", () => {
+  it("hard-releases open reservations past expiresAt and recomputes qtyReserved", async () => {
+    const fake = createExpireFake({
+      qtyOnHand: "10",
+      qtyReserved: "4",
+      reservations: [
+        {
+          id: "r-expired",
+          orgId: "org-1",
+          branchId: "b1",
+          productId: "p1",
+          locationId: "loc1",
+          lotId: null,
+          qty: "4",
+          status: "open",
+          expiresAt: new Date("2026-07-26T11:00:00.000Z"),
+          externalSystem: null,
+          externalId: null,
+          committedIssueId: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
+
+    const n = await new ExpireReservations(fake.uow).execute(now);
+    expect(n).toBe(1);
+    expect(fake.byId.get("r-expired")?.status).toBe("released");
+    expect(fake.getQtyReserved()).toBe("0");
   });
 
-  const expired = new ExpireReservations(fake.uow);
-  const n = await expired.execute(now);
-  expect(n).toBe(1);
-  expect(fake.reservationsById.get("r-expired")?.status).toBe("released");
-  expect(fake.getQtyReserved()).toBe("0");
-});
+  it("ignores open reservations with null expiresAt", async () => {
+    const fake = createExpireFake({
+      qtyOnHand: "10",
+      qtyReserved: "3",
+      reservations: [
+        {
+          id: "r-open",
+          orgId: "org-1",
+          branchId: "b1",
+          productId: "p1",
+          locationId: "loc1",
+          lotId: null,
+          qty: "3",
+          status: "open",
+          expiresAt: null,
+          externalSystem: null,
+          externalId: null,
+          committedIssueId: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    });
 
-it("ignores open reservations with null expiresAt", async () => {
-  // arrange open expiresAt null; expect execute → 0 and status still open
+    const n = await new ExpireReservations(fake.uow).execute(now);
+    expect(n).toBe(0);
+    expect(fake.byId.get("r-open")?.status).toBe("open");
+    expect(fake.getQtyReserved()).toBe("3");
+  });
 });
 ```
-
-Reuse fake builders from `reservation-availability.test.ts` where possible.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -1357,41 +1691,383 @@ await purchaseOrders.approve(request.ctx.orgId, id);
 - [ ] **Step 1: Write failing application tests**
 
 ```ts
-// approval-policy.test.ts
-it("ensureDefaults seeds both types as required", async () => {
-  const uc = new ApprovalPolicyUseCases(fakeRepo);
-  const list = await uc.list("org-1");
-  expect(list).toHaveLength(2);
-  expect(list.every((p) => p.required)).toBe(true);
+// packages/application/src/use-cases/approval-policy.test.ts
+import { describe, expect, it } from "vitest";
+import type {
+  ApprovalDocumentType,
+  ApprovalPolicy,
+} from "@stock-management/domain";
+import type { ApprovalPolicyPort } from "../ports/approval-policy.js";
+import { ApprovalPolicyUseCases } from "./approval-policy.js";
+
+function createFakeApprovalPolicyPort(): ApprovalPolicyPort {
+  const rows = new Map<string, ApprovalPolicy>();
+  const key = (orgId: string, documentType: ApprovalDocumentType) =>
+    `${orgId}:${documentType}`;
+  return {
+    async list(orgId) {
+      return [...rows.values()].filter((r) => r.orgId === orgId);
+    },
+    async findByDocumentType(orgId, documentType) {
+      return rows.get(key(orgId, documentType)) ?? null;
+    },
+    async upsert(orgId, documentType, required) {
+      const id = key(orgId, documentType);
+      const existing = rows.get(id);
+      const row: ApprovalPolicy = {
+        id: existing?.id ?? `pol-${documentType}`,
+        orgId,
+        documentType,
+        required,
+        createdAt: existing?.createdAt ?? new Date("2026-07-26T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-26T12:00:00.000Z"),
+      };
+      rows.set(id, row);
+      return row;
+    },
+  };
+}
+
+describe("ApprovalPolicyUseCases", () => {
+  it("ensureDefaults seeds both types as required", async () => {
+    const uc = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    const list = await uc.list("org-1");
+    expect(list).toHaveLength(2);
+    expect(list.map((p) => p.documentType).sort()).toEqual([
+      "purchase_order",
+      "stock_adjustment",
+    ]);
+    expect(list.every((p) => p.required)).toBe(true);
+  });
+
+  it("upsert flips required", async () => {
+    const uc = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    const row = await uc.upsert("org-1", "purchase_order", false);
+    expect(row.required).toBe(false);
+    expect(await uc.getRequired("org-1", "purchase_order")).toBe(false);
+  });
 });
-
-it("upsert flips required", async () => {
-  const uc = new ApprovalPolicyUseCases(fakeRepo);
-  const row = await uc.upsert("org-1", "purchase_order", false);
-  expect(row.required).toBe(false);
-});
-
-// purchase-order-approve.test.ts
-it("approve moves submitted → approved", async () => { /* ... */ });
-it("GR blocked when policy required and PO submitted", async () => { /* PostGoodsReceipt */ });
-it("GR allowed when policy required and PO approved", async () => { /* ... */ });
-
-// stock-adjustment-approval.test.ts
-it("submit draft → pending_approval", async () => { /* ... */ });
-it("approve pending → approved", async () => { /* ... */ });
-it("post rejects draft when policy required", async () => { /* ... */ });
-it("post allows draft when policy not required", async () => { /* ... */ });
 ```
+
+```ts
+// packages/application/src/use-cases/purchase-order-approve.test.ts
+import { describe, expect, it } from "vitest";
+import {
+  InvalidStateError,
+  type PurchaseOrder,
+  type PurchaseOrderLine,
+} from "@stock-management/domain";
+import type { PurchaseOrderPort } from "../ports/inventory.js";
+import { PurchaseOrderUseCases } from "./purchase-order.js";
+
+const now = new Date("2026-07-26T12:00:00.000Z");
+
+function createPoPort(initial: PurchaseOrder): PurchaseOrderPort {
+  let current: PurchaseOrder & { lines: PurchaseOrderLine[] } = {
+    ...initial,
+    lines: [],
+  };
+  return {
+    async list() {
+      return [current];
+    },
+    async findById(_orgId, id) {
+      return id === current.id ? current : null;
+    },
+    async findLineById() {
+      return null;
+    },
+    async create() {
+      return current;
+    },
+    async update() {
+      return current;
+    },
+    async updateLineReceivedQty() {
+      throw new Error("not used");
+    },
+    async updateStatus(_orgId, id, status) {
+      if (id !== current.id) throw new Error("missing");
+      current = { ...current, status, updatedAt: now };
+      return current;
+    },
+  };
+}
+
+describe("PurchaseOrderUseCases.approve", () => {
+  it("approve moves submitted → approved", async () => {
+    const po: PurchaseOrder = {
+      id: "po-1",
+      orgId: "org-1",
+      supplierId: "sup-1",
+      branchId: "branch-1",
+      status: "submitted",
+      documentNumber: "PO-1",
+      expectedDate: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const uc = new PurchaseOrderUseCases(createPoPort(po));
+    const approved = await uc.approve("org-1", "po-1");
+    expect(approved.status).toBe("approved");
+  });
+
+  it("approve rejects draft", async () => {
+    const po: PurchaseOrder = {
+      id: "po-1",
+      orgId: "org-1",
+      supplierId: "sup-1",
+      branchId: "branch-1",
+      status: "draft",
+      documentNumber: "PO-1",
+      expectedDate: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const uc = new PurchaseOrderUseCases(createPoPort(po));
+    await expect(uc.approve("org-1", "po-1")).rejects.toBeInstanceOf(
+      InvalidStateError,
+    );
+  });
+});
+```
+
+```ts
+// packages/application/src/use-cases/post-goods-receipt-approval.test.ts
+import { describe, expect, it } from "vitest";
+import { InvalidStateError } from "@stock-management/domain";
+import type {
+  ApprovalDocumentType,
+  ApprovalPolicy,
+} from "@stock-management/domain";
+import type { ApprovalPolicyPort } from "../ports/approval-policy.js";
+import { ApprovalPolicyUseCases } from "./approval-policy.js";
+import { PostGoodsReceipt } from "./post-goods-receipt.js";
+// Reuse makeFake from ./post-goods-receipt.test.ts — export it for this file,
+// or copy the fake into a shared post-goods-receipt-fake.ts. Extend FakeOptions:
+//   poStatus?: PoStatus  // default "submitted"; sets currentPo.status
+
+function createFakeApprovalPolicyPort(): ApprovalPolicyPort {
+  const rows = new Map<string, ApprovalPolicy>();
+  const key = (orgId: string, documentType: ApprovalDocumentType) =>
+    `${orgId}:${documentType}`;
+  return {
+    async list(orgId) {
+      return [...rows.values()].filter((r) => r.orgId === orgId);
+    },
+    async findByDocumentType(orgId, documentType) {
+      return rows.get(key(orgId, documentType)) ?? null;
+    },
+    async upsert(orgId, documentType, required) {
+      const id = key(orgId, documentType);
+      const existing = rows.get(id);
+      const row: ApprovalPolicy = {
+        id: existing?.id ?? `pol-${documentType}`,
+        orgId,
+        documentType,
+        required,
+        createdAt: existing?.createdAt ?? new Date("2026-07-26T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-26T12:00:00.000Z"),
+      };
+      rows.set(id, row);
+      return row;
+    },
+  };
+}
+
+describe("PostGoodsReceipt PO approval gate", () => {
+  it("blocks GR when policy required and PO is submitted", async () => {
+    const policies = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    await policies.upsert("org-1", "purchase_order", true);
+    const fake = makeFake({ poStatus: "submitted" });
+    const useCase = new PostGoodsReceipt(fake.uow, policies);
+
+    await expect(
+      useCase.execute("org-1", "user-1", "gr-1"),
+    ).rejects.toBeInstanceOf(InvalidStateError);
+    await expect(
+      useCase.execute("org-1", "user-1", "gr-1"),
+    ).rejects.toThrow(/must be approved before goods receipt/i);
+  });
+
+  it("allows GR when policy required and PO is approved", async () => {
+    const policies = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    await policies.upsert("org-1", "purchase_order", true);
+    const fake = makeFake({ poStatus: "approved" });
+    const useCase = new PostGoodsReceipt(fake.uow, policies);
+
+    const result = await useCase.execute("org-1", "user-1", "gr-1");
+    expect(result.receipt.status).toBe("posted");
+  });
+
+  it("allows GR on submitted when policy not required", async () => {
+    const policies = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    await policies.upsert("org-1", "purchase_order", false);
+    const fake = makeFake({ poStatus: "submitted" });
+    const useCase = new PostGoodsReceipt(fake.uow, policies);
+
+    const result = await useCase.execute("org-1", "user-1", "gr-1");
+    expect(result.receipt.status).toBe("posted");
+  });
+});
+```
+
+Extend `makeFake` in `post-goods-receipt.test.ts` with `poStatus?: PoStatus` that sets `currentPo.status` (default `"submitted"`). When `PostGoodsReceipt` gains the policy dependency, update legacy GR tests to pass an `ApprovalPolicyUseCases` with `purchase_order.required = false`, **or** set `poStatus: "approved"` so existing posts still succeed under default-on policy.
+
+```ts
+// packages/application/src/use-cases/stock-adjustment-approval.test.ts
+import { describe, expect, it } from "vitest";
+import {
+  assertCanPostAdjustment,
+  InvalidStateError,
+  type ApprovalDocumentType,
+  type ApprovalPolicy,
+  type StockAdjustment,
+} from "@stock-management/domain";
+import type { ApprovalPolicyPort } from "../ports/approval-policy.js";
+import type { StockAdjustmentPort } from "../ports/inventory.js";
+import { ApprovalPolicyUseCases } from "./approval-policy.js";
+import { StockAdjustmentUseCases } from "./stock-adjustment.js";
+
+const now = new Date("2026-07-26T12:00:00.000Z");
+
+function createFakeApprovalPolicyPort(): ApprovalPolicyPort {
+  const rows = new Map<string, ApprovalPolicy>();
+  const key = (orgId: string, documentType: ApprovalDocumentType) =>
+    `${orgId}:${documentType}`;
+  return {
+    async list(orgId) {
+      return [...rows.values()].filter((r) => r.orgId === orgId);
+    },
+    async findByDocumentType(orgId, documentType) {
+      return rows.get(key(orgId, documentType)) ?? null;
+    },
+    async upsert(orgId, documentType, required) {
+      const id = key(orgId, documentType);
+      const existing = rows.get(id);
+      const row: ApprovalPolicy = {
+        id: existing?.id ?? `pol-${documentType}`,
+        orgId,
+        documentType,
+        required,
+        createdAt: existing?.createdAt ?? new Date("2026-07-26T00:00:00.000Z"),
+        updatedAt: new Date("2026-07-26T12:00:00.000Z"),
+      };
+      rows.set(id, row);
+      return row;
+    },
+  };
+}
+
+function createAdjustment(
+  status: StockAdjustment["status"],
+): StockAdjustment & { lines: [] } {
+  return {
+    id: "adj-1",
+    orgId: "org-1",
+    branchId: "branch-1",
+    locationId: "loc-1",
+    documentNumber: null,
+    reasonCode: "count",
+    reasonNote: null,
+    status,
+    createdAt: now,
+    updatedAt: now,
+    postedAt: null,
+    voidedAt: null,
+    lines: [],
+  };
+}
+
+function createAdjPort(
+  initial: StockAdjustment & { lines: [] },
+): StockAdjustmentPort {
+  let current = initial;
+  return {
+    async list() {
+      return [current];
+    },
+    async findById(_orgId, id) {
+      return id === current.id ? current : null;
+    },
+    async create() {
+      return current;
+    },
+    async update() {
+      return current;
+    },
+    async updateStatus(_orgId, id, status, occurredAt) {
+      if (id !== current.id) throw new Error("missing adjustment");
+      current = {
+        ...current,
+        status,
+        postedAt:
+          status === "posted" ? (occurredAt ?? now) : current.postedAt,
+        updatedAt: now,
+      };
+      return current;
+    },
+  };
+}
+
+describe("StockAdjustment approval lifecycle", () => {
+  it("submit draft → pending_approval", async () => {
+    const port = createAdjPort(createAdjustment("draft"));
+    const uc = new StockAdjustmentUseCases(port);
+    const result = await uc.submitForApproval("org-1", "adj-1");
+    expect(result.status).toBe("pending_approval");
+  });
+
+  it("approve pending_approval → approved", async () => {
+    const port = createAdjPort(createAdjustment("pending_approval"));
+    const uc = new StockAdjustmentUseCases(port);
+    const result = await uc.approve("org-1", "adj-1");
+    expect(result.status).toBe("approved");
+  });
+
+  it("post rejects draft when policy required", async () => {
+    const policies = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    await policies.upsert("org-1", "stock_adjustment", true);
+    const adj = createAdjustment("draft");
+    const required = await policies.getRequired("org-1", "stock_adjustment");
+    expect(() => assertCanPostAdjustment(adj, { required })).toThrow(
+      InvalidStateError,
+    );
+    expect(() => assertCanPostAdjustment(adj, { required })).toThrow(
+      /approval required/i,
+    );
+  });
+
+  it("post allows draft when policy not required", async () => {
+    const policies = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    await policies.upsert("org-1", "stock_adjustment", false);
+    const adj = createAdjustment("draft");
+    const required = await policies.getRequired("org-1", "stock_adjustment");
+    expect(() => assertCanPostAdjustment(adj, { required })).not.toThrow();
+  });
+
+  it("post allows approved when policy required", async () => {
+    const policies = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    await policies.upsert("org-1", "stock_adjustment", true);
+    const adj = createAdjustment("approved");
+    const required = await policies.getRequired("org-1", "stock_adjustment");
+    expect(() => assertCanPostAdjustment(adj, { required })).not.toThrow();
+  });
+});
+```
+
+Wire `PostStockAdjustment.execute` to load policy via `ApprovalPolicyUseCases.getRequired(orgId, "stock_adjustment")` and call `assertCanPostAdjustment(adjustment, { required })` before movements (same assert as the tests above).
 
 - [ ] **Step 2: Run tests to verify fail**
 
 ```bash
 pnpm --filter @stock-management/application test -- src/use-cases/approval-policy.test.ts
 pnpm --filter @stock-management/application test -- src/use-cases/purchase-order-approve.test.ts
+pnpm --filter @stock-management/application test -- src/use-cases/post-goods-receipt-approval.test.ts
 pnpm --filter @stock-management/application test -- src/use-cases/stock-adjustment-approval.test.ts
 ```
 
-Expected: FAIL
+Expected: FAIL — missing `approve` / `submitForApproval` / policy ctor args / modules
 
 - [ ] **Step 3: Implement use cases + HTTP + shared + composition root**
 
@@ -1451,52 +2127,243 @@ EOF
 - Produces:
 
 ```ts
-// client.ts additions
-createStockTransfer(body: CreateStockTransfer & { purpose?: "standard" | "replenishment" })
-approvePurchaseOrder(id: string)
-submitStockAdjustment(id: string)
-approveStockAdjustment(id: string)
-listApprovalPolicies()
-upsertApprovalPolicy(body: { documentType: string; required: boolean })
+// apps/web/src/api/client.ts — add methods (mirror existing list/submit style)
+approvePurchaseOrder(ctx: ApiContext, id: string): Promise<PurchaseOrder>
+submitStockAdjustment(ctx: ApiContext, id: string): Promise<StockAdjustment>
+approveStockAdjustment(ctx: ApiContext, id: string): Promise<StockAdjustment>
+listApprovalPolicies(ctx: ApiContext): Promise<ApprovalPolicy[]>
+upsertApprovalPolicy(
+  ctx: ApiContext,
+  body: { documentType: "purchase_order" | "stock_adjustment"; required: boolean },
+): Promise<ApprovalPolicy>
+// createStockTransfer body already includes optional purpose via shared CreateStockTransfer
 ```
 
-**Replenish wizard UX** (section on `StockTransfersPage` or dedicated block — keep thin, no new design system):
+```ts
+// apps/web/src/hooks/approvals.ts
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "../api/client";
+import { useApiContext } from "./masters";
 
-1. Select **destination branch** (from `useBranches`).
-2. Filter **to location** to that branch’s storage locations.
-3. Select **from location** (typically HQ/other branch storage — show location’s branch label).
-4. Select transit location.
-5. Lines (product/qty) same as existing form.
-6. Submit `purpose: "replenishment"`.
-7. Toast success; list shows purpose badge (`replenishment` vs `standard`).
+export function useApprovalPolicies() {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["approval-policies", ctx.orgId],
+    queryFn: () => api.listApprovalPolicies(ctx),
+    enabled: Boolean(ctx.orgId),
+  });
+}
 
-Existing standard create form remains; add `purpose` select defaulting to `standard` **or** keep standard form unchanged and only wizard sends replenishment.
+export function useUpsertApprovalPolicy() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      documentType: "purchase_order" | "stock_adjustment";
+      required: boolean;
+    }) => api.upsertApprovalPolicy(ctx, body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["approval-policies"] }),
+  });
+}
 
-**Purchase orders page:** For rows with `status === "submitted"`, show **Approve** button (call approve). Disable when user role cannot approve (if role exposed on client — if not, show button and let API 403 toast).
+export function useApprovePurchaseOrder() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.approvePurchaseOrder(ctx, id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] }),
+  });
+}
+```
 
-**Stock adjustments page:**
-- Draft + policy required: show **Submit for approval** (not Post).
-- `pending_approval`: show **Approve**.
-- `approved`: show **Post**.
-- If policies not loaded, call `listApprovalPolicies` once and gate Post vs Submit.
+```ts
+// apps/web/src/hooks/inventory.ts — add beside useSubmitPurchaseOrder
+export function useSubmitStockAdjustment() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.submitStockAdjustment(ctx, id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-adjustments"] }),
+  });
+}
 
-**Policies page:** Two toggles (PO / Adjustment) `required` on/off; Save → PUT. Nav under settings/admin for HQ.
+export function useApproveStockAdjustment() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.approveStockAdjustment(ctx, id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-adjustments"] }),
+  });
+}
+```
 
-- [ ] **Step 1: Add client + hooks (no UI yet) and typecheck**
+**Replenish wizard UX** (section on `StockTransfersPage` — keep thin):
+
+```tsx
+// apps/web/src/pages/StockTransfersPage.tsx — replenish section (sketch)
+function ReplenishWizard() {
+  const { data: branches } = useBranches();
+  const { data: locations } = useLocations();
+  const create = useCreateStockTransfer();
+  const [toBranchId, setToBranchId] = useState("");
+  const [fromLocationId, setFromLocationId] = useState("");
+  const [toLocationId, setToLocationId] = useState("");
+  const [transitLocationId, setTransitLocationId] = useState("");
+
+  const toLocations = (locations ?? []).filter(
+    (l) => l.branchId === toBranchId && l.type !== "transit",
+  );
+
+  function handleReplenish(event: FormEvent) {
+    event.preventDefault();
+    create.mutate(
+      {
+        fromLocationId,
+        toLocationId,
+        transitLocationId,
+        purpose: "replenishment",
+        lines: [{ productId: selectedProductId, qty: "1" }],
+      },
+      {
+        onSuccess: () => toast.success("Replenishment transfer created"),
+        onError: (err) => toast.error(formatApiError(err)),
+      },
+    );
+  }
+
+  return (
+    <form onSubmit={handleReplenish}>
+      <h2>Replenish branch</h2>
+      <select
+        value={toBranchId}
+        onChange={(e) => setToBranchId(e.target.value)}
+      >
+        <option value="">Destination branch</option>
+        {(branches ?? []).map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}
+          </option>
+        ))}
+      </select>
+      <select
+        value={fromLocationId}
+        onChange={(e) => setFromLocationId(e.target.value)}
+      >
+        <option value="">From location</option>
+        {(locations ?? [])
+          .filter((l) => l.type !== "transit")
+          .map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.code} ({l.branchId})
+            </option>
+          ))}
+      </select>
+      <select
+        value={toLocationId}
+        onChange={(e) => setToLocationId(e.target.value)}
+      >
+        <option value="">To location</option>
+        {toLocations.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.code}
+          </option>
+        ))}
+      </select>
+      <select
+        value={transitLocationId}
+        onChange={(e) => setTransitLocationId(e.target.value)}
+      >
+        <option value="">Transit</option>
+        {(locations ?? [])
+          .filter((l) => l.type === "transit")
+          .map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.code}
+            </option>
+          ))}
+      </select>
+      <button type="submit" disabled={create.isPending}>
+        Create replenishment
+      </button>
+    </form>
+  );
+}
+```
+
+List rows: show `transfer.purpose` badge (`replenishment` vs `standard`). Keep the existing standard create form; only the wizard sends `purpose: "replenishment"`.
+
+**Purchase orders page:**
+
+```tsx
+// in PurchaseOrdersPage row actions
+{po.status === "submitted" && (
+  <button
+    type="button"
+    onClick={() =>
+      approve.mutate(po.id, {
+        onError: (err) => toast.error(formatApiError(err)),
+      })
+    }
+  >
+    Approve
+  </button>
+)}
+```
+
+**Stock adjustments page:** use `useApprovalPolicies()` — if `stock_adjustment.required`, draft shows **Submit for approval**; `pending_approval` shows **Approve**; `approved` shows **Post**. If not required, draft shows **Post** as today.
+
+**Policies page:**
+
+```tsx
+// apps/web/src/pages/ApprovalPoliciesPage.tsx
+export function ApprovalPoliciesPage() {
+  const { data, isLoading } = useApprovalPolicies();
+  const upsert = useUpsertApprovalPolicy();
+
+  if (isLoading) return <p>Loading…</p>;
+
+  return (
+    <div>
+      <h1>Approval policies</h1>
+      {(data ?? []).map((policy) => (
+        <label key={policy.documentType}>
+          <input
+            type="checkbox"
+            checked={policy.required}
+            onChange={(e) =>
+              upsert.mutate({
+                documentType: policy.documentType,
+                required: e.target.checked,
+              })
+            }
+          />
+          {policy.documentType} requires approval
+        </label>
+      ))}
+    </div>
+  );
+}
+```
+
+Add route + nav link in `App.tsx` (org settings area).
+
+- [ ] **Step 1: Add client + hooks and typecheck**
 
 ```bash
 pnpm --filter @stock-management/web typecheck
 ```
 
-Expected: PASS once types align with shared schemas
+Expected: PASS once client methods and shared types align
 
-- [ ] **Step 2: Replenish wizard UI**
+- [ ] **Step 2: Replenish wizard UI** on `StockTransfersPage` (snippet above)
 
-Implement wizard section; verify create payload includes `purpose: "replenishment"`.
+- [ ] **Step 3: Approve / submit actions** on PO + adjustment pages
 
-- [ ] **Step 3: Approve / submit actions on PO + adjustment pages**
-
-- [ ] **Step 4: ApprovalPoliciesPage + nav**
+- [ ] **Step 4: `ApprovalPoliciesPage` + nav**
 
 - [ ] **Step 5: Typecheck + commit**
 
@@ -1571,6 +2438,10 @@ pnpm --filter @stock-management/web typecheck
 - [x] Real paths cited: `stock-transfer.ts`, `reservation.ts`, `purchase-order.ts`, `post-goods-receipt.ts`, `stock-adjustment.ts`, `outbox-poller.ts` pattern, web pages
 - [x] Migration after E1 `0009` → `0010_phase_e2_ops_approvals.sql`
 - [x] No TBD / TODO placeholders
+- [x] Task 5: single harness — in-memory locking fake only (no dual DB ambiguity)
+- [x] Task 6: both expire tests complete (past `expiresAt` + null `expiresAt`)
+- [x] Task 7: no `/* ... */` stub test bodies — full asserts/inputs
+- [x] Task 8: concrete hook + component snippets
 - [x] Spec + master + E1 links correct
 - [x] Test commands use `pnpm --filter @stock-management/{domain,application,api,web}`
 
