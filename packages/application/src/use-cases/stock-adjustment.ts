@@ -1,0 +1,268 @@
+import {
+  InsufficientStockError,
+  InvalidStateError,
+  NotFoundError,
+  assertCanPostAdjustment,
+  assertLotSerialRules,
+  assertSignedAdjustmentQty,
+  signedQtyForMovement,
+} from "@stock-management/domain";
+import type { StockAdjustment, StockMovement } from "@stock-management/domain";
+import type {
+  CreateStockAdjustmentInput,
+  IdempotencyInput,
+  UpdateStockAdjustmentInput,
+} from "../dto/inputs.js";
+import type { StockAdjustmentPort } from "../ports/inventory.js";
+import type { UnitOfWork } from "../ports/unit-of-work.js";
+
+export type StockAdjustmentResult = {
+  adjustment: StockAdjustment;
+  movements: StockMovement[];
+};
+
+export class StockAdjustmentUseCases {
+  constructor(private readonly repo: StockAdjustmentPort) {}
+
+  list(orgId: string) {
+    return this.repo.list(orgId);
+  }
+
+  async get(orgId: string, id: string) {
+    const adjustment = await this.repo.findById(orgId, id);
+    if (!adjustment) throw new NotFoundError("Stock adjustment");
+    return adjustment;
+  }
+
+  create(orgId: string, input: CreateStockAdjustmentInput) {
+    for (const line of input.lines) assertSignedAdjustmentQty(line.qty);
+    return this.repo.create(orgId, input);
+  }
+
+  async update(orgId: string, id: string, input: UpdateStockAdjustmentInput) {
+    const adjustment = await this.get(orgId, id);
+    if (adjustment.status !== "draft") {
+      throw new InvalidStateError(
+        "Only draft stock adjustments can be updated",
+      );
+    }
+    for (const line of input.lines ?? []) assertSignedAdjustmentQty(line.qty);
+    const updated = await this.repo.update(orgId, id, input);
+    if (!updated) throw new NotFoundError("Stock adjustment");
+    return updated;
+  }
+}
+
+const POST_OPERATION = "post-stock-adjustment";
+
+export class PostStockAdjustment {
+  constructor(private readonly uow: UnitOfWork) {}
+
+  execute(
+    orgId: string,
+    userId: string,
+    adjustmentId: string,
+    idempotency?: IdempotencyInput,
+  ): Promise<StockAdjustmentResult> {
+    return this.uow.run(async (ctx) => {
+      const adjustments = ctx.adjustments;
+      if (!adjustments)
+        throw new Error("Stock adjustment port is not configured");
+      if (idempotency) {
+        const existing = await ctx.idempotency.find(
+          orgId,
+          POST_OPERATION,
+          idempotency.externalSystem,
+          idempotency.externalId,
+        );
+        if (existing) return existing.result as StockAdjustmentResult;
+      }
+
+      const adjustment = await adjustments.findById(orgId, adjustmentId);
+      if (!adjustment) throw new NotFoundError("Stock adjustment");
+      assertCanPostAdjustment(adjustment);
+
+      for (const line of adjustment.lines) {
+        assertSignedAdjustmentQty(line.qty);
+        const product = await ctx.products.findById(orgId, line.productId);
+        if (!product) throw new NotFoundError("Product");
+        assertLotSerialRules(product, {
+          lotId: line.lotId,
+          serialNumbers: line.serialNumbers,
+        });
+        const balance = await ctx.stock.findBalance({
+          orgId,
+          productId: line.productId,
+          locationId: adjustment.locationId,
+          lotId: line.lotId,
+        });
+        if (Number(balance?.qtyOnHand ?? "0") + Number(line.qty) < 0) {
+          throw new InsufficientStockError(
+            "Posting stock adjustment would create negative stock",
+          );
+        }
+      }
+
+      const movements: StockMovement[] = [];
+      for (const line of adjustment.lines) {
+        const qty = signedQtyForMovement("adjustment", line.qty);
+        const balanceKey = {
+          orgId,
+          productId: line.productId,
+          locationId: adjustment.locationId,
+          lotId: line.lotId,
+        };
+        const balance = await ctx.stock.findBalance(balanceKey);
+        movements.push(
+          await ctx.stock.insertMovement({
+            ...balanceKey,
+            documentType: "stock_adjustment",
+            documentId: adjustment.id,
+            documentLineId: line.id,
+            movementType: "adjustment",
+            qty,
+          }),
+        );
+        await ctx.stock.setBalance(
+          balanceKey,
+          String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
+        );
+      }
+
+      const posted = await adjustments.updateStatus(
+        orgId,
+        adjustment.id,
+        "posted",
+        new Date(),
+      );
+      const result = { adjustment: posted, movements };
+      await enqueueAdjustmentEvents(
+        ctx,
+        orgId,
+        userId,
+        adjustment.id,
+        "posted",
+        movements,
+      );
+      if (idempotency) {
+        await ctx.idempotency.save({
+          orgId,
+          operation: POST_OPERATION,
+          externalSystem: idempotency.externalSystem,
+          externalId: idempotency.externalId,
+          result,
+        });
+      }
+      return result;
+    });
+  }
+}
+
+export class VoidStockAdjustment {
+  constructor(private readonly uow: UnitOfWork) {}
+
+  execute(
+    orgId: string,
+    userId: string,
+    adjustmentId: string,
+  ): Promise<StockAdjustmentResult> {
+    return this.uow.run(async (ctx) => {
+      const adjustments = ctx.adjustments;
+      if (!adjustments)
+        throw new Error("Stock adjustment port is not configured");
+      const adjustment = await adjustments.findById(orgId, adjustmentId);
+      if (!adjustment) throw new NotFoundError("Stock adjustment");
+      if (adjustment.status !== "posted") {
+        throw new InvalidStateError(
+          `Cannot void stock adjustment in status ${adjustment.status}`,
+        );
+      }
+
+      const postedMovements = (
+        await ctx.stock.listMovements(orgId, {
+          documentType: "stock_adjustment",
+          documentId: adjustment.id,
+        })
+      ).filter((movement) => movement.movementType === "adjustment");
+      for (const movement of postedMovements) {
+        const balance = await ctx.stock.findBalance({
+          orgId,
+          productId: movement.productId,
+          locationId: movement.locationId,
+          lotId: movement.lotId,
+        });
+        if (Number(balance?.qtyOnHand ?? "0") - Number(movement.qty) < 0) {
+          throw new InsufficientStockError(
+            "Voiding stock adjustment would create negative stock",
+          );
+        }
+      }
+
+      const movements: StockMovement[] = [];
+      for (const postedMovement of postedMovements) {
+        const qty = signedQtyForMovement("adjustment_void", postedMovement.qty);
+        const balanceKey = {
+          orgId,
+          productId: postedMovement.productId,
+          locationId: postedMovement.locationId,
+          lotId: postedMovement.lotId,
+        };
+        const balance = await ctx.stock.findBalance(balanceKey);
+        movements.push(
+          await ctx.stock.insertMovement({
+            ...balanceKey,
+            documentType: "stock_adjustment",
+            documentId: adjustment.id,
+            documentLineId: postedMovement.documentLineId,
+            movementType: "adjustment_void",
+            qty,
+          }),
+        );
+        await ctx.stock.setBalance(
+          balanceKey,
+          String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
+        );
+      }
+
+      const voided = await adjustments.updateStatus(
+        orgId,
+        adjustment.id,
+        "void",
+        new Date(),
+      );
+      await enqueueAdjustmentEvents(
+        ctx,
+        orgId,
+        userId,
+        adjustment.id,
+        "voided",
+        movements,
+      );
+      return { adjustment: voided, movements };
+    });
+  }
+}
+
+async function enqueueAdjustmentEvents(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  userId: string,
+  adjustmentId: string,
+  action: "posted" | "voided",
+  movements: StockMovement[],
+): Promise<void> {
+  await ctx.outbox.enqueue({
+    orgId,
+    eventType: action === "posted" ? "document.posted" : "document.voided",
+    aggregateType: "stock_adjustment",
+    aggregateId: adjustmentId,
+    payload: { adjustmentId, userId },
+  });
+  await ctx.outbox.enqueue({
+    orgId,
+    eventType: "stock.changed",
+    aggregateType: "stock_adjustment",
+    aggregateId: adjustmentId,
+    payload: { adjustmentId, movementIds: movements.map(({ id }) => id) },
+  });
+}

@@ -1,5 +1,6 @@
 import type {
   CostingMethod,
+  IssueType,
   LocationType,
   MasterStatus,
   MembershipRole,
@@ -110,7 +111,10 @@ export type CreatePurchaseOrderInput = {
 };
 
 export type UpdatePurchaseOrderInput = Partial<
-  Pick<CreatePurchaseOrderInput, "supplierId" | "branchId" | "documentNumber" | "expectedDate">
+  Pick<
+    CreatePurchaseOrderInput,
+    "supplierId" | "branchId" | "documentNumber" | "expectedDate"
+  >
 > & {
   lines?: PurchaseOrderLineInput[];
 };
@@ -143,6 +147,80 @@ export type UpdateGoodsReceiptInput = Partial<
   >
 > & {
   lines?: GoodsReceiptLineInput[];
+};
+
+export type OutboundLineInput = {
+  id?: string;
+  productId: string;
+  qty: string;
+  lotId?: string | null;
+  serialNumbers?: string[];
+  lineNumber: number;
+};
+
+export type CreateStockIssueInput = {
+  branchId: string;
+  locationId: string;
+  documentNumber?: string | null;
+  issueType: IssueType;
+  reasonNote?: string | null;
+  lines: OutboundLineInput[];
+};
+
+export type UpdateStockIssueInput = Partial<
+  Omit<CreateStockIssueInput, "lines">
+> & {
+  lines?: OutboundLineInput[];
+};
+
+export type CreateStockTransferInput = {
+  fromLocationId: string;
+  toLocationId: string;
+  transitLocationId: string;
+  documentNumber?: string | null;
+  lines: OutboundLineInput[];
+};
+
+export type UpdateStockTransferInput = Partial<
+  Omit<CreateStockTransferInput, "lines">
+> & {
+  lines?: OutboundLineInput[];
+};
+
+export type CreateStockAdjustmentInput = {
+  branchId: string;
+  locationId: string;
+  documentNumber?: string | null;
+  reasonCode: string;
+  reasonNote?: string | null;
+  lines: OutboundLineInput[];
+};
+
+export type UpdateStockAdjustmentInput = Partial<
+  Omit<CreateStockAdjustmentInput, "lines">
+> & {
+  lines?: OutboundLineInput[];
+};
+
+export type StockCountLineInput = {
+  id?: string;
+  productId: string;
+  lotId?: string | null;
+  countedQty: string | null;
+  lineNumber: number;
+};
+
+export type CreateStockCountInput = {
+  branchId: string;
+  locationId: string;
+  documentNumber?: string | null;
+  lines: StockCountLineInput[];
+};
+
+export type UpdateStockCountInput = Partial<
+  Omit<CreateStockCountInput, "lines">
+> & {
+  lines?: StockCountLineInput[];
 };
 
 export type IdempotencyInput = {

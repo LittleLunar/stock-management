@@ -14,3 +14,7 @@ export * from "./use-cases/goods-receipt.js";
 export * from "./use-cases/post-goods-receipt.js";
 export * from "./use-cases/void-goods-receipt.js";
 export * from "./use-cases/stock-inquiry.js";
+export * from "./use-cases/stock-issue.js";
+export * from "./use-cases/stock-transfer.js";
+export * from "./use-cases/stock-adjustment.js";
+export * from "./use-cases/stock-count.js";

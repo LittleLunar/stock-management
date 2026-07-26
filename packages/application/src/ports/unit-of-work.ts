@@ -1,18 +1,28 @@
 import type {
   GoodsReceiptPort,
   IdempotencyPort,
+  LocationLookupPort,
   LotPort,
   OutboxPort,
   ProductLookupPort,
   PurchaseOrderPort,
   SerialPort,
+  StockAdjustmentPort,
+  StockCountPort,
+  StockIssuePort,
   StockPort,
+  StockTransferPort,
 } from "./inventory.js";
 
 export interface UowContext {
   po: PurchaseOrderPort;
   gr: GoodsReceiptPort;
+  issues?: StockIssuePort;
+  transfers?: StockTransferPort;
+  adjustments?: StockAdjustmentPort;
+  counts?: StockCountPort;
   products: ProductLookupPort;
+  locations?: LocationLookupPort;
   stock: StockPort;
   lots: LotPort;
   serials: SerialPort;
