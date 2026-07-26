@@ -9,6 +9,7 @@ import {
   NotFoundError,
   UnauthorizedError,
   UnsupportedCostingMethodError,
+  AllocationMismatchError,
 } from "@stock-management/domain";
 import type { ErrorEnvelope } from "@stock-management/shared";
 import { ZodError } from "zod";
@@ -54,7 +55,8 @@ export function registerErrorHandler(app: FastifyInstance): void {
       error instanceof InsufficientStockError ||
       error instanceof InsufficientCostError ||
       error instanceof MissingUnitCostError ||
-      error instanceof UnsupportedCostingMethodError
+      error instanceof UnsupportedCostingMethodError ||
+      error instanceof AllocationMismatchError
     ) {
       return reply
         .status(400)
