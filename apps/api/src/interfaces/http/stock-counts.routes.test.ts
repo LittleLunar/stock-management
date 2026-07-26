@@ -90,6 +90,7 @@ function makeHarness(onHand = "10") {
           lotId: line.lotId ?? null,
           expectedQty: line.expectedQty,
           countedQty: line.countedQty,
+          unitCost: line.unitCost ?? null,
           lineNumber: line.lineNumber,
         })),
       };
@@ -111,6 +112,7 @@ function makeHarness(onHand = "10") {
             lotId: line.lotId ?? null,
             expectedQty: line.expectedQty,
             countedQty: line.countedQty,
+            unitCost: line.unitCost ?? null,
             lineNumber: line.lineNumber,
           })) ?? current.lines,
         updatedAt: now,

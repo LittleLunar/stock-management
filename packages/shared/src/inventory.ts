@@ -193,6 +193,7 @@ export const StockAdjustmentLineInputSchema = z.object({
   productId: UuidSchema,
   qty: SignedQuantitySchema,
   lotId: UuidSchema.nullable().optional(),
+  unitCost: NonNegativeAmountSchema.nullable().optional(),
   serialNumbers: z.array(z.string().trim().min(1)).optional(),
   lineNumber: z.number().int().positive(),
 });
@@ -234,6 +235,7 @@ export const StockCountLineInputSchema = z.object({
   productId: UuidSchema,
   lotId: UuidSchema.nullable().optional(),
   countedQty: NonNegativeAmountSchema.nullable(),
+  unitCost: NonNegativeAmountSchema.nullable().optional(),
   lineNumber: z.number().int().positive(),
 });
 export type StockCountLineInput = z.infer<typeof StockCountLineInputSchema>;
@@ -407,6 +409,7 @@ export const CustomerReturnLineInputSchema = z.object({
   productId: UuidSchema,
   qty: PositiveQuantitySchema,
   lotId: UuidSchema.nullable().optional(),
+  unitCost: NonNegativeAmountSchema.nullable().optional(),
   serialNumbers: z.array(z.string().trim().min(1)).optional(),
   lineNumber: z.number().int().positive(),
 });

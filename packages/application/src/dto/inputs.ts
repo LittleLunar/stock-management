@@ -187,19 +187,23 @@ export type UpdateStockTransferInput = Partial<
   lines?: OutboundLineInput[];
 };
 
+export type StockAdjustmentLineInput = OutboundLineInput & {
+  unitCost?: string | null;
+};
+
 export type CreateStockAdjustmentInput = {
   branchId: string;
   locationId: string;
   documentNumber?: string | null;
   reasonCode: string;
   reasonNote?: string | null;
-  lines: OutboundLineInput[];
+  lines: StockAdjustmentLineInput[];
 };
 
 export type UpdateStockAdjustmentInput = Partial<
   Omit<CreateStockAdjustmentInput, "lines">
 > & {
-  lines?: OutboundLineInput[];
+  lines?: StockAdjustmentLineInput[];
 };
 
 export type StockCountLineInput = {
@@ -207,6 +211,7 @@ export type StockCountLineInput = {
   productId: string;
   lotId?: string | null;
   countedQty: string | null;
+  unitCost?: string | null;
   lineNumber: number;
 };
 
@@ -282,6 +287,7 @@ export type CustomerReturnLineInput = {
   productId: string;
   qty: string;
   lotId?: string | null;
+  unitCost?: string | null;
   serialNumbers?: string[];
   lineNumber: number;
 };

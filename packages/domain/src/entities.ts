@@ -329,6 +329,7 @@ export type StockAdjustmentLine = {
   productId: string;
   qty: string;
   lotId: string | null;
+  unitCost: string | null;
   lineNumber: number;
 };
 
@@ -353,6 +354,7 @@ export type StockCountLine = {
   lotId: string | null;
   expectedQty: string;
   countedQty: string | null;
+  unitCost: string | null;
   lineNumber: number;
 };
 
@@ -431,6 +433,7 @@ export type CustomerReturnLine = {
   productId: string;
   qty: string;
   lotId: string | null;
+  unitCost: string | null;
   lineNumber: number;
 };
 

@@ -220,6 +220,7 @@ export class DrizzleCustomerReturnRepository implements CustomerReturnPort {
           productId: input.productId,
           qty: input.qty,
           lotId: input.lotId ?? null,
+          unitCost: input.unitCost ?? null,
           lineNumber: input.lineNumber,
         })
         .returning();

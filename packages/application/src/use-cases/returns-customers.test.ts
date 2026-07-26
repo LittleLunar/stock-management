@@ -265,6 +265,7 @@ function makeFake(options: FakeOptions = {}) {
           productId: line.productId,
           qty: line.qty,
           lotId: line.lotId ?? null,
+          unitCost: line.unitCost ?? null,
           lineNumber: line.lineNumber,
           serialNumbers: line.serialNumbers ?? [],
         })),
@@ -293,6 +294,7 @@ function makeFake(options: FakeOptions = {}) {
               productId: line.productId,
               qty: line.qty,
               lotId: line.lotId ?? null,
+              unitCost: line.unitCost ?? null,
               lineNumber: line.lineNumber,
               serialNumbers: line.serialNumbers ?? [],
             }))
