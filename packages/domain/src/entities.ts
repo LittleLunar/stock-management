@@ -185,6 +185,7 @@ export type CostLayer = {
   sourceMovementId: string;
   receivedAt: Date;
   unitCost: string;
+  originalUnitCost: string;
   qtyOriginal: string;
   qtyRemaining: string;
 };

@@ -91,3 +91,10 @@ export class LayerInUseError extends DomainError {
     this.name = "LayerInUseError";
   }
 }
+
+export class AllocationMismatchError extends DomainError {
+  constructor(message = "Allocated line amounts do not sum to total") {
+    super(message, "ALLOCATION_MISMATCH");
+    this.name = "AllocationMismatchError";
+  }
+}
