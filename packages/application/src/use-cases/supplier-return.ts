@@ -19,6 +19,10 @@ import type {
   IdempotencyInput,
   UpdateSupplierReturnInput,
 } from "../dto/inputs.js";
+import {
+  consumeFifoForMovement,
+  restoreConsumptionsForVoidedMovements,
+} from "../costing/apply-document-costing.js";
 import type { SupplierReturnPort } from "../ports/inventory.js";
 import type { UnitOfWork, UowContext } from "../ports/unit-of-work.js";
 
@@ -122,15 +126,30 @@ export class PostSupplierReturn {
           lotId: line.lotId,
         };
         const balance = await ctx.stock.findBalance(balanceKey);
+        const movement = await ctx.stock.insertMovement({
+          ...balanceKey,
+          documentType: "supplier_return",
+          documentId: doc.id,
+          documentLineId: line.id,
+          movementType: "supplier_return",
+          qty,
+        });
+        const costs = await consumeFifoForMovement(ctx, {
+          orgId,
+          productId: line.productId,
+          locationId: doc.locationId,
+          lotId: line.lotId,
+          qty: line.qty,
+          movementId: movement.id,
+          preferSourceDocumentLineId: line.goodsReceiptLineId,
+        });
         movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "supplier_return",
-            documentId: doc.id,
-            documentLineId: line.id,
-            movementType: "supplier_return",
-            qty,
-          }),
+          await ctx.stock.updateMovementCosts(
+            orgId,
+            movement.id,
+            costs.unitCost,
+            costs.totalCost,
+          ),
         );
         await ctx.stock.setBalance(
           balanceKey,
@@ -201,6 +220,7 @@ export class VoidSupplierReturn {
       ).filter((movement) => movement.movementType === "supplier_return");
 
       const movements: StockMovement[] = [];
+      const voidMovementIdByForwardId = new Map<string, string>();
       for (const posted of postedMovements) {
         const qty = signedQtyForMovement("supplier_return_void", posted.qty);
         const balanceKey = {
@@ -210,21 +230,30 @@ export class VoidSupplierReturn {
           lotId: posted.lotId,
         };
         const balance = await ctx.stock.findBalance(balanceKey);
-        movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "supplier_return",
-            documentId: doc.id,
-            documentLineId: posted.documentLineId,
-            movementType: "supplier_return_void",
-            qty,
-          }),
-        );
+        const voidMovement = await ctx.stock.insertMovement({
+          ...balanceKey,
+          documentType: "supplier_return",
+          documentId: doc.id,
+          documentLineId: posted.documentLineId,
+          movementType: "supplier_return_void",
+          qty,
+          unitCost: posted.unitCost,
+          totalCost: posted.totalCost
+            ? String(-Math.abs(Number(posted.totalCost)))
+            : null,
+        });
+        voidMovementIdByForwardId.set(posted.id, voidMovement.id);
+        movements.push(voidMovement);
         await ctx.stock.setBalance(
           balanceKey,
           String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
         );
       }
+      await restoreConsumptionsForVoidedMovements(ctx, {
+        orgId,
+        forwardMovementIds: postedMovements.map((movement) => movement.id),
+        voidMovementIdByForwardId,
+      });
       for (const line of doc.lines) {
         await updateSerialStatuses(
           ctx,

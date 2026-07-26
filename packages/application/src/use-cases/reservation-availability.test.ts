@@ -8,6 +8,7 @@ import type {
 } from "@stock-management/domain";
 import { InsufficientAvailabilityError } from "@stock-management/domain";
 import { describe, expect, it } from "vitest";
+import { createFakeCosting } from "../costing/fake-costing.js";
 import type { CreateReservationInput } from "../dto/inputs.js";
 import type {
   ReservationPort,
@@ -103,6 +104,23 @@ function makeFake(options: FakeOptions = {}) {
   };
   seedBalance(locationId, options.onHand ?? "10");
   seedBalance(location2Id, options.onHandLocation2 ?? "0");
+
+  const costing = createFakeCosting();
+  costing.layers.push({
+    id: "default-layer",
+    orgId,
+    productId,
+    locationId,
+    lotId: null,
+    sourceDocumentType: "goods_receipt",
+    sourceDocumentId: "gr-seed",
+    sourceDocumentLineId: "grl-seed",
+    sourceMovementId: "m-seed",
+    receivedAt: new Date("2026-01-01"),
+    unitCost: "10",
+    qtyOriginal: options.onHand ?? "10",
+    qtyRemaining: options.onHand ?? "10",
+  });
 
   const reservations: StockReservation[] = [...(options.reservations ?? [])];
   const issues = new Map<string, StockIssueWithLines>();
@@ -232,6 +250,13 @@ function makeFake(options: FakeOptions = {}) {
       movements.push(movement);
       return movement;
     },
+    async updateMovementCosts(_orgId, movementId, unitCost, totalCost) {
+      const movement = movements.find((candidate) => candidate.id === movementId);
+      if (!movement) throw new Error("Movement not found");
+      movement.unitCost = unitCost;
+      movement.totalCost = totalCost;
+      return movement;
+    },
     async listBalances(listOrgId, filters) {
       return [...balances.values()].filter((balance) => {
         if (balance.orgId !== listOrgId) return false;
@@ -345,17 +370,7 @@ function makeFake(options: FakeOptions = {}) {
         return updated;
       },
     },
-    costing: {
-      async insertLayer() { throw new Error("costing not used"); },
-      async getLayer() { return null; },
-      async listOpenLayers() { return []; },
-      async listLayersBySourceDocument() { return []; },
-      async setQtyRemaining() {},
-      async lockOpenLayersFifo() { return []; },
-      async listOpenLayersBySourceLine() { return []; },
-      async insertConsumption() { throw new Error("costing not used"); },
-      async listConsumptionsByMovementIds() { return []; },
-    },
+    costing,
     outbox: {
       async enqueue(event) {
         outbox.push(event);

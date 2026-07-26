@@ -10,6 +10,7 @@ import type {
 } from "@stock-management/domain";
 import { InsufficientStockError } from "@stock-management/domain";
 import { describe, expect, it } from "vitest";
+import { createFakeCosting } from "../costing/fake-costing.js";
 import type {
   StockAdjustmentWithLines,
   StockCountWithLines,
@@ -56,6 +57,7 @@ type FakeOptions = {
   serialStatus?: Serial["status"];
   serialLocationId?: string | null;
   seedSerials?: boolean;
+  seedCostLayers?: boolean;
 };
 
 function makeFake(options: FakeOptions = {}) {
@@ -186,6 +188,7 @@ function makeFake(options: FakeOptions = {}) {
   const balances = new Map<string, StockBalance>();
   const movements: StockMovement[] = [];
   const serialsByNumber = new Map<string, Serial>();
+  const costing = createFakeCosting();
   let movementSequence = 0;
   const key = (locationId: string, lotId: string | null = null) =>
     `${productId}:${locationId}:${lotId ?? ""}`;
@@ -205,6 +208,23 @@ function makeFake(options: FakeOptions = {}) {
   seedBalance(fromLocationId, options.onHand ?? "10");
   seedBalance(transitLocationId, "0");
   seedBalance(toLocationId, "0");
+  if (options.seedCostLayers !== false) {
+    costing.layers.push({
+      id: "default-layer",
+      orgId,
+      productId,
+      locationId: fromLocationId,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-seed",
+      sourceDocumentLineId: "grl-seed",
+      sourceMovementId: "m-seed",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "10",
+      qtyOriginal: options.onHand ?? "10",
+      qtyRemaining: options.onHand ?? "10",
+    });
+  }
   if (options.seedSerials !== false) {
     for (const serialNumber of new Set([
       ...serialNumbers,
@@ -441,6 +461,18 @@ function makeFake(options: FakeOptions = {}) {
         movements.push(movement);
         return movement;
       },
+      async updateMovementCosts(
+        _orgId: string,
+        movementId: string,
+        unitCost: string,
+        totalCost: string,
+      ) {
+        const movement = movements.find((candidate) => candidate.id === movementId);
+        if (!movement) throw new Error("Movement not found");
+        movement.unitCost = unitCost;
+        movement.totalCost = totalCost;
+        return movement;
+      },
       async listBalances() {
         return [...balances.values()];
       },
@@ -521,17 +553,7 @@ function makeFake(options: FakeOptions = {}) {
         return [...serialsByNumber.values()];
       },
     },
-    costing: {
-      async insertLayer() { throw new Error("costing not used"); },
-      async getLayer() { return null; },
-      async listOpenLayers() { return []; },
-      async listLayersBySourceDocument() { return []; },
-      async setQtyRemaining() {},
-      async lockOpenLayersFifo() { return []; },
-      async listOpenLayersBySourceLine() { return []; },
-      async insertConsumption() { throw new Error("costing not used"); },
-      async listConsumptionsByMovementIds() { return []; },
-    },
+    costing,
     outbox: { async enqueue() {} },
     idempotency: {
       async find() {
@@ -557,6 +579,7 @@ function makeFake(options: FakeOptions = {}) {
     getAdjustment: () => adjustment,
     getCount: () => count,
     getMovements: () => movements,
+    getCosting: () => costing,
     getSerial: (serialNumber: string) =>
       serialsByNumber.get(serialNumber) ?? null,
   };
@@ -611,6 +634,85 @@ describe("stock issue use cases", () => {
       new PostStockIssue(fake.uow).execute(orgId, userId, "issue-1"),
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(fake.getMovements()).toHaveLength(0);
+  });
+
+  it("consumes FIFO layers on post and stamps movement costs", async () => {
+    const fake = makeFake({ issueQty: "3", onHand: "10", seedCostLayers: false });
+    const costing = fake.getCosting();
+    await costing.insertLayer({
+      id: "layer-a",
+      orgId,
+      productId,
+      locationId: fromLocationId,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-1",
+      sourceDocumentLineId: "grl-1",
+      sourceMovementId: "m-1",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "10",
+      qtyOriginal: "2",
+      qtyRemaining: "2",
+    });
+    await costing.insertLayer({
+      id: "layer-b",
+      orgId,
+      productId,
+      locationId: fromLocationId,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-2",
+      sourceDocumentLineId: "grl-2",
+      sourceMovementId: "m-2",
+      receivedAt: new Date("2026-01-02"),
+      unitCost: "12",
+      qtyOriginal: "5",
+      qtyRemaining: "5",
+    });
+
+    const posted = await new PostStockIssue(fake.uow).execute(
+      orgId,
+      userId,
+      "issue-1",
+    );
+
+    expect(posted.movements[0]?.totalCost).toBe("32");
+    expect(costing.layers.find((l) => l.id === "layer-a")?.qtyRemaining).toBe(
+      "0",
+    );
+    expect(costing.layers.find((l) => l.id === "layer-b")?.qtyRemaining).toBe(
+      "4",
+    );
+  });
+
+  it("restores FIFO layer qty when an issue is voided", async () => {
+    const fake = makeFake({ issueQty: "3", onHand: "10", seedCostLayers: false });
+    const costing = fake.getCosting();
+    await costing.insertLayer({
+      id: "layer-a",
+      orgId,
+      productId,
+      locationId: fromLocationId,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-1",
+      sourceDocumentLineId: "grl-1",
+      sourceMovementId: "m-1",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "10",
+      qtyOriginal: "5",
+      qtyRemaining: "5",
+    });
+
+    await new PostStockIssue(fake.uow).execute(orgId, userId, "issue-1");
+    expect(costing.layers.find((l) => l.id === "layer-a")?.qtyRemaining).toBe(
+      "2",
+    );
+
+    await new VoidStockIssue(fake.uow).execute(orgId, userId, "issue-1");
+    expect(costing.layers.find((l) => l.id === "layer-a")?.qtyRemaining).toBe(
+      "5",
+    );
   });
 });
 

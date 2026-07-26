@@ -325,6 +325,12 @@ export interface StockPort {
     qtyReserved: string,
   ): Promise<StockBalance>;
   insertMovement(input: CreateStockMovementInput): Promise<StockMovement>;
+  updateMovementCosts(
+    orgId: string,
+    movementId: string,
+    unitCost: string,
+    totalCost: string,
+  ): Promise<StockMovement>;
   listBalances(
     orgId: string,
     filters?: { productId?: string; locationId?: string; lowStock?: boolean },
