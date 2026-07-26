@@ -57,6 +57,7 @@ Canonical rule: `.cursor/rules/skill-superpowers-first.mdc`
 |-------|----------------|
 | Product overview | [[overview]], [[Stock Management System]] |
 | Stack | [[Tech Stack]] |
+| Coding standards | [[SOLID and Design Patterns]], `docs/architecture/coding-standards.md` |
 | Domain model | [[Domain Model]] |
 | Stock truth | [[Document-Driven Inventory]] |
 | Costing | [[FIFO Costing]] |

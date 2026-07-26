@@ -2,9 +2,7 @@
 
 ## Active
 
-- [ ] **Scaffold monorepo** - apps/api (Fastify), apps/web (Vite/React), packages/shared — Phase A
-- [ ] **Execute Phase A plan** - `docs/superpowers/plans/2026-07-25-phase-a-platform-skeleton.md`
-- [ ] **Add Postgres + Drizzle** - Phase A tables + migrations
+- [ ] **Phase A polish** - categories UI optional; seed script
 
 ## Waiting On
 
@@ -15,8 +13,15 @@
 - [ ] **Phase D accounting** - after Phase C
 - [ ] **Phase E multi-branch hardening**
 - [ ] **Phase F POS integration** - plug into ipos or built-in POS
+- [ ] Write detailed plan files for Phases B–F under `docs/superpowers/plans/`
 
 ## Done
 
 - [x] ~~Product vision + stack decision~~ (2026-07-25)
 - [x] ~~Docs, wiki, rules, plans, memory scaffold~~ (2026-07-25)
+- [x] ~~SOLID coding standards (all phases) in rules/docs/wiki~~ (2026-07-26)
+- [x] ~~Monorepo scaffold (api/web/shared)~~ (2026-07-26)
+- [x] ~~Phase A Drizzle schema + migration SQL~~ (2026-07-26)
+- [x] ~~Phase A layered master APIs~~ (2026-07-26)
+- [x] ~~Phase A web shell + masters UI~~ (2026-07-26)
+- [x] ~~Postgres up + Phase A migrations applied~~ (2026-07-26)

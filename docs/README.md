@@ -19,6 +19,7 @@ Diátaxis layout for stock-management. Compounding product knowledge also lives 
 ## Start here
 
 1. [FEATURES.md](./FEATURES.md) — all phases
-2. [architecture/domain-model.md](./architecture/domain-model.md)
-3. [architecture/tech-stack.md](./architecture/tech-stack.md)
-4. Phase A plan: [superpowers/plans/2026-07-25-phase-a-platform-skeleton.md](./superpowers/plans/2026-07-25-phase-a-platform-skeleton.md)
+2. [architecture/coding-standards.md](./architecture/coding-standards.md) — SOLID (A–F)
+3. [architecture/domain-model.md](./architecture/domain-model.md)
+4. [architecture/tech-stack.md](./architecture/tech-stack.md)
+5. Phase A plan: [superpowers/plans/2026-07-25-phase-a-platform-skeleton.md](./superpowers/plans/2026-07-25-phase-a-platform-skeleton.md)

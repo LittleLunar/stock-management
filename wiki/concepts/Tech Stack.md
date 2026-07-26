@@ -2,7 +2,7 @@
 tags:
   - concept
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 source_count: 1
 ---
 
@@ -19,6 +19,10 @@ Locked stack for [[Stock Management System]].
 | UI | Tailwind |
 | Jobs | Postgres outbox first |
 | Layout | `apps/api`, `apps/web`, `packages/shared` |
+
+## Architecture style
+
+All application code follows [[SOLID and Design Patterns]] (routes → services → repositories). See `docs/architecture/coding-standards.md`.
 
 ## Explicitly rejected
 

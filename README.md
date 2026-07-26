@@ -37,7 +37,9 @@ wiki/              # LLM / Obsidian knowledge wiki
 
 ## Current status
 
-**Docs/wiki/rules scaffolded.** Application code not started — next: Phase A platform skeleton.
+**Phase A in progress.** Monorepo scaffolded (`apps/api`, `apps/web`, `packages/shared`). SOLID standards documented. Masters API + UI landed; apply DB migration when Postgres is available.
+
+Local setup: [docs/tutorials/local-setup.md](./docs/tutorials/local-setup.md)
 
 ## Phases (short)
 

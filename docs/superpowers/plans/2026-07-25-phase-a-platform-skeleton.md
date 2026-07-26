@@ -4,7 +4,7 @@
 
 **Goal:** Scaffold the monorepo and ship Phase A masters (org, branch, location, users/roles, products, categories, suppliers) with Postgres + Drizzle—no stock movements yet.
 
-**Architecture:** pnpm (or npm) workspaces with `apps/api` (Fastify), `apps/web` (Vite React + TanStack), `packages/shared` (Zod). Single Postgres database; Drizzle schema owned by API.
+**Architecture:** pnpm workspaces with `apps/api` (Fastify), `apps/web` (Vite React + TanStack), `packages/shared` (Zod). Single Postgres database; Drizzle schema owned by API. Layered modules: routes → service → repository.
 
 **Tech Stack:** Fastify, TypeScript, Drizzle, PostgreSQL, Vite, React, TanStack Router, TanStack Query, Tailwind, Zod
 
@@ -13,8 +13,12 @@
 - No Next.js; no HTMX primary UI; no Mongo
 - Every table includes `org_id` where tenant-scoped (except `organizations`)
 - Soft status on masters (`active`/`inactive`); no hard deletes of masters in API
-- Follow `.cursor/rules/stack-conventions.mdc`
+- Follow `.cursor/rules/stack-conventions.mdc` including **SOLID & design patterns** (all phases)
+- API modules: `*.routes.ts` / `*.service.ts` / `*.repository.ts` — no Drizzle in handlers
+- Web: page → hook → API client
+- Auth stub: headers `X-Org-Id` + `X-User-Id`
 - Update `wiki/`, `TASKS.md`, and `docs/` after scaffold lands
+- Coding standards: `docs/architecture/coding-standards.md`
 
 **Spec:** `docs/superpowers/specs/2026-07-25-product-vision.md`  
 **Features:** `docs/FEATURES.md` § Phase A  
@@ -32,12 +36,12 @@
 **Interfaces:**
 - Produces: `pnpm install` works; `pnpm --filter api` and `pnpm --filter web` scripts exist
 
-- [ ] **Step 1: Initialize workspace root** with workspaces pointing at `apps/*` and `packages/*`
-- [ ] **Step 2: Create `apps/api`** Fastify + TypeScript entry `src/index.ts` that listens on `:3001` and returns `{ ok: true }` on `GET /health`
-- [ ] **Step 3: Create `apps/web`** Vite React TS; Tailwind; placeholder home page
-- [ ] **Step 4: Create `packages/shared`** empty package exporting a sample Zod schema `HealthResponse`
-- [ ] **Step 5: Add `.env.example`** with `DATABASE_URL=postgresql://...` and `PORT=3001`
-- [ ] **Step 6: Commit** `chore: scaffold monorepo apps and shared package`
+- [x] **Step 1: Initialize workspace root** with workspaces pointing at `apps/*` and `packages/*`
+- [x] **Step 2: Create `apps/api`** Fastify + TypeScript entry `src/index.ts` that listens on `:3001` and returns `{ ok: true }` on `GET /health`
+- [x] **Step 3: Create `apps/web`** Vite React TS; Tailwind; placeholder home page
+- [x] **Step 4: Create `packages/shared`** empty package exporting a sample Zod schema `HealthResponse`
+- [x] **Step 5: Add `.env.example`** with `DATABASE_URL=postgresql://...` and `PORT=3001`
+- [ ] **Step 6: Commit** `chore: scaffold monorepo apps and shared package` (when user requests)
 
 ---
 
@@ -58,23 +62,24 @@
 
 ---
 
-### Task 3: API modules for masters
+### Task 3: API modules for masters (layered)
 
 **Files:**
-- Create: `apps/api/src/modules/{org,branches,locations,products,categories,suppliers,users}/`
-- Create: shared error helper + Zod request schemas in `packages/shared` or `apps/api/src/schemas`
+- Create: `apps/api/src/modules/{org,branches,locations,products,categories,suppliers,users}/` each with `*.routes.ts`, `*.service.ts`, `*.repository.ts`
+- Create: org/auth context plugin (`X-Org-Id`, `X-User-Id`); shared error helper
+- Create: Zod request schemas in `packages/shared`
 
 **Interfaces:**
 - Produces REST under `/api/v1`:
   - `GET/PATCH /orgs/:orgId`
   - CRUD `/branches`, `/locations`, `/products`, `/categories`, `/suppliers`
-  - Basic `/users` + `/memberships` (auth can be stub header `X-User-Id` for Phase A)
+  - Basic `/users` + `/memberships` (auth stub headers)
 
-- [ ] **Step 1: Register Fastify plugin routes** under `/api/v1`
-- [ ] **Step 2: Implement branches + locations CRUD** with org scoping
-- [ ] **Step 3: Implement products + barcodes + categories**
-- [ ] **Step 4: Implement suppliers (+ optional supplier_products)**
-- [ ] **Step 5: Implement users/memberships stubs**
+- [ ] **Step 1: Register Fastify plugins** under `/api/v1` with org context
+- [ ] **Step 2: Implement branches + locations** (routes → service → repository, org scoping in repo)
+- [ ] **Step 3: Implement products + barcodes + categories** (same layering)
+- [ ] **Step 4: Implement suppliers (+ optional supplier_products) + org settings**
+- [ ] **Step 5: Implement users/memberships**
 - [ ] **Step 6: Manual smoke** via curl/httpie; commit `feat(api): Phase A master data routes`
 
 ---

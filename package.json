@@ -1,0 +1,14 @@
+{
+  "name": "stock-management",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @stock-management/api dev",
+    "dev:web": "pnpm --filter @stock-management/web dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
