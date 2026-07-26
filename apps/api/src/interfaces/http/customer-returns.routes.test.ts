@@ -5,6 +5,7 @@ import {
   CustomerReturnUseCases,
   PostCustomerReturn,
   VoidCustomerReturn,
+  createFakeCosting,
   type CustomerReturnWithLines,
   type IdempotencyRecord,
   type UnitOfWork,
@@ -70,6 +71,7 @@ function makeHarness(options?: {
     updatedAt: now,
   };
   let movementSequence = 0;
+  const costing = createFakeCosting();
 
   if (trackSerial) {
     serialsByNumber.set(serialNumber, {
@@ -190,14 +192,30 @@ function makeHarness(options?: {
       async insertMovement(
         input: Omit<StockMovement, "id" | "createdAt"> & {
           createdAt?: Date;
+          unitCost?: string | null;
+          totalCost?: string | null;
         },
       ) {
         const movement: StockMovement = {
           ...input,
           id: `movement-${++movementSequence}`,
           createdAt: input.createdAt ?? now,
+          unitCost: input.unitCost ?? null,
+          totalCost: input.totalCost ?? null,
         };
         movements.push(movement);
+        return movement;
+      },
+      async updateMovementCosts(
+        _orgId: string,
+        movementId: string,
+        unitCost: string,
+        totalCost: string,
+      ) {
+        const movement = movements.find((candidate) => candidate.id === movementId);
+        if (!movement) throw new Error("Movement not found");
+        movement.unitCost = unitCost;
+        movement.totalCost = totalCost;
         return movement;
       },
       async listBalances() {
@@ -268,17 +286,7 @@ function makeHarness(options?: {
         return [...serialsByNumber.values()];
       },
     },
-    costing: {
-      async insertLayer() { throw new Error("costing not used"); },
-      async getLayer() { return null; },
-      async listOpenLayers() { return []; },
-      async listLayersBySourceDocument() { return []; },
-      async setQtyRemaining() {},
-      async lockOpenLayersFifo() { return []; },
-      async listOpenLayersBySourceLine() { return []; },
-      async insertConsumption() { throw new Error("costing not used"); },
-      async listConsumptionsByMovementIds() { return []; },
-    },
+    costing,
     outbox: { async enqueue() {} },
     idempotency: {
       async find(
@@ -335,6 +343,7 @@ const draftPayload = (qty = "2", serialNumbers?: string[]) => ({
     {
       productId: PRODUCT_ID,
       qty,
+      unitCost: "10",
       lineNumber: 1,
       ...(serialNumbers ? { serialNumbers } : {}),
     },

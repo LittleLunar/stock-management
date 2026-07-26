@@ -4,6 +4,7 @@ export * from "./ports/inventory.js";
 export * from "./ports/costing.js";
 export * from "./ports/unit-of-work.js";
 export * from "./costing/apply-document-costing.js";
+export * from "./costing/fake-costing.js";
 export * from "./use-cases/organization.js";
 export * from "./use-cases/branch.js";
 export * from "./use-cases/location.js";

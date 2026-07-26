@@ -5,6 +5,7 @@ import {
   PostStockCount,
   StockCountUseCases,
   VoidStockCount,
+  createFakeCosting,
   type IdempotencyRecord,
   type StockCountWithLines,
   type UnitOfWork,
@@ -60,6 +61,21 @@ function makeHarness(onHand = "10") {
     updatedAt: now,
   };
   let movementSequence = 0;
+  const costing = createFakeCosting();
+  void costing.insertLayer({
+    orgId: ORG_ID,
+    productId: PRODUCT_ID,
+    locationId: LOCATION_ID,
+    lotId: null,
+    sourceDocumentType: "goods_receipt",
+    sourceDocumentId: "gr-seed",
+    sourceDocumentLineId: "grl-seed",
+    sourceMovementId: "m-seed",
+    receivedAt: new Date("2026-01-01"),
+    unitCost: "10",
+    qtyOriginal: onHand,
+    qtyRemaining: onHand,
+  });
 
   const countRepo: NonNullable<UowContext["counts"]> = {
     async list(orgId) {
@@ -156,14 +172,30 @@ function makeHarness(onHand = "10") {
     async insertMovement(
       input: Omit<StockMovement, "id" | "createdAt"> & {
         createdAt?: Date;
+        unitCost?: string | null;
+        totalCost?: string | null;
       },
     ) {
       const movement: StockMovement = {
         ...input,
         id: `movement-${++movementSequence}`,
         createdAt: input.createdAt ?? now,
+        unitCost: input.unitCost ?? null,
+        totalCost: input.totalCost ?? null,
       };
       movements.push(movement);
+      return movement;
+    },
+    async updateMovementCosts(
+      _orgId: string,
+      movementId: string,
+      unitCost: string,
+      totalCost: string,
+    ) {
+      const movement = movements.find((candidate) => candidate.id === movementId);
+      if (!movement) throw new Error("Movement not found");
+      movement.unitCost = unitCost;
+      movement.totalCost = totalCost;
       return movement;
     },
     async listBalances() {
@@ -198,17 +230,7 @@ function makeHarness(onHand = "10") {
         return [];
       },
     },
-    costing: {
-      async insertLayer() { throw new Error("costing not used"); },
-      async getLayer() { return null; },
-      async listOpenLayers() { return []; },
-      async listLayersBySourceDocument() { return []; },
-      async setQtyRemaining() {},
-      async lockOpenLayersFifo() { return []; },
-      async listOpenLayersBySourceLine() { return []; },
-      async insertConsumption() { throw new Error("costing not used"); },
-      async listConsumptionsByMovementIds() { return []; },
-    },
+    costing,
     outbox: { async enqueue() {} },
     idempotency: {
       async find(
