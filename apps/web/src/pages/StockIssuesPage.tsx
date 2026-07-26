@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { BarcodeScanField } from "../components/BarcodeScanField";
 import {
   useCreateStockIssue,
   usePostStockIssue,
@@ -178,6 +179,11 @@ export function StockIssuesPage() {
               key={index}
               className="space-y-2 rounded bg-slate-50 p-3"
             >
+              <BarcodeScanField
+                onProduct={(productId) =>
+                  updateLine(index, "productId", productId)
+                }
+              />
               <div className="grid gap-2 md:grid-cols-[minmax(12rem,1fr)_8rem_auto]">
                 <select
                   required

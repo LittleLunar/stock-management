@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { BarcodeScanField } from "../components/BarcodeScanField";
 import {
   useCreateStockTransfer,
   useReceiveStockTransfer,
@@ -145,19 +146,22 @@ function ReplenishWizard() {
               </option>
             ))}
         </select>
-        <select
-          required
-          className="rounded border border-slate-300 px-3 py-2"
-          value={productId}
-          onChange={(e) => setProductId(e.target.value)}
-        >
-          <option value="">Product</option>
-          {(products ?? []).map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.sku} — {product.name}
-            </option>
-          ))}
-        </select>
+        <div className="space-y-2 md:col-span-2 xl:col-span-1">
+          <BarcodeScanField onProduct={setProductId} />
+          <select
+            required
+            className="w-full rounded border border-slate-300 px-3 py-2"
+            value={productId}
+            onChange={(e) => setProductId(e.target.value)}
+          >
+            <option value="">Product</option>
+            {(products ?? []).map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.sku} — {product.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <input
           required
           inputMode="decimal"
@@ -334,6 +338,11 @@ export function StockTransfersPage() {
         <div className="space-y-2">
           {lines.map((line, index) => (
             <div key={index} className="space-y-2 rounded bg-slate-50 p-3">
+              <BarcodeScanField
+                onProduct={(productId) =>
+                  updateLine(index, "productId", productId)
+                }
+              />
               <div className="grid gap-2 md:grid-cols-[minmax(12rem,1fr)_8rem_auto]">
                 <select
                   required

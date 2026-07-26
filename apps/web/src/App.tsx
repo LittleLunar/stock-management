@@ -58,6 +58,7 @@ import { PnlReportPage } from "./pages/PnlReportPage";
 import { SupplierInvoiceDetailPage } from "./pages/SupplierInvoiceDetailPage";
 import { SupplierInvoicesPage } from "./pages/SupplierInvoicesPage";
 import { TrialBalancePage } from "./pages/TrialBalancePage";
+import { WebhookSubscriptionsPage } from "./pages/WebhookSubscriptionsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -293,6 +294,12 @@ function Shell() {
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
             Approval policies
+          </Link>
+          <Link
+            to="/webhooks"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Webhooks
           </Link>
         </nav>
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
@@ -916,6 +923,12 @@ const approvalPoliciesRoute = createRoute({
   component: ApprovalPoliciesPage,
 });
 
+const webhooksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/webhooks",
+  component: WebhookSubscriptionsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   branchesRoute,
@@ -947,6 +960,7 @@ const routeTree = rootRoute.addChildren([
   pnlRoute,
   balanceSheetRoute,
   approvalPoliciesRoute,
+  webhooksRoute,
 ]);
 
 const router = createRouter({ routeTree });

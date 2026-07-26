@@ -75,6 +75,13 @@ export function useCreateProduct() {
   });
 }
 
+export function useProductByBarcode() {
+  const ctx = useApiContext();
+  return useMutation({
+    mutationFn: (code: string) => api.getProductByBarcode(ctx, code),
+  });
+}
+
 export function useSuppliers() {
   const ctx = useApiContext();
   return useQuery({

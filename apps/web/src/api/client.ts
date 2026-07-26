@@ -19,6 +19,7 @@ import {
   type CreateStockTransfer,
   type CreateSupplier,
   type CreateSupplierReturn,
+  type CreateWebhookSubscription,
   type Customer,
   type CustomerReturnLineInput,
   type GoodsReceiptLineInput,
@@ -44,6 +45,7 @@ import {
   type Supplier,
   type SupplierReturnLineInput,
   type UpdateStockCount,
+  type UpdateWebhookSubscription,
 } from "@stock-management/shared";
 import { env } from "../lib/env";
 import { parseApiError } from "../lib/errors";
@@ -389,6 +391,37 @@ export type CustomerReturnActionResult = {
   movements: StockMovement[];
 };
 
+export type ProductWithBarcodes = Product & {
+  barcodes: Array<{
+    id: string;
+    barcode: string;
+  }>;
+};
+
+export type WebhookSubscription = {
+  id: string;
+  orgId: string;
+  url: string;
+  secret: string;
+  eventTypes: string[];
+  branchId: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WebhookDelivery = {
+  id: string;
+  orgId: string;
+  subscriptionId: string;
+  outboxEventId: string;
+  status: "pending" | "succeeded" | "failed";
+  httpStatus: number | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type {
   AvailabilityQuery,
   AvailabilityResponse,
@@ -402,6 +435,7 @@ export type {
   CreateStockIssue,
   CreateStockTransfer,
   CreateSupplierReturn,
+  CreateWebhookSubscription,
   Customer,
   Location,
   Product,
@@ -424,6 +458,7 @@ export type {
   StockBalancesQuery,
   StockMovementsQuery,
   UpdateStockCount,
+  UpdateWebhookSubscription,
 };
 
 function headers(ctx: ApiHeaders, init?: HeadersInit): Headers {
@@ -503,6 +538,11 @@ export const api = {
     }),
   listProducts: (ctx: ApiHeaders) =>
     request<Product[]>("/api/v1/products", ctx),
+  getProductByBarcode: (ctx: ApiHeaders, code: string) =>
+    request<ProductWithBarcodes>(
+      `/api/v1/products/by-barcode/${encodeURIComponent(code)}`,
+      ctx,
+    ),
   createProduct: (ctx: ApiHeaders, body: CreateProduct) =>
     request<Product>("/api/v1/products", ctx, {
       method: "POST",
@@ -900,4 +940,30 @@ export const api = {
     request<unknown>(withQuery("/api/v1/reports/pnl", q), ctx),
   listBalanceSheet: (ctx: ApiHeaders, q: { asOf: string; branchId?: string }) =>
     request<unknown>(withQuery("/api/v1/reports/balance-sheet", q), ctx),
+  listWebhookSubscriptions: (ctx: ApiHeaders) =>
+    request<WebhookSubscription[]>("/api/v1/webhook-subscriptions", ctx),
+  createWebhookSubscription: (
+    ctx: ApiHeaders,
+    body: CreateWebhookSubscription,
+  ) =>
+    request<WebhookSubscription>("/api/v1/webhook-subscriptions", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  patchWebhookSubscription: (
+    ctx: ApiHeaders,
+    id: string,
+    body: UpdateWebhookSubscription,
+  ) =>
+    request<WebhookSubscription>(`/api/v1/webhook-subscriptions/${id}`, ctx, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  listWebhookDeliveries: (ctx: ApiHeaders, subscriptionId?: string) =>
+    request<WebhookDelivery[]>(
+      `/api/v1/webhook-deliveries${
+        subscriptionId ? `?subscriptionId=${subscriptionId}` : ""
+      }`,
+      ctx,
+    ),
 };
