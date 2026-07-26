@@ -6,6 +6,7 @@ import type {
   Product,
   PurchaseOrder,
   PurchaseOrderLine,
+  ReservationStatus,
   Serial,
   StockAdjustment,
   StockAdjustmentLine,
@@ -15,10 +16,12 @@ import type {
   StockIssue,
   StockIssueLine,
   StockMovement,
+  StockReservation,
   StockTransfer,
   StockTransferLine,
 } from "@stock-management/domain";
 import type {
+  CreateReservationInput,
   CreateStockAdjustmentInput,
   CreateStockCountInput,
   CreateGoodsReceiptInput,
@@ -26,6 +29,7 @@ import type {
   CreateStockIssueInput,
   CreateStockTransferInput,
   StockCountLineInput,
+  UpdateReservationInput,
   UpdateStockAdjustmentInput,
   UpdateStockCountInput,
   UpdateGoodsReceiptInput,
@@ -218,6 +222,29 @@ export interface ProductLookupPort {
 
 export interface LocationLookupPort {
   findById(orgId: string, id: string): Promise<Location | null>;
+  list?(orgId: string, branchId?: string): Promise<Location[]>;
+}
+
+export type ReservationListFilters = {
+  productId?: string;
+  locationId?: string;
+  branchId?: string;
+  status?: ReservationStatus;
+  lotId?: string | null;
+};
+
+export interface ReservationPort {
+  list(
+    orgId: string,
+    filters?: ReservationListFilters,
+  ): Promise<StockReservation[]>;
+  findById(orgId: string, id: string): Promise<StockReservation | null>;
+  create(orgId: string, input: CreateReservationInput): Promise<StockReservation>;
+  update(
+    orgId: string,
+    id: string,
+    input: UpdateReservationInput,
+  ): Promise<StockReservation | null>;
 }
 
 export type StockBalanceKey = Pick<
@@ -235,6 +262,10 @@ export type CreateStockMovementInput = Omit<
 export interface StockPort {
   findBalance(key: StockBalanceKey): Promise<StockBalance | null>;
   setBalance(key: StockBalanceKey, qtyOnHand: string): Promise<StockBalance>;
+  setQtyReserved(
+    key: StockBalanceKey,
+    qtyReserved: string,
+  ): Promise<StockBalance>;
   insertMovement(input: CreateStockMovementInput): Promise<StockMovement>;
   listBalances(
     orgId: string,

@@ -220,11 +220,31 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
         );
       },
       async setBalance(key, qtyOnHand) {
+        const existing = balances.get(
+          balanceKey(key.productId, key.locationId, key.lotId),
+        );
         const balance: StockBalance = {
-          id: randomUUID(),
+          id: existing?.id ?? randomUUID(),
           ...key,
           qtyOnHand,
-          qtyReserved: "0",
+          qtyReserved: existing?.qtyReserved ?? "0",
+          updatedAt: now,
+        };
+        balances.set(
+          balanceKey(key.productId, key.locationId, key.lotId),
+          balance,
+        );
+        return balance;
+      },
+      async setQtyReserved(key, qtyReserved) {
+        const existing = balances.get(
+          balanceKey(key.productId, key.locationId, key.lotId),
+        );
+        const balance: StockBalance = {
+          id: existing?.id ?? randomUUID(),
+          ...key,
+          qtyOnHand: existing?.qtyOnHand ?? "0",
+          qtyReserved,
           updatedAt: now,
         };
         balances.set(

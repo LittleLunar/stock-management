@@ -227,3 +227,19 @@ export type IdempotencyInput = {
   externalSystem: string;
   externalId: string;
 };
+
+export type CreateReservationInput = {
+  branchId: string;
+  productId: string;
+  locationId: string;
+  qty: string;
+  lotId?: string | null;
+  expiresAt?: Date | null;
+  externalSystem?: string | null;
+  externalId?: string | null;
+};
+
+export type UpdateReservationInput = {
+  status?: "open" | "committed" | "released";
+  committedIssueId?: string | null;
+};

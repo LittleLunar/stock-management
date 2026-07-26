@@ -155,6 +155,13 @@ function makeHarness(onHand = "10") {
         balance = { ...balance, ...key, qtyOnHand, updatedAt: now };
         return balance;
       },
+      async setQtyReserved(
+        key: Pick<StockBalance, "orgId" | "productId" | "locationId" | "lotId">,
+        qtyReserved: string,
+      ) {
+        balance = { ...balance, ...key, qtyReserved, updatedAt: now };
+        return balance;
+      },
       async insertMovement(
         input: Omit<StockMovement, "id" | "createdAt"> & {
           createdAt?: Date;

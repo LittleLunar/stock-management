@@ -52,6 +52,112 @@ export class StockIssueUseCases {
 
 const POST_OPERATION = "post-stock-issue";
 
+export async function postStockIssueInCtx(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  userId: string,
+  issueId: string,
+  idempotency?: IdempotencyInput,
+): Promise<StockIssueResult> {
+  const issues = ctx.issues;
+  if (!issues) throw new Error("Stock issue port is not configured");
+
+  if (idempotency) {
+    const existing = await ctx.idempotency.find(
+      orgId,
+      POST_OPERATION,
+      idempotency.externalSystem,
+      idempotency.externalId,
+    );
+    if (existing) return existing.result as StockIssueResult;
+  }
+
+  const issue = await issues.findById(orgId, issueId);
+  if (!issue) throw new NotFoundError("Stock issue");
+  assertCanPostIssue(issue);
+
+  for (const line of issue.lines) {
+    const product = await ctx.products.findById(orgId, line.productId);
+    if (!product) throw new NotFoundError("Product");
+    assertLotSerialRules(product, {
+      lotId: line.lotId,
+      serialNumbers: line.serialNumbers,
+    });
+    await assertSerialsAvailable(
+      ctx.serials,
+      orgId,
+      line.productId,
+      line.lotId,
+      line.serialNumbers,
+      issue.locationId,
+    );
+
+    const balance = await ctx.stock.findBalance({
+      orgId,
+      productId: line.productId,
+      locationId: issue.locationId,
+      lotId: line.lotId,
+    });
+    if (Number(balance?.qtyOnHand ?? "0") < Number(line.qty)) {
+      throw new InsufficientStockError(
+        "Posting stock issue would create negative stock",
+      );
+    }
+  }
+
+  const movements: StockMovement[] = [];
+  for (const line of issue.lines) {
+    const qty = signedQtyForMovement("issue", line.qty);
+    const balanceKey = {
+      orgId,
+      productId: line.productId,
+      locationId: issue.locationId,
+      lotId: line.lotId,
+    };
+    const balance = await ctx.stock.findBalance(balanceKey);
+    movements.push(
+      await ctx.stock.insertMovement({
+        ...balanceKey,
+        documentType: "stock_issue",
+        documentId: issue.id,
+        documentLineId: line.id,
+        movementType: "issue",
+        qty,
+      }),
+    );
+    await ctx.stock.setBalance(
+      balanceKey,
+      String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
+    );
+    await updateSerialStatuses(
+      ctx.serials,
+      orgId,
+      line.productId,
+      line.serialNumbers,
+      "issued",
+    );
+  }
+
+  const postedIssue = await issues.updateStatus(
+    orgId,
+    issue.id,
+    "posted",
+    new Date(),
+  );
+  const result = { issue: postedIssue, movements };
+  await enqueueIssueEvents(ctx, orgId, userId, issue.id, "posted", movements);
+  if (idempotency) {
+    await ctx.idempotency.save({
+      orgId,
+      operation: POST_OPERATION,
+      externalSystem: idempotency.externalSystem,
+      externalId: idempotency.externalId,
+      result,
+    });
+  }
+  return result;
+}
+
 export class PostStockIssue {
   constructor(private readonly uow: UnitOfWork) {}
 
@@ -61,112 +167,9 @@ export class PostStockIssue {
     issueId: string,
     idempotency?: IdempotencyInput,
   ): Promise<StockIssueResult> {
-    return this.uow.run(async (ctx) => {
-      const issues = ctx.issues;
-      if (!issues) throw new Error("Stock issue port is not configured");
-
-      if (idempotency) {
-        const existing = await ctx.idempotency.find(
-          orgId,
-          POST_OPERATION,
-          idempotency.externalSystem,
-          idempotency.externalId,
-        );
-        if (existing) return existing.result as StockIssueResult;
-      }
-
-      const issue = await issues.findById(orgId, issueId);
-      if (!issue) throw new NotFoundError("Stock issue");
-      assertCanPostIssue(issue);
-
-      for (const line of issue.lines) {
-        const product = await ctx.products.findById(orgId, line.productId);
-        if (!product) throw new NotFoundError("Product");
-        assertLotSerialRules(product, {
-          lotId: line.lotId,
-          serialNumbers: line.serialNumbers,
-        });
-        await assertSerialsAvailable(
-          ctx.serials,
-          orgId,
-          line.productId,
-          line.lotId,
-          line.serialNumbers,
-          issue.locationId,
-        );
-
-        const balance = await ctx.stock.findBalance({
-          orgId,
-          productId: line.productId,
-          locationId: issue.locationId,
-          lotId: line.lotId,
-        });
-        if (Number(balance?.qtyOnHand ?? "0") < Number(line.qty)) {
-          throw new InsufficientStockError(
-            "Posting stock issue would create negative stock",
-          );
-        }
-      }
-
-      const movements: StockMovement[] = [];
-      for (const line of issue.lines) {
-        const qty = signedQtyForMovement("issue", line.qty);
-        const balanceKey = {
-          orgId,
-          productId: line.productId,
-          locationId: issue.locationId,
-          lotId: line.lotId,
-        };
-        const balance = await ctx.stock.findBalance(balanceKey);
-        movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "stock_issue",
-            documentId: issue.id,
-            documentLineId: line.id,
-            movementType: "issue",
-            qty,
-          }),
-        );
-        await ctx.stock.setBalance(
-          balanceKey,
-          String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
-        );
-        await updateSerialStatuses(
-          ctx.serials,
-          orgId,
-          line.productId,
-          line.serialNumbers,
-          "issued",
-        );
-      }
-
-      const postedIssue = await issues.updateStatus(
-        orgId,
-        issue.id,
-        "posted",
-        new Date(),
-      );
-      const result = { issue: postedIssue, movements };
-      await enqueueIssueEvents(
-        ctx,
-        orgId,
-        userId,
-        issue.id,
-        "posted",
-        movements,
-      );
-      if (idempotency) {
-        await ctx.idempotency.save({
-          orgId,
-          operation: POST_OPERATION,
-          externalSystem: idempotency.externalSystem,
-          externalId: idempotency.externalId,
-          result,
-        });
-      }
-      return result;
-    });
+    return this.uow.run((ctx) =>
+      postStockIssueInCtx(ctx, orgId, userId, issueId, idempotency),
+    );
   }
 }
 

@@ -51,6 +51,26 @@ export class DrizzleStockRepository implements StockPort {
     return updated as StockBalance;
   }
 
+  async setQtyReserved(
+    key: StockBalanceKey,
+    qtyReserved: string,
+  ): Promise<StockBalance> {
+    const [inserted] = await this.db
+      .insert(stockBalances)
+      .values({ ...key, qtyOnHand: "0", qtyReserved })
+      .onConflictDoNothing()
+      .returning();
+    if (inserted) return inserted as StockBalance;
+
+    const [updated] = await this.db
+      .update(stockBalances)
+      .set({ qtyReserved, updatedAt: new Date() })
+      .where(this.balanceWhere(key))
+      .returning();
+    if (!updated) throw new Error("Stock balance not found after conflict");
+    return updated as StockBalance;
+  }
+
   async insertMovement(input: CreateStockMovementInput): Promise<StockMovement> {
     const [movement] = await this.db
       .insert(stockMovements)

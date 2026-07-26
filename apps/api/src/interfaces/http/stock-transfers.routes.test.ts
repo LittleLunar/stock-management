@@ -202,6 +202,21 @@ function makeHarness(transitType: Location["type"] = "transit") {
         balances.set(key.locationId, balance);
         return balance;
       },
+      async setQtyReserved(
+        key: Pick<StockBalance, "orgId" | "productId" | "locationId" | "lotId">,
+        qtyReserved: string,
+      ) {
+        const current = balances.get(key.locationId);
+        const balance: StockBalance = {
+          id: current?.id ?? randomUUID(),
+          ...key,
+          qtyOnHand: current?.qtyOnHand ?? "0",
+          qtyReserved,
+          updatedAt: now,
+        };
+        balances.set(key.locationId, balance);
+        return balance;
+      },
       async insertMovement(
         input: Omit<StockMovement, "id" | "createdAt"> & {
           createdAt?: Date;

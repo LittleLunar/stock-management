@@ -167,11 +167,28 @@ function makeFake(receivingQty = "3") {
         );
       },
       async setBalance(key, qtyOnHand) {
+        const existing = balances.get(
+          balanceKey(key.productId, key.locationId, key.lotId),
+        );
         const balance: StockBalance = {
-          id: "balance-1",
+          id: existing?.id ?? "balance-1",
           ...key,
           qtyOnHand,
-          qtyReserved: "0",
+          qtyReserved: existing?.qtyReserved ?? "0",
+          updatedAt: now,
+        };
+        balances.set(balanceKey(key.productId, key.locationId, key.lotId), balance);
+        return balance;
+      },
+      async setQtyReserved(key, qtyReserved) {
+        const existing = balances.get(
+          balanceKey(key.productId, key.locationId, key.lotId),
+        );
+        const balance: StockBalance = {
+          id: existing?.id ?? "balance-1",
+          ...key,
+          qtyOnHand: existing?.qtyOnHand ?? "0",
+          qtyReserved,
           updatedAt: now,
         };
         balances.set(balanceKey(key.productId, key.locationId, key.lotId), balance);

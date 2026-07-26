@@ -389,11 +389,39 @@ function makeFake(options: FakeOptions = {}) {
         },
         qtyOnHand: string,
       ) {
+        const existing = balances.get(
+          `${balanceKey.productId}:${balanceKey.locationId}:${balanceKey.lotId ?? ""}`,
+        );
         const balance: StockBalance = {
-          id: `balance-${balanceKey.locationId}`,
+          id: existing?.id ?? `balance-${balanceKey.locationId}`,
           ...balanceKey,
           qtyOnHand,
-          qtyReserved: "0",
+          qtyReserved: existing?.qtyReserved ?? "0",
+          updatedAt: now,
+        };
+        balances.set(
+          `${balanceKey.productId}:${balanceKey.locationId}:${balanceKey.lotId ?? ""}`,
+          balance,
+        );
+        return balance;
+      },
+      async setQtyReserved(
+        balanceKey: {
+          orgId: string;
+          productId: string;
+          locationId: string;
+          lotId: string | null;
+        },
+        qtyReserved: string,
+      ) {
+        const existing = balances.get(
+          `${balanceKey.productId}:${balanceKey.locationId}:${balanceKey.lotId ?? ""}`,
+        );
+        const balance: StockBalance = {
+          id: existing?.id ?? `balance-${balanceKey.locationId}`,
+          ...balanceKey,
+          qtyOnHand: existing?.qtyOnHand ?? "0",
+          qtyReserved,
           updatedAt: now,
         };
         balances.set(

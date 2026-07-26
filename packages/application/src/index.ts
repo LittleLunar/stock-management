@@ -18,3 +18,7 @@ export * from "./use-cases/stock-issue.js";
 export * from "./use-cases/stock-transfer.js";
 export * from "./use-cases/stock-adjustment.js";
 export * from "./use-cases/stock-count.js";
+export * from "./use-cases/reservation.js";
+export * from "./use-cases/release-reservation.js";
+export * from "./use-cases/commit-reservation.js";
+export * from "./use-cases/availability.js";

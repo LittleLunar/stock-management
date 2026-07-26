@@ -6,6 +6,7 @@ import type {
   OutboxPort,
   ProductLookupPort,
   PurchaseOrderPort,
+  ReservationPort,
   SerialPort,
   StockAdjustmentPort,
   StockCountPort,
@@ -21,6 +22,7 @@ export interface UowContext {
   transfers?: StockTransferPort;
   adjustments?: StockAdjustmentPort;
   counts?: StockCountPort;
+  reservations?: ReservationPort;
   products: ProductLookupPort;
   locations?: LocationLookupPort;
   stock: StockPort;

@@ -114,6 +114,10 @@ class InMemoryStockRepository implements StockPort {
     throw new Error("Not implemented for inquiry tests");
   }
 
+  async setQtyReserved(): Promise<StockBalance> {
+    throw new Error("Not implemented for inquiry tests");
+  }
+
   async insertMovement(): Promise<StockMovement> {
     throw new Error("Not implemented for inquiry tests");
   }
