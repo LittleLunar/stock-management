@@ -52,6 +52,9 @@ export {
   GoodsReceiptIdParamsSchema,
   PostGoodsReceiptSchema,
   PostGoodsReceiptHeadersSchema,
+  StockBalancesQuerySchema,
+  StockMovementsQuerySchema,
+  StockTrackingQuerySchema,
   type PurchaseOrderLineInput,
   type CreatePurchaseOrder,
   type UpdatePurchaseOrder,
@@ -62,6 +65,9 @@ export {
   type GoodsReceiptIdParams,
   type PostGoodsReceipt,
   type PostGoodsReceiptHeaders,
+  type StockBalancesQuery,
+  type StockMovementsQuery,
+  type StockTrackingQuery,
 } from "./inventory.js";
 
 import {

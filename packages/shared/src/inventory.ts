@@ -107,3 +107,26 @@ export const PostGoodsReceiptHeadersSchema = z
 export type PostGoodsReceiptHeaders = z.infer<
   typeof PostGoodsReceiptHeadersSchema
 >;
+
+const OptionalBooleanQuerySchema = z
+  .enum(["true", "false"])
+  .transform((value) => value === "true")
+  .optional();
+
+export const StockBalancesQuerySchema = z.object({
+  productId: UuidSchema.optional(),
+  locationId: UuidSchema.optional(),
+  lowStock: OptionalBooleanQuerySchema,
+});
+export type StockBalancesQuery = z.infer<typeof StockBalancesQuerySchema>;
+
+export const StockMovementsQuerySchema = z.object({
+  productId: UuidSchema.optional(),
+  locationId: UuidSchema.optional(),
+});
+export type StockMovementsQuery = z.infer<typeof StockMovementsQuerySchema>;
+
+export const StockTrackingQuerySchema = z.object({
+  productId: UuidSchema.optional(),
+});
+export type StockTrackingQuery = z.infer<typeof StockTrackingQuerySchema>;

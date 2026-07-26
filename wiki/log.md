@@ -7,6 +7,13 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B1 stock-inquiry HTTP
+
+Added shared stock query schemas and the `/api/v1/stock` balance, movement,
+lot, and serial inquiry endpoints. Balance queries support product, location,
+and low-stock filters; movement queries support product and location filters.
+Updated [[Phase B]] and [[index]].
+
 ## [2026-07-26] update | Phase B1 goods-receipt HTTP
 
 Added shared goods-receipt request schemas and the `/api/v1/goods-receipts`

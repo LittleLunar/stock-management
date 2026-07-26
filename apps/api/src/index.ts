@@ -17,6 +17,7 @@ import { suppliersRoutes } from "./interfaces/http/suppliers.routes.js";
 import { usersRoutes } from "./interfaces/http/users.routes.js";
 import { purchaseOrdersRoutes } from "./interfaces/http/purchase-orders.routes.js";
 import { goodsReceiptsRoutes } from "./interfaces/http/goods-receipts.routes.js";
+import { stockRoutes } from "./interfaces/http/stock.routes.js";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
@@ -74,5 +75,6 @@ await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
   prefix: "/api/v1",
 });
 await app.register(goodsReceiptsRoutes(services), { prefix: "/api/v1" });
+await app.register(stockRoutes(services.stockInquiry), { prefix: "/api/v1" });
 
 await app.listen({ port: env.PORT, host: "0.0.0.0" });
