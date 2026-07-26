@@ -7,6 +7,10 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | DX foundation tooling
+
+Added shared error envelope + request IDs, Zod env validation, Pino config, typed web `ApiError` / RHF+Zod forms / Sonner / error boundary, Vitest, Prettier+ESLint, GitHub Actions CI. Spec: `docs/superpowers/specs/2026-07-26-dx-foundation-design.md`. Plan: `docs/superpowers/plans/2026-07-26-dx-foundation-tooling.md`. Updated [[Tech Stack]], [[Getting Started]].
+
 ## [2026-07-26] update | Full Clean Architecture migration complete
 
 Code moved to `packages/domain` + `packages/application`; API under `infrastructure` / `interfaces/http` / `main`. ESLint import boundaries enforced. Typecheck + lint green; `/health` and org create smoke OK.

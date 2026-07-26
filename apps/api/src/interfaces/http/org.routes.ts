@@ -1,19 +1,15 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { OrganizationUseCases } from "@stock-management/application";
-import { UpdateOrganizationSchema, UuidSchema } from "@stock-management/shared";
-import { z } from "zod";
-
-const CreateOrgSchema = z.object({
-  name: z.string().min(1).max(256),
-  currency: z.string().min(3).max(3).optional(),
-  timezone: z.string().min(1).max(64).optional(),
-  fiscalYearStartMonth: z.number().int().min(1).max(12).optional(),
-});
+import {
+  CreateOrganizationSchema,
+  UpdateOrganizationSchema,
+  UuidSchema,
+} from "@stock-management/shared";
 
 export function orgRoutes(useCases: OrganizationUseCases): FastifyPluginAsync {
   return async (app) => {
     app.post("/orgs", async (request) => {
-      const body = CreateOrgSchema.parse(request.body);
+      const body = CreateOrganizationSchema.parse(request.body);
       return useCases.create(body);
     });
 

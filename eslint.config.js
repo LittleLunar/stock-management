@@ -1,10 +1,12 @@
 import eslint from "@eslint/js";
+import eslintConfigPrettier from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
+  eslintConfigPrettier,
   {
     ignores: ["**/dist/**", "**/node_modules/**", "apps/web/src/routeTree.gen.ts"],
   },

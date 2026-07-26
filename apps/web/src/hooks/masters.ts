@@ -1,9 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  CreateBranch,
+  CreateLocation,
+  CreateProduct,
+  CreateSupplier,
+} from "@stock-management/shared";
 import { api, type ApiHeaders } from "../api/client";
 
 const defaultCtx = (): ApiHeaders => ({
   orgId: localStorage.getItem("orgId") ?? "",
-  userId: localStorage.getItem("userId") ?? "00000000-0000-0000-0000-000000000001",
+  userId:
+    localStorage.getItem("userId") ?? "00000000-0000-0000-0000-000000000001",
 });
 
 export function useApiContext(): ApiHeaders {
@@ -23,7 +30,7 @@ export function useCreateBranch() {
   const ctx = useApiContext();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { code: string; name: string }) => api.createBranch(ctx, body),
+    mutationFn: (body: CreateBranch) => api.createBranch(ctx, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["branches"] }),
   });
 }
@@ -41,12 +48,7 @@ export function useCreateLocation() {
   const ctx = useApiContext();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: {
-      branchId: string;
-      code: string;
-      name: string;
-      type?: string;
-    }) => api.createLocation(ctx, body),
+    mutationFn: (body: CreateLocation) => api.createLocation(ctx, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["locations"] }),
   });
 }
@@ -64,13 +66,7 @@ export function useCreateProduct() {
   const ctx = useApiContext();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: {
-      sku: string;
-      name: string;
-      trackLot?: boolean;
-      trackSerial?: boolean;
-      trackExpiry?: boolean;
-    }) => api.createProduct(ctx, body),
+    mutationFn: (body: CreateProduct) => api.createProduct(ctx, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
 }
@@ -88,8 +84,7 @@ export function useCreateSupplier() {
   const ctx = useApiContext();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { code: string; name: string }) =>
-      api.createSupplier(ctx, body),
+    mutationFn: (body: CreateSupplier) => api.createSupplier(ctx, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
   });
 }

@@ -14,6 +14,17 @@ updated: 2026-07-26
 3. Check [TASKS.md](../TASKS.md) for active work
 4. CA migration plan: `docs/superpowers/plans/2026-07-26-clean-architecture-migration.md`
 5. Phase A plan (historical): `docs/superpowers/plans/2026-07-25-phase-a-platform-skeleton.md`
+6. DX foundation (logging, errors, Vitest, Prettier, CI): `docs/superpowers/plans/2026-07-26-dx-foundation-tooling.md`
+
+## Local scripts
+
+| Script | Purpose |
+|--------|---------|
+| `pnpm dev:api` / `pnpm dev:web` | Run apps |
+| `pnpm typecheck` / `pnpm lint` / `pnpm test` | Quality gates |
+| `pnpm format` | Prettier write |
+
+Env template: `.env.example` (`DATABASE_URL`, `PORT`, `LOG_LEVEL`, `NODE_ENV`, `VITE_API_URL`).
 
 ## For agents
 

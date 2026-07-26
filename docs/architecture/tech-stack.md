@@ -4,14 +4,15 @@ Locked choices for this repo. Wiki: [[Tech Stack]]. Rules: `.cursor/rules/stack-
 
 | Layer | Choice | Notes |
 |-------|--------|-------|
-| API | Fastify + TypeScript | Modular monolith |
+| API | Fastify + TypeScript | Modular monolith; Pino logger + `x-request-id` |
 | ORM | Drizzle | SQL-friendly for FIFO locks |
 | DB | PostgreSQL 16+ | Partials, JSONB outbox |
-| Web | Vite + React + TypeScript | Auth-gated SPA |
+| Web | Vite + React + TypeScript | Auth-gated SPA; RHF + Zod forms; Sonner |
 | Routing | TanStack Router | Type-safe |
 | Server state | TanStack Query | Lists, mutations, posting |
 | UI | Tailwind | + shadcn/Radix as needed |
-| Validation | Zod | Shared in `packages/shared` (HTTP contracts) |
+| Validation | Zod | Shared DTOs + error envelope + env |
+| Tests / format | Vitest, Prettier, ESLint | CI on PR/push |
 | Jobs | Postgres outbox | BullMQ later if needed |
 
 ## Rejected
