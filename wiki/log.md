@@ -7,6 +7,38 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase C1 complete
+
+Shipped C1: cost layers on GR post/void, movement unit/total cost, CostingPort
+on UoW, `GET /api/v1/stock/cost-layers`. Marked C1 done in `TASKS.md`;
+[[Phase C]], [[FIFO Costing]], [[Document Posting]], [[Feature Phases]],
+[[index]] updated. Next: implement C2.
+
+## [2026-07-26] update | Phase C master plan refreshed
+
+Rewrote [[Phase C]] master plan as canonical index: all C1–C3 deep plans
+linked, locked-decision summary, out-of-scope, implementation order. Planning
+complete; implement C1 → C2 → C3 next.
+
+## [2026-07-26] update | Phase C Pass 3 plan
+
+Wrote deep C3 plan (landed cost, revaluation, as-of valuation, COGS, cost
+summary cache, thin web, outbox cost fields). [[Phase C]] and [[FIFO Costing]]
+updated: all C1–C3 deep plans ready. Updated [[Feature Phases]] and [[index]].
+
+## [2026-07-26] update | Phase C Pass 2 plan
+
+Wrote deep C2 plan (FIFO consume/create on issue, transfer, adjust, count,
+returns). [[Phase C]] and [[FIFO Costing]] updated: C1+C2 plans ready; C3
+still pending Pass 3. Updated [[Feature Phases]] and [[index]].
+
+## [2026-07-26] update | Phase C Pass 1 plans
+
+Wrote Phase C design spec, master plan, and deep C1 plan (cost layers on
+goods receipt). [[Phase C]] and [[FIFO Costing]] updated: C1 plan ready;
+C2/C3 deep plans deferred to later passes. Updated [[Feature Phases]] and
+[[index]].
+
 ## [2026-07-26] update | Phase B complete
 
 Marked Phase B (B1–B3 qty loop) complete in `TASKS.md` and [[Phase B]].
