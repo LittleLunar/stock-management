@@ -7,6 +7,14 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase D accounting plans
+
+Planning complete for [[Phase D]]: design spec
+(`docs/superpowers/specs/2026-07-26-phase-d-accounting-design.md`) plus master
+and deep D1–D3 plans under `docs/superpowers/plans/`. Updated [[Phase D]],
+[[Feature Phases]], [[Inventory Accounting]], [[index]]; `TASKS.md` split into
+D1/D2/D3 Active items. Implementation not started.
+
 ## [2026-07-26] update | Phase C complete
 
 Shipped C3: landed cost + revaluation docs, value adjustments, as-of valuation,
