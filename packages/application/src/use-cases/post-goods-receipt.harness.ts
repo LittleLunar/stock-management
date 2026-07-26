@@ -435,6 +435,7 @@ export function makeFake(options: FakeOptions | string = {}) {
     getBalance: () =>
       balances.get(balanceKey(product.id, receipt.locationId, null)) ?? null,
     getReceipt: () => currentReceipt,
+    getPo: () => currentPo,
     getMovements: () => movements,
     partiallyConsumeLayer: (sourceDocumentLineId: string, consumeQty: string) => {
       for (const [id, layer] of layers) {

@@ -39,4 +39,15 @@ describe("PostGoodsReceipt PO approval gate", () => {
     const result = await useCase.execute("org-1", "user-1", "gr-1");
     expect(result.receipt.status).toBe("posted");
   });
+
+  it("keeps approved PO when GR posts with zero effective receive", async () => {
+    const policies = new ApprovalPolicyUseCases(createFakeApprovalPolicyPort());
+    await policies.upsert("org-1", "purchase_order", true);
+    const fake = makeFake({ poStatus: "approved", receivingQty: "0" });
+    const useCase = new PostGoodsReceipt(fake.uow, policies);
+
+    const result = await useCase.execute("org-1", "user-1", "gr-1");
+    expect(result.receipt.status).toBe("posted");
+    expect(fake.getPo().status).toBe("approved");
+  });
 });

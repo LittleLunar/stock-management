@@ -276,10 +276,15 @@ export class PostGoodsReceipt {
       (line) => Number(line.receivedQty) >= Number(line.orderedQty),
     );
     const partiallyReceived = po.lines.some((line) => Number(line.receivedQty) > 0);
+    if (!fullyReceived && !partiallyReceived) {
+      // No qty landed — keep prior status (e.g. approved) so default-on
+      // approval does not demote and block the next GR.
+      return;
+    }
     await ctx.po.updateStatus(
       orgId,
       po.id,
-      fullyReceived ? "received" : partiallyReceived ? "partially_received" : "submitted",
+      fullyReceived ? "received" : "partially_received",
     );
   }
 }
