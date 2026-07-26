@@ -43,3 +43,67 @@ export const PurchaseOrderIdParamsSchema = z.object({
   id: UuidSchema,
 });
 export type PurchaseOrderIdParams = z.infer<typeof PurchaseOrderIdParamsSchema>;
+
+export const GoodsReceiptLineInputSchema = z.object({
+  id: UuidSchema.optional(),
+  productId: UuidSchema,
+  purchaseOrderLineId: UuidSchema.nullable().optional(),
+  qty: PositiveQuantitySchema,
+  unitCost: NonNegativeAmountSchema.nullable().optional(),
+  lotId: UuidSchema.nullable().optional(),
+  lotCode: z.string().trim().min(1).nullable().optional(),
+  expiryDate: z.coerce.date().nullable().optional(),
+  serialNumbers: z.array(z.string().trim().min(1)).optional(),
+  lineNumber: z.number().int().positive(),
+});
+export type GoodsReceiptLineInput = z.infer<typeof GoodsReceiptLineInputSchema>;
+
+export const CreateGoodsReceiptSchema = z.object({
+  purchaseOrderId: UuidSchema.nullable().optional(),
+  supplierId: UuidSchema.nullable().optional(),
+  branchId: UuidSchema,
+  locationId: UuidSchema,
+  lines: z.array(GoodsReceiptLineInputSchema).min(1),
+});
+export type CreateGoodsReceipt = z.infer<typeof CreateGoodsReceiptSchema>;
+
+export const UpdateGoodsReceiptSchema = CreateGoodsReceiptSchema.partial();
+export type UpdateGoodsReceipt = z.infer<typeof UpdateGoodsReceiptSchema>;
+
+export const GoodsReceiptIdParamsSchema = z.object({
+  id: UuidSchema,
+});
+export type GoodsReceiptIdParams = z.infer<typeof GoodsReceiptIdParamsSchema>;
+
+function requireIdempotencyPair(
+  value: { external_system?: string; external_id?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (Boolean(value.external_system) === Boolean(value.external_id)) return;
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "external_system and external_id must be provided together",
+  });
+}
+
+export const PostGoodsReceiptSchema = z
+  .object({
+    external_system: z.string().trim().min(1).optional(),
+    external_id: z.string().trim().min(1).optional(),
+  })
+  .superRefine(requireIdempotencyPair);
+export type PostGoodsReceipt = z.infer<typeof PostGoodsReceiptSchema>;
+
+export const PostGoodsReceiptHeadersSchema = z
+  .object({
+    "x-external-system": z.string().trim().min(1).optional(),
+    "x-external-id": z.string().trim().min(1).optional(),
+  })
+  .transform((headers) => ({
+    external_system: headers["x-external-system"],
+    external_id: headers["x-external-id"],
+  }))
+  .superRefine(requireIdempotencyPair);
+export type PostGoodsReceiptHeaders = z.infer<
+  typeof PostGoodsReceiptHeadersSchema
+>;

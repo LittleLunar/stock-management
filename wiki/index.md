@@ -37,7 +37,7 @@ updated: 2026-07-26
 
 - [[Feature Phases]] — Phase A–F roadmap summary
 - [[Phase A]] — platform skeleton
-- [[Phase B]] — internal inventory loop (B1 implementation in progress)
+- [[Phase B]] — internal inventory loop (B1 PO and goods-receipt HTTP available)
 - [[Phase C]] — costing
 - [[Phase D]] — accounting
 - [[Phase E]] — multi-branch hardening
@@ -45,7 +45,7 @@ updated: 2026-07-26
 
 ## Flows
 
-- [[Purchase to Stock]] — PO → receipt → balance
+- [[Purchase to Stock]] — PO → receipt post/void → immutable movements and balance
 - [[Document Posting]] — draft → post → void
 
 ## Sources

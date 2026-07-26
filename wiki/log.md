@@ -7,6 +7,13 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B1 goods-receipt HTTP
+
+Added shared goods-receipt request schemas and the `/api/v1/goods-receipts`
+draft, post, and void endpoints. Post accepts body or header idempotency keys;
+route tests cover balance increase/reversal, replay, over-receive, and lot
+tracking validation. Updated [[Phase B]], [[Purchase to Stock]], and [[index]].
+
 ## [2026-07-26] update | Phase B1 purchase-order HTTP
 
 Added shared purchase-order request schemas and the `/api/v1/purchase-orders`

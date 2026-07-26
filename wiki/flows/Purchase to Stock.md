@@ -29,4 +29,12 @@ Related: [[Document-Driven Inventory]] · [[Document Posting]]
 
 Purchase orders use `/api/v1/purchase-orders`. Drafts can be created, listed,
 retrieved, and updated, then moved through explicit `submit`, `cancel`, and
-`close` actions. Goods-receipt HTTP endpoints are delivered separately.
+`close` actions.
+
+Goods receipts use `/api/v1/goods-receipts`. Drafts can be created, listed,
+retrieved, and updated. Posting creates receipt movements, increases balances,
+updates received PO quantities/status, and enqueues outbox events atomically.
+Voiding creates reversing movements and decreases balances; posted ledger rows
+remain immutable. Post requests may provide `external_system` and `external_id`
+in the body, or `x-external-system` and `x-external-id` headers, for idempotent
+replay.

@@ -46,10 +46,22 @@ export {
   CreatePurchaseOrderSchema,
   UpdatePurchaseOrderSchema,
   PurchaseOrderIdParamsSchema,
+  GoodsReceiptLineInputSchema,
+  CreateGoodsReceiptSchema,
+  UpdateGoodsReceiptSchema,
+  GoodsReceiptIdParamsSchema,
+  PostGoodsReceiptSchema,
+  PostGoodsReceiptHeadersSchema,
   type PurchaseOrderLineInput,
   type CreatePurchaseOrder,
   type UpdatePurchaseOrder,
   type PurchaseOrderIdParams,
+  type GoodsReceiptLineInput,
+  type CreateGoodsReceipt,
+  type UpdateGoodsReceipt,
+  type GoodsReceiptIdParams,
+  type PostGoodsReceipt,
+  type PostGoodsReceiptHeaders,
 } from "./inventory.js";
 
 import {
