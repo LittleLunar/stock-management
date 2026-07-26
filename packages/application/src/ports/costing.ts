@@ -67,6 +67,11 @@ export interface CostingPort {
     orgId: string,
     layerIds: string[],
   ): Promise<CostLayerValueAdjustment[]>;
+  listAdjustmentsBySourceDocument(
+    orgId: string,
+    documentType: string,
+    documentId: string,
+  ): Promise<CostLayerValueAdjustment[]>;
   upsertProductCostSummary(
     row: Omit<ProductCostSummary, "id" | "updatedAt"> & {
       id?: string;

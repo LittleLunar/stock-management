@@ -327,6 +327,9 @@ function makeFake(options: FakeOptions | string = {}) {
       async listAdjustmentsForLayers() {
         return [];
       },
+      async listAdjustmentsBySourceDocument() {
+        return [];
+      },
       async upsertProductCostSummary(row) {
         return {
           id: row.id ?? `summary-${++sequence}`,

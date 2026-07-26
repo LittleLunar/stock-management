@@ -33,3 +33,5 @@ export * from "./use-cases/availability.js";
 export * from "./use-cases/customer.js";
 export * from "./use-cases/supplier-return.js";
 export * from "./use-cases/customer-return.js";
+export * from "./use-cases/landed-cost.js";
+export * from "./use-cases/cost-revaluation.js";

@@ -375,6 +375,9 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
       async listAdjustmentsForLayers() {
         return [];
       },
+      async listAdjustmentsBySourceDocument() {
+        return [];
+      },
       async upsertProductCostSummary(row) {
         return {
           id: row.id ?? randomUUID(),

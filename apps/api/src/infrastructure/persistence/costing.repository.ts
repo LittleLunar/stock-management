@@ -270,6 +270,23 @@ export class DrizzleCostingRepository implements CostingPort {
       ) as Promise<CostLayerValueAdjustment[]>;
   }
 
+  async listAdjustmentsBySourceDocument(
+    orgId: string,
+    documentType: string,
+    documentId: string,
+  ): Promise<CostLayerValueAdjustment[]> {
+    return this.db
+      .select()
+      .from(costLayerValueAdjustments)
+      .where(
+        and(
+          eq(costLayerValueAdjustments.orgId, orgId),
+          eq(costLayerValueAdjustments.sourceDocumentType, documentType),
+          eq(costLayerValueAdjustments.sourceDocumentId, documentId),
+        ),
+      ) as Promise<CostLayerValueAdjustment[]>;
+  }
+
   async upsertProductCostSummary(
     row: Omit<ProductCostSummary, "id" | "updatedAt"> & {
       id?: string;

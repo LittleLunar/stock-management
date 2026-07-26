@@ -172,6 +172,14 @@ export function createFakeCosting(): FakeCosting {
         (a) => a.orgId === orgId && set.has(a.costLayerId),
       );
     },
+    async listAdjustmentsBySourceDocument(orgId, documentType, documentId) {
+      return adjustments.filter(
+        (a) =>
+          a.orgId === orgId &&
+          a.sourceDocumentType === documentType &&
+          a.sourceDocumentId === documentId,
+      );
+    },
     async upsertProductCostSummary(row) {
       const existing = summaries.find(
         (s) =>
