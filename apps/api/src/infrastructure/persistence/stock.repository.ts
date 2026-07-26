@@ -84,10 +84,16 @@ export class DrizzleStockRepository implements StockPort {
         documentLineId: input.documentLineId,
         movementType: input.movementType,
         qty: input.qty,
+        unitCost: input.unitCost ?? null,
+        totalCost: input.totalCost ?? null,
         createdAt: input.createdAt,
       })
       .returning();
-    return movement as StockMovement;
+    return {
+      ...(movement as StockMovement),
+      unitCost: (movement.unitCost as string | null) ?? null,
+      totalCost: (movement.totalCost as string | null) ?? null,
+    };
   }
 
   async listBalances(

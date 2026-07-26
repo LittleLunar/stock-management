@@ -1,5 +1,6 @@
 import type { UnitOfWork, UowContext } from "@stock-management/application";
 import type { Db } from "../db/client.js";
+import { DrizzleCostingRepository } from "./costing.repository.js";
 import { DrizzleCustomerRepository } from "./customer.repository.js";
 import { DrizzleCustomerReturnRepository } from "./customer-return.repository.js";
 import { DrizzleGoodsReceiptRepository } from "./goods-receipt.repository.js";
@@ -39,6 +40,7 @@ export class DrizzleUnitOfWork implements UnitOfWork {
         stock: new DrizzleStockRepository(tx, true),
         lots: new DrizzleLotRepository(tx),
         serials: new DrizzleSerialRepository(tx),
+        costing: new DrizzleCostingRepository(tx),
         outbox: new DrizzleOutboxRepository(tx),
         idempotency: new DrizzleIdempotencyRepository(tx, true),
       }),
