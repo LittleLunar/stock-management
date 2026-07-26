@@ -31,6 +31,9 @@ import {
   useProducts,
   useSuppliers,
 } from "./hooks/masters";
+import { GoodsReceiptsPage } from "./pages/GoodsReceiptsPage";
+import { PurchaseOrdersPage } from "./pages/PurchaseOrdersPage";
+import { StockPage } from "./pages/StockPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -90,24 +93,42 @@ function Shell() {
           <Link to="/branches" className="rounded px-2 py-1 hover:bg-slate-100">
             Branches
           </Link>
-          <Link to="/locations" className="rounded px-2 py-1 hover:bg-slate-100">
+          <Link
+            to="/locations"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
             Locations
           </Link>
           <Link to="/products" className="rounded px-2 py-1 hover:bg-slate-100">
             Products
           </Link>
-          <Link to="/suppliers" className="rounded px-2 py-1 hover:bg-slate-100">
+          <Link
+            to="/suppliers"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
             Suppliers
+          </Link>
+          <Link
+            to="/purchase-orders"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Purchase orders
+          </Link>
+          <Link
+            to="/goods-receipts"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Goods receipts
+          </Link>
+          <Link to="/stock" className="rounded px-2 py-1 hover:bg-slate-100">
+            Stock inquiry
           </Link>
         </nav>
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
           {orgId ? (
             <p className="break-all">Org: {orgId}</p>
           ) : (
-            <form
-              className="space-y-2"
-              onSubmit={handleSubmit(bootstrap)}
-            >
+            <form className="space-y-2" onSubmit={handleSubmit(bootstrap)}>
               <input
                 className="w-full rounded border border-slate-300 px-2 py-1"
                 placeholder="Org name"
@@ -139,7 +160,7 @@ function DashboardPage() {
     <div>
       <h1 className="text-2xl font-semibold">Dashboard</h1>
       <p className="mt-2 text-slate-600">
-        Phase A shell — use the sidebar to manage masters.
+        Manage master data, purchasing, receipts, and stock from the sidebar.
       </p>
     </div>
   );
@@ -196,9 +217,7 @@ function BranchesPage() {
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && (
-        <p className="text-red-700">{formatApiError(error)}</p>
-      )}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((b) => (
           <li key={b.id} className="flex justify-between px-4 py-3 text-sm">
@@ -284,9 +303,7 @@ function LocationsPage() {
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && (
-        <p className="text-red-700">{formatApiError(error)}</p>
-      )}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((loc) => (
           <li key={loc.id} className="flex justify-between px-4 py-3 text-sm">
@@ -383,9 +400,7 @@ function ProductsPage() {
         </div>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && (
-        <p className="text-red-700">{formatApiError(error)}</p>
-      )}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((p) => (
           <li key={p.id} className="flex justify-between px-4 py-3 text-sm">
@@ -458,9 +473,7 @@ function SuppliersPage() {
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && (
-        <p className="text-red-700">{formatApiError(error)}</p>
-      )}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((s) => (
           <li key={s.id} className="flex justify-between px-4 py-3 text-sm">
@@ -509,12 +522,33 @@ const suppliersRoute = createRoute({
   component: SuppliersPage,
 });
 
+const purchaseOrdersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/purchase-orders",
+  component: PurchaseOrdersPage,
+});
+
+const goodsReceiptsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/goods-receipts",
+  component: GoodsReceiptsPage,
+});
+
+const stockRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock",
+  component: StockPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   branchesRoute,
   locationsRoute,
   productsRoute,
   suppliersRoute,
+  purchaseOrdersRoute,
+  goodsReceiptsRoute,
+  stockRoute,
 ]);
 
 const router = createRouter({ routeTree });

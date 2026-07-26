@@ -12,9 +12,9 @@ Internal inventory loop — full quantity cycle across locations.
 
 ## Status
 
-**B1 implementation in progress (2026-07-26).** Purchase-order, goods-receipt,
+**B1 implementation complete (2026-07-26).** Purchase-order, goods-receipt,
 and stock-inquiry application/HTTP flows are available, including transactional
-receipt post/void.
+receipt post/void and a thin web UI for the inbound workflow.
 Execute **B1 → B2 → B3**.
 
 | Slice | Focus                                                                                                          | Plan                                                                        |
@@ -35,6 +35,9 @@ Design: `docs/superpowers/specs/2026-07-26-phase-b-design.md`
 - Goods-receipt REST lifecycle: create, list, get, update, post, void
 - Stock inquiry REST endpoints for balances, low-stock filtering, movements,
   lots, and serials
+- Thin web pages for PO create/list/submit, PO-backed or ad-hoc goods receipts
+  with lot/serial/cost capture, receipt post/void, and stock balance/movement
+  inquiry
 - Receipt post/void updates immutable movements and balances in the same Unit of Work
 - Receipt post supports replay-safe external idempotency keys
 - Stock issue, transfer (in-transit), adjustment, count

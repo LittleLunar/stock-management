@@ -7,6 +7,13 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B1 thin web UI
+
+Added thin React pages and TanStack Query hooks for purchase-order
+create/list/submit, PO-backed and ad-hoc goods receipts with lot/serial/cost
+capture, receipt post/void, and filtered stock balance/movement inquiry. Updated
+[[Phase B]], [[Purchase to Stock]], and [[index]].
+
 ## [2026-07-26] update | Phase B1 stock-inquiry HTTP
 
 Added shared stock query schemas and the `/api/v1/stock` balance, movement,

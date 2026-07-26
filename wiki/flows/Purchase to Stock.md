@@ -38,3 +38,12 @@ Voiding creates reversing movements and decreases balances; posted ledger rows
 remain immutable. Post requests may provide `external_system` and `external_id`
 in the body, or `x-external-system` and `x-external-id` headers, for idempotent
 replay.
+
+## Phase B1 web workflow
+
+The Vite/React app exposes thin pages for purchase orders, goods receipts, and
+stock inquiry. Users can create and submit a PO, load its remaining lines into a
+receipt or enter an ad-hoc receipt, capture quantity, location, lot/expiry,
+serial numbers, and unit cost, then post or void the receipt. Stock balance and
+movement views query the same REST API with product, location, and low-stock
+filters; the UI never edits quantity directly.
