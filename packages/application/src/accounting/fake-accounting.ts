@@ -11,6 +11,11 @@ import type {
   JournalWithLines,
 } from "../ports/accounting.js";
 
+function fakeUuid(seq: number): string {
+  const hex = seq.toString(16).padStart(12, "0");
+  return `00000000-0000-4000-8000-${hex}`;
+}
+
 export function makeFakeAccounting(): { port: AccountingPort } {
   const accounts = new Map<string, Account>();
   const mappings = new Map<string, AccountMapping>();
@@ -35,7 +40,7 @@ export function makeFakeAccounting(): { port: AccountingPort } {
     },
     async insertAccount(account) {
       const row: Account = {
-        id: account.id ?? `acct-${++accountSeq}`,
+        id: account.id ?? fakeUuid(++accountSeq),
         orgId: account.orgId,
         code: account.code,
         name: account.name,
@@ -72,7 +77,7 @@ export function makeFakeAccounting(): { port: AccountingPort } {
         mapping.journalEventType,
       );
       const row: AccountMapping = {
-        id: mapping.id ?? existing?.id ?? `map-${++mappingSeq}`,
+        id: mapping.id ?? existing?.id ?? fakeUuid(++mappingSeq),
         orgId: mapping.orgId,
         journalEventType: mapping.journalEventType,
         debitAccountId: mapping.debitAccountId,
@@ -101,7 +106,7 @@ export function makeFakeAccounting(): { port: AccountingPort } {
     },
     async insertPeriod(period) {
       const row: AccountingPeriod = {
-        id: period.id ?? `period-${++periodSeq}`,
+        id: period.id ?? fakeUuid(++periodSeq),
         orgId: period.orgId,
         year: period.year,
         month: period.month,
@@ -145,7 +150,7 @@ export function makeFakeAccounting(): { port: AccountingPort } {
       );
     },
     async insertJournal(input) {
-      const entryId = input.entry.id ?? `je-${++journalSeq}`;
+      const entryId = input.entry.id ?? fakeUuid(++journalSeq);
       const entry: JournalEntry = {
         id: entryId,
         orgId: input.entry.orgId,
@@ -159,7 +164,7 @@ export function makeFakeAccounting(): { port: AccountingPort } {
         createdAt: new Date(),
       };
       const lines: JournalLine[] = input.lines.map((line, i) => ({
-        id: line.id ?? `jl-${++lineSeq}`,
+        id: line.id ?? fakeUuid(++lineSeq),
         orgId: line.orgId,
         journalEntryId: entryId,
         accountId: line.accountId,
@@ -170,6 +175,9 @@ export function makeFakeAccounting(): { port: AccountingPort } {
       const full: JournalWithLines = { ...entry, lines };
       journals.set(entryId, full);
       return full;
+    },
+    async sumLinesByAccount() {
+      return [];
     },
   };
 
