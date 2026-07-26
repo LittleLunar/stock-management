@@ -268,6 +268,7 @@ export type UpsertSerialInput = {
   orgId: string;
   productId: string;
   lotId: string | null;
+  locationId?: string | null;
   serialNumber: string;
 };
 
@@ -282,6 +283,11 @@ export interface SerialPort {
     orgId: string,
     id: string,
     status: Serial["status"],
+  ): Promise<Serial>;
+  updateLocation?(
+    orgId: string,
+    id: string,
+    locationId: string | null,
   ): Promise<Serial>;
   list(orgId: string, filters?: { productId?: string }): Promise<Serial[]>;
 }

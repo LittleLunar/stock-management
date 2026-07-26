@@ -49,15 +49,18 @@ const toLocationId = "location-to";
 type FakeOptions = {
   issueQty?: string;
   adjustmentQty?: string;
+  adjustmentSerialNumbers?: string[];
   countedQty?: string;
   onHand?: string;
   serialNumbers?: string[];
   serialStatus?: Serial["status"];
   serialLocationId?: string | null;
+  seedSerials?: boolean;
 };
 
 function makeFake(options: FakeOptions = {}) {
   const serialNumbers = options.serialNumbers ?? [];
+  const adjustmentSerialNumbers = options.adjustmentSerialNumbers ?? [];
   const product: Product = {
     id: productId,
     orgId,
@@ -66,7 +69,7 @@ function makeFake(options: FakeOptions = {}) {
     uom: "each",
     categoryId: null,
     trackLot: false,
-    trackSerial: serialNumbers.length > 0,
+    trackSerial: serialNumbers.length > 0 || adjustmentSerialNumbers.length > 0,
     trackExpiry: false,
     costingMethod: "fifo",
     reorderMin: null,
@@ -149,7 +152,7 @@ function makeFake(options: FakeOptions = {}) {
         qty: options.adjustmentQty ?? "2",
         lotId: null,
         lineNumber: 1,
-        serialNumbers: [],
+        serialNumbers: adjustmentSerialNumbers,
       },
     ],
   };
@@ -180,6 +183,7 @@ function makeFake(options: FakeOptions = {}) {
 
   const balances = new Map<string, StockBalance>();
   const movements: StockMovement[] = [];
+  const serialsByNumber = new Map<string, Serial>();
   let movementSequence = 0;
   const key = (locationId: string, lotId: string | null = null) =>
     `${productId}:${locationId}:${lotId ?? ""}`;
@@ -199,6 +203,24 @@ function makeFake(options: FakeOptions = {}) {
   seedBalance(fromLocationId, options.onHand ?? "10");
   seedBalance(transitLocationId, "0");
   seedBalance(toLocationId, "0");
+  if (options.seedSerials !== false) {
+    for (const serialNumber of new Set([
+      ...serialNumbers,
+      ...adjustmentSerialNumbers,
+    ])) {
+      serialsByNumber.set(serialNumber, {
+        id: `serial-${serialNumber}`,
+        orgId,
+        productId,
+        lotId: null,
+        locationId: options.serialLocationId ?? fromLocationId,
+        serialNumber,
+        status: options.serialStatus ?? "in_stock",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  }
 
   const ctx = {
     issues: {
@@ -414,32 +436,59 @@ function makeFake(options: FakeOptions = {}) {
       },
     },
     serials: {
-      async upsert() {
-        throw new Error("Unexpected serial upsert");
+      async upsert(input: {
+        orgId: string;
+        productId: string;
+        lotId: string | null;
+        locationId?: string | null;
+        serialNumber: string;
+      }) {
+        const existing = serialsByNumber.get(input.serialNumber);
+        const serial: Serial = {
+          id: existing?.id ?? `serial-${input.serialNumber}`,
+          orgId: input.orgId,
+          productId: input.productId,
+          lotId: input.lotId,
+          locationId: input.locationId ?? existing?.locationId ?? null,
+          serialNumber: input.serialNumber,
+          status: "in_stock",
+          createdAt: existing?.createdAt ?? now,
+          updatedAt: now,
+        };
+        serialsByNumber.set(input.serialNumber, serial);
+        return serial;
       },
       async findByNumber(
         _orgId: string,
         _productId: string,
         serialNumber: string,
       ) {
-        if (!serialNumbers.includes(serialNumber)) return null;
-        return {
-          id: `serial-${serialNumber}`,
-          orgId,
-          productId,
-          lotId: null,
-          locationId: options.serialLocationId ?? fromLocationId,
-          serialNumber,
-          status: options.serialStatus ?? "in_stock",
-          createdAt: now,
-          updatedAt: now,
-        };
+        return serialsByNumber.get(serialNumber) ?? null;
       },
-      async updateStatus() {
-        throw new Error("Unexpected serial status update");
+      async updateStatus(_orgId: string, id: string, status: Serial["status"]) {
+        const serial = [...serialsByNumber.values()].find(
+          (candidate) => candidate.id === id,
+        );
+        if (!serial) throw new Error("Serial not found");
+        const updated = { ...serial, status, updatedAt: now };
+        serialsByNumber.set(serial.serialNumber, updated);
+        return updated;
+      },
+      async updateLocation(
+        _orgId: string,
+        id: string,
+        locationId: string | null,
+      ) {
+        const serial = [...serialsByNumber.values()].find(
+          (candidate) => candidate.id === id,
+        );
+        if (!serial) throw new Error("Serial not found");
+        const updated = { ...serial, locationId, updatedAt: now };
+        serialsByNumber.set(serial.serialNumber, updated);
+        return updated;
       },
       async list() {
-        return [];
+        return [...serialsByNumber.values()];
       },
     },
     outbox: { async enqueue() {} },
@@ -467,6 +516,8 @@ function makeFake(options: FakeOptions = {}) {
     getAdjustment: () => adjustment,
     getCount: () => count,
     getMovements: () => movements,
+    getSerial: (serialNumber: string) =>
+      serialsByNumber.get(serialNumber) ?? null,
   };
 }
 
@@ -590,6 +641,33 @@ describe("stock transfer use cases", () => {
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(fake.getMovements()).toHaveLength(0);
   });
+
+  it("moves serial location on ship and receive", async () => {
+    const fake = makeFake({ serialNumbers: ["SN-1"] });
+
+    await new ShipStockTransfer(fake.uow).execute(orgId, userId, "transfer-1");
+    expect(fake.getSerial("SN-1")?.locationId).toBe(transitLocationId);
+    expect(fake.getSerial("SN-1")?.status).toBe("in_stock");
+
+    await new ReceiveStockTransfer(fake.uow).execute(
+      orgId,
+      userId,
+      "transfer-1",
+    );
+    expect(fake.getSerial("SN-1")?.locationId).toBe(toLocationId);
+    expect(fake.getSerial("SN-1")?.status).toBe("in_stock");
+  });
+
+  it("restores serial location when an in-transit transfer is voided", async () => {
+    const fake = makeFake({ serialNumbers: ["SN-1"] });
+    await new ShipStockTransfer(fake.uow).execute(orgId, userId, "transfer-1");
+    expect(fake.getSerial("SN-1")?.locationId).toBe(transitLocationId);
+
+    await new VoidStockTransfer(fake.uow).execute(orgId, userId, "transfer-1");
+
+    expect(fake.getSerial("SN-1")?.locationId).toBe(fromLocationId);
+    expect(fake.getSerial("SN-1")?.status).toBe("in_stock");
+  });
 });
 
 describe("stock adjustment use cases", () => {
@@ -641,6 +719,54 @@ describe("stock adjustment use cases", () => {
     expect(result.movements[0]).toMatchObject({
       movementType: "adjustment_void",
       qty: "3",
+    });
+  });
+
+  it("rejects decreasing a serial outside the adjustment location", async () => {
+    const fake = makeFake({
+      adjustmentQty: "-1",
+      adjustmentSerialNumbers: ["SN-1"],
+      serialLocationId: toLocationId,
+    });
+
+    await expect(
+      new PostStockAdjustment(fake.uow).execute(orgId, userId, "adjustment-1"),
+    ).rejects.toMatchObject({ code: "INVALID_STATE" });
+    expect(fake.getMovements()).toHaveLength(0);
+  });
+
+  it("marks a serial issued when adjustment decreases stock", async () => {
+    const fake = makeFake({
+      adjustmentQty: "-1",
+      adjustmentSerialNumbers: ["SN-1"],
+    });
+
+    await new PostStockAdjustment(fake.uow).execute(
+      orgId,
+      userId,
+      "adjustment-1",
+    );
+
+    expect(fake.getSerial("SN-1")?.status).toBe("issued");
+    expect(fake.getSerial("SN-1")?.locationId).toBe(fromLocationId);
+  });
+
+  it("upserts an in-stock serial at the adjustment location on increase", async () => {
+    const fake = makeFake({
+      adjustmentQty: "1",
+      adjustmentSerialNumbers: ["SN-NEW"],
+      seedSerials: false,
+    });
+
+    await new PostStockAdjustment(fake.uow).execute(
+      orgId,
+      userId,
+      "adjustment-1",
+    );
+
+    expect(fake.getSerial("SN-NEW")).toMatchObject({
+      status: "in_stock",
+      locationId: fromLocationId,
     });
   });
 });

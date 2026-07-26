@@ -112,6 +112,12 @@ export class ShipStockTransfer {
         "transfer_out",
         "transfer_in",
       );
+      await updateTransferSerialLocations(
+        ctx,
+        orgId,
+        transfer.lines,
+        transfer.transitLocationId,
+      );
       const shipped = await transfers.updateStatus(
         orgId,
         transfer.id,
@@ -156,6 +162,12 @@ export class ReceiveStockTransfer {
       const transfer = await transfers.findById(orgId, transferId);
       if (!transfer) throw new NotFoundError("Stock transfer");
       assertCanReceiveTransfer(transfer);
+      await validateTransferSerialsAtLocation(
+        ctx,
+        orgId,
+        transfer.lines,
+        transfer.transitLocationId,
+      );
       await validateAvailableStock(
         ctx,
         orgId,
@@ -170,6 +182,12 @@ export class ReceiveStockTransfer {
         transfer.toLocationId,
         "transfer_out",
         "transfer_in",
+      );
+      await updateTransferSerialLocations(
+        ctx,
+        orgId,
+        transfer.lines,
+        transfer.toLocationId,
       );
       const received = await transfers.updateStatus(
         orgId,
@@ -207,6 +225,14 @@ export class VoidStockTransfer {
       if (!transfer) throw new NotFoundError("Stock transfer");
       assertCanVoidTransfer(transfer);
 
+      if (transfer.status === "in_transit") {
+        await validateTransferSerialsAtLocation(
+          ctx,
+          orgId,
+          transfer.lines,
+          transfer.transitLocationId,
+        );
+      }
       const movements =
         transfer.status === "in_transit"
           ? await moveTransferLines(
@@ -219,6 +245,14 @@ export class VoidStockTransfer {
               "transfer_out_void",
             )
           : [];
+      if (transfer.status === "in_transit") {
+        await updateTransferSerialLocations(
+          ctx,
+          orgId,
+          transfer.lines,
+          transfer.fromLocationId,
+        );
+      }
       const voided = await transfers.updateStatus(
         orgId,
         transfer.id,
@@ -296,6 +330,47 @@ async function assertTransferSerialsAvailable(
       throw new ConflictError(`Serial ${serialNumber} is not available`);
     }
     assertSerialAvailableForOutbound(serial, sourceLocationId);
+  }
+}
+
+async function validateTransferSerialsAtLocation(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  lines: TransferLines,
+  locationId: string,
+): Promise<void> {
+  for (const line of lines) {
+    await assertTransferSerialsAvailable(
+      ctx,
+      orgId,
+      line.productId,
+      line.lotId,
+      line.serialNumbers,
+      locationId,
+    );
+  }
+}
+
+async function updateTransferSerialLocations(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  lines: TransferLines,
+  locationId: string,
+): Promise<void> {
+  if (!lines.some((line) => line.serialNumbers.length > 0)) return;
+  if (!ctx.serials.findByNumber || !ctx.serials.updateLocation) {
+    throw new Error("Serial location updates are not configured");
+  }
+  for (const line of lines) {
+    for (const serialNumber of line.serialNumbers) {
+      const serial = await ctx.serials.findByNumber(
+        orgId,
+        line.productId,
+        serialNumber,
+      );
+      if (!serial) throw new NotFoundError("Serial");
+      await ctx.serials.updateLocation(orgId, serial.id, locationId);
+    }
   }
 }
 

@@ -1,9 +1,11 @@
 import {
+  ConflictError,
   InsufficientStockError,
   InvalidStateError,
   NotFoundError,
   assertCanPostAdjustment,
   assertLotSerialRules,
+  assertSerialAvailableForOutbound,
   assertSignedAdjustmentQty,
   signedQtyForMovement,
 } from "@stock-management/domain";
@@ -82,14 +84,29 @@ export class PostStockAdjustment {
       if (!adjustment) throw new NotFoundError("Stock adjustment");
       assertCanPostAdjustment(adjustment);
 
+      const serialTrackedProductIds = new Set<string>();
       for (const line of adjustment.lines) {
         assertSignedAdjustmentQty(line.qty);
         const product = await ctx.products.findById(orgId, line.productId);
         if (!product) throw new NotFoundError("Product");
+        if (product.trackSerial) serialTrackedProductIds.add(product.id);
         assertLotSerialRules(product, {
           lotId: line.lotId,
           serialNumbers: line.serialNumbers,
         });
+        if (
+          serialTrackedProductIds.has(line.productId) &&
+          Number(line.qty) < 0
+        ) {
+          await assertAdjustmentSerialsAvailable(
+            ctx,
+            orgId,
+            line.productId,
+            line.lotId,
+            line.serialNumbers,
+            adjustment.locationId,
+          );
+        }
         const balance = await ctx.stock.findBalance({
           orgId,
           productId: line.productId,
@@ -127,6 +144,28 @@ export class PostStockAdjustment {
           balanceKey,
           String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
         );
+        if (
+          serialTrackedProductIds.has(line.productId) &&
+          Number(line.qty) < 0
+        ) {
+          await updateAdjustmentSerialStatuses(
+            ctx,
+            orgId,
+            line.productId,
+            line.serialNumbers,
+            "issued",
+          );
+        } else if (serialTrackedProductIds.has(line.productId)) {
+          for (const serialNumber of line.serialNumbers) {
+            await ctx.serials.upsert({
+              orgId,
+              productId: line.productId,
+              lotId: line.lotId,
+              locationId: adjustment.locationId,
+              serialNumber,
+            });
+          }
+        }
       }
 
       const posted = await adjustments.updateStatus(
@@ -240,6 +279,53 @@ export class VoidStockAdjustment {
       );
       return { adjustment: voided, movements };
     });
+  }
+}
+
+async function assertAdjustmentSerialsAvailable(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  productId: string,
+  lotId: string | null,
+  serialNumbers: string[],
+  locationId: string,
+): Promise<void> {
+  if (serialNumbers.length === 0) return;
+  if (!ctx.serials.findByNumber) {
+    throw new Error("Serial lookup is not configured");
+  }
+  for (const serialNumber of serialNumbers) {
+    const serial = await ctx.serials.findByNumber(
+      orgId,
+      productId,
+      serialNumber,
+    );
+    if (!serial || (lotId !== null && serial.lotId !== lotId)) {
+      throw new ConflictError(`Serial ${serialNumber} is not available`);
+    }
+    assertSerialAvailableForOutbound(serial, locationId);
+  }
+}
+
+async function updateAdjustmentSerialStatuses(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  productId: string,
+  serialNumbers: string[],
+  status: "issued",
+): Promise<void> {
+  if (serialNumbers.length === 0) return;
+  if (!ctx.serials.findByNumber || !ctx.serials.updateStatus) {
+    throw new Error("Serial status updates are not configured");
+  }
+  for (const serialNumber of serialNumbers) {
+    const serial = await ctx.serials.findByNumber(
+      orgId,
+      productId,
+      serialNumber,
+    );
+    if (!serial) throw new NotFoundError("Serial");
+    await ctx.serials.updateStatus(orgId, serial.id, status);
   }
 }
 
