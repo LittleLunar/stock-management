@@ -20,6 +20,7 @@ import { suppliersRoutes } from "./interfaces/http/suppliers.routes.js";
 import { customersRoutes } from "./interfaces/http/customers.routes.js";
 import { usersRoutes } from "./interfaces/http/users.routes.js";
 import { approvalPoliciesRoutes } from "./interfaces/http/approval-policies.routes.js";
+import { webhooksRoutes } from "./interfaces/http/webhooks.routes.js";
 import { purchaseOrdersRoutes } from "./interfaces/http/purchase-orders.routes.js";
 import { goodsReceiptsRoutes } from "./interfaces/http/goods-receipts.routes.js";
 import { stockRoutes } from "./interfaces/http/stock.routes.js";
@@ -112,6 +113,9 @@ await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
   prefix: "/api/v1",
 });
 await app.register(approvalPoliciesRoutes(services.approvalPolicies), {
+  prefix: "/api/v1",
+});
+await app.register(webhooksRoutes(services.webhookSubscriptions), {
   prefix: "/api/v1",
 });
 await app.register(goodsReceiptsRoutes(services), { prefix: "/api/v1" });

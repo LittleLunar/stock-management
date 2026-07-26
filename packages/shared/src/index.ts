@@ -357,3 +357,10 @@ export {
   type SupplierInvoiceIdParams,
   type ApAgingQuery,
 } from "./ap.js";
+
+export {
+  CreateWebhookSubscriptionSchema,
+  UpdateWebhookSubscriptionSchema,
+  type CreateWebhookSubscription,
+  type UpdateWebhookSubscription,
+} from "./webhooks.js";

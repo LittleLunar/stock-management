@@ -61,6 +61,7 @@ import {
   PnlReportUseCase,
   TrialBalanceUseCase,
   ApprovalPolicyUseCases,
+  WebhookSubscriptionUseCases,
   type HttpPoster,
 } from "@stock-management/application";
 import { NotFoundError } from "@stock-management/domain";
@@ -158,6 +159,7 @@ export type AppServices = {
   processOutboxForJournals: ProcessOutboxForJournals;
   processOutboxForWebhooks: ProcessOutboxForWebhooks;
   webhooks: DrizzleWebhookRepository;
+  webhookSubscriptions: WebhookSubscriptionUseCases;
   accounting: DrizzleAccountingRepository;
   supplierInvoices: SupplierInvoiceUseCases;
   postSupplierInvoice: PostSupplierInvoice;
@@ -271,6 +273,7 @@ export function createAppServices(db: Db): AppServices {
       defaultHttpPoster,
     ),
     webhooks,
+    webhookSubscriptions: new WebhookSubscriptionUseCases(webhooks),
     accounting,
     supplierInvoices: new SupplierInvoiceUseCases(ap),
     postSupplierInvoice: new PostSupplierInvoice(

@@ -56,6 +56,7 @@ export * from "./use-cases/accounts.js";
 export * from "./use-cases/journals.js";
 export * from "./use-cases/process-outbox-for-journals.js";
 export * from "./use-cases/process-outbox-for-webhooks.js";
+export * from "./use-cases/webhook-subscription.js";
 export * from "./use-cases/supplier-invoices.js";
 export * from "./use-cases/post-supplier-invoice.js";
 export * from "./use-cases/void-supplier-invoice.js";
