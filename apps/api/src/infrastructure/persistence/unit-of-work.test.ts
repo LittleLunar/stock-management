@@ -17,6 +17,10 @@ describe("DrizzleUnitOfWork", () => {
       expect(context.transfers).toBeDefined();
       expect(context.adjustments).toBeDefined();
       expect(context.counts).toBeDefined();
+      expect(context.reservations).toBeDefined();
+      expect(context.supplierReturns).toBeDefined();
+      expect(context.customerReturns).toBeDefined();
+      expect(context.customers).toBeDefined();
       expect(context.products).toBeDefined();
       expect(context.locations).toBeDefined();
       expect(context.stock).toBeDefined();

@@ -1,6 +1,7 @@
 import {
   BranchUseCases,
   CategoryUseCases,
+  CustomerUseCases,
   GoodsReceiptUseCases,
   LocationUseCases,
   OrganizationUseCases,
@@ -28,6 +29,7 @@ import {
 import type { Db } from "../infrastructure/db/client.js";
 import { DrizzleBranchRepository } from "../infrastructure/persistence/branch.repository.js";
 import { DrizzleCategoryRepository } from "../infrastructure/persistence/category.repository.js";
+import { DrizzleCustomerRepository } from "../infrastructure/persistence/customer.repository.js";
 import { DrizzleGoodsReceiptRepository } from "../infrastructure/persistence/goods-receipt.repository.js";
 import { DrizzleLocationRepository } from "../infrastructure/persistence/location.repository.js";
 import { DrizzleLotRepository } from "../infrastructure/persistence/lot.repository.js";
@@ -51,6 +53,7 @@ export type AppServices = {
   categories: CategoryUseCases;
   products: ProductUseCases;
   suppliers: SupplierUseCases;
+  customers: CustomerUseCases;
   users: UsersUseCases;
   purchaseOrders: PurchaseOrderUseCases;
   goodsReceipts: GoodsReceiptUseCases;
@@ -83,6 +86,7 @@ export function createAppServices(db: Db): AppServices {
   const stockTransfers = new DrizzleStockTransferRepository(db);
   const stockAdjustments = new DrizzleStockAdjustmentRepository(db);
   const stockCounts = new DrizzleStockCountRepository(db);
+  const customers = new DrizzleCustomerRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
 
   return {
@@ -92,6 +96,7 @@ export function createAppServices(db: Db): AppServices {
     categories: new CategoryUseCases(new DrizzleCategoryRepository(db)),
     products: new ProductUseCases(new DrizzleProductRepository(db)),
     suppliers: new SupplierUseCases(new DrizzleSupplierRepository(db)),
+    customers: new CustomerUseCases(customers),
     users: new UsersUseCases(new DrizzleUsersRepository(db)),
     purchaseOrders: new PurchaseOrderUseCases(purchaseOrders),
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),

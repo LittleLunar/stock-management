@@ -32,12 +32,14 @@ export {
   LocationSchema,
   ProductSchema,
   SupplierSchema,
+  CustomerSchema,
   CreateOrganizationSchema,
   type Organization,
   type Branch,
   type Location,
   type Product,
   type Supplier,
+  type Customer,
   type CreateOrganization,
 } from "./entities.js";
 
@@ -201,6 +203,13 @@ export type CreateSupplier = z.infer<typeof CreateSupplierSchema>;
 
 export const UpdateSupplierSchema = CreateSupplierSchema.partial();
 export type UpdateSupplier = z.infer<typeof UpdateSupplierSchema>;
+
+export const CreateCustomerSchema = z.object({
+  code: z.string().min(1).max(64),
+  name: z.string().min(1).max(256),
+  status: MasterStatusSchema.optional(),
+});
+export type CreateCustomer = z.infer<typeof CreateCustomerSchema>;
 
 export const UpdateOrganizationSchema = z.object({
   name: z.string().min(1).max(256).optional(),

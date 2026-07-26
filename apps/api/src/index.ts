@@ -14,6 +14,7 @@ import { locationsRoutes } from "./interfaces/http/locations.routes.js";
 import { categoriesRoutes } from "./interfaces/http/categories.routes.js";
 import { productsRoutes } from "./interfaces/http/products.routes.js";
 import { suppliersRoutes } from "./interfaces/http/suppliers.routes.js";
+import { customersRoutes } from "./interfaces/http/customers.routes.js";
 import { usersRoutes } from "./interfaces/http/users.routes.js";
 import { purchaseOrdersRoutes } from "./interfaces/http/purchase-orders.routes.js";
 import { goodsReceiptsRoutes } from "./interfaces/http/goods-receipts.routes.js";
@@ -74,6 +75,7 @@ await app.register(categoriesRoutes(services.categories), {
 });
 await app.register(productsRoutes(services.products), { prefix: "/api/v1" });
 await app.register(suppliersRoutes(services.suppliers), { prefix: "/api/v1" });
+await app.register(customersRoutes(services.customers), { prefix: "/api/v1" });
 await app.register(usersRoutes(services.users), { prefix: "/api/v1" });
 await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
   prefix: "/api/v1",
