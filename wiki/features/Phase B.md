@@ -17,11 +17,11 @@ application/HTTP flows shipped, including transactional receipt post/void,
 idempotency, outbox enqueue, and a thin web UI for the inbound workflow.
 **Next: B2 — outbound documents** (issue, transfer, adjustment, count).
 
-| Slice | Focus                                                                                                          | Status / Plan                                                               |
-| ----- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| B1    | PO → GR, ledger, lots/serials, UoW, idempotency, outbox enqueue, stock inquiry, thin web                       | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b1-po-goods-receipt.md` |
-| B2    | Issue, transfer (explicit transit loc), adjustment, count                                                      | **Active** — `docs/superpowers/plans/2026-07-26-phase-b2-outbound-documents.md`  |
-| B3    | Returns, reservations, availability, outbox poller                                                             | Planned — `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md` |
+| Slice | Focus                                                                                    | Status / Plan                                                                         |
+| ----- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| B1    | PO → GR, ledger, lots/serials, UoW, idempotency, outbox enqueue, stock inquiry, thin web | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b1-po-goods-receipt.md`       |
+| B2    | Issue, transfer (explicit transit loc), adjustment, count                                | **Active** — `docs/superpowers/plans/2026-07-26-phase-b2-outbound-documents.md`       |
+| B3    | Returns, reservations, availability, outbox poller                                       | Planned — `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md` |
 
 Master: `docs/superpowers/plans/2026-07-26-phase-b-inventory-loop.md`  
 Design: `docs/superpowers/specs/2026-07-26-phase-b-design.md`
@@ -41,6 +41,8 @@ Design: `docs/superpowers/specs/2026-07-26-phase-b-design.md`
 - Receipt post/void updates immutable movements and balances in the same Unit of Work
 - Receipt post supports replay-safe external idempotency keys
 - Stock issue, transfer (in-transit), adjustment, count
+- Stock-issue REST lifecycle: create, list, get, update, post, and void;
+  posting rejects insufficient stock and supports replay-safe idempotency keys
 - Supplier / customer returns structure
 - Low stock, lot/serial lookup
 - Reservations + availability APIs (POS stubs)

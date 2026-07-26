@@ -108,6 +108,40 @@ export type PostGoodsReceiptHeaders = z.infer<
   typeof PostGoodsReceiptHeadersSchema
 >;
 
+export const StockIssueLineInputSchema = z.object({
+  id: UuidSchema.optional(),
+  productId: UuidSchema,
+  qty: PositiveQuantitySchema,
+  lotId: UuidSchema.nullable().optional(),
+  serialNumbers: z.array(z.string().trim().min(1)).optional(),
+  lineNumber: z.number().int().positive(),
+});
+export type StockIssueLineInput = z.infer<typeof StockIssueLineInputSchema>;
+
+export const CreateStockIssueSchema = z.object({
+  branchId: UuidSchema,
+  locationId: UuidSchema,
+  documentNumber: z.string().trim().min(1).nullable().optional(),
+  issueType: z.enum(["consume", "sample", "write_off", "other"]),
+  reasonNote: z.string().trim().min(1).nullable().optional(),
+  lines: z.array(StockIssueLineInputSchema).min(1),
+});
+export type CreateStockIssue = z.infer<typeof CreateStockIssueSchema>;
+
+export const UpdateStockIssueSchema = CreateStockIssueSchema.partial();
+export type UpdateStockIssue = z.infer<typeof UpdateStockIssueSchema>;
+
+export const StockIssueIdParamsSchema = z.object({
+  id: UuidSchema,
+});
+export type StockIssueIdParams = z.infer<typeof StockIssueIdParamsSchema>;
+
+export const PostStockIssueSchema = PostGoodsReceiptSchema;
+export type PostStockIssue = z.infer<typeof PostStockIssueSchema>;
+
+export const PostStockIssueHeadersSchema = PostGoodsReceiptHeadersSchema;
+export type PostStockIssueHeaders = z.infer<typeof PostStockIssueHeadersSchema>;
+
 const OptionalBooleanQuerySchema = z
   .enum(["true", "false"])
   .transform((value) => value === "true")

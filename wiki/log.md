@@ -7,6 +7,13 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B2 stock-issue HTTP
+
+Added shared stock-issue request schemas and the `/api/v1/stock-issues`
+create, list, get, update, post, and void endpoints. Posting rejects
+insufficient stock and accepts replay-safe body or header idempotency keys.
+Updated [[Phase B]] and [[index]].
+
 ## [2026-07-26] update | Phase B1 complete
 
 Marked Phase B1 (PO → goods receipt) complete in `TASKS.md` and [[Phase B]].
