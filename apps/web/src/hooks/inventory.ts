@@ -1,16 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  AvailabilityQuery,
+  CreateCustomerReturn,
   CreateGoodsReceipt,
   CreatePurchaseOrder,
+  CreateReservation,
   CreateStockAdjustment,
   CreateStockCount,
   CreateStockIssue,
   CreateStockTransfer,
+  CreateSupplierReturn,
+  PostCustomerReturn,
   PostGoodsReceipt,
   PostStockAdjustment,
   PostStockCount,
   PostStockIssue,
+  PostSupplierReturn,
   ReceiveStockTransfer,
+  ReservationsQuery,
   ShipStockTransfer,
   StockBalancesQuery,
   StockMovementsQuery,
@@ -341,5 +348,149 @@ export function useVoidStockCount() {
   return useMutation({
     mutationFn: (id: string) => api.voidStockCount(ctx, id),
     onSuccess: () => invalidateOutbound(queryClient, "stock-counts"),
+  });
+}
+
+async function invalidateReservations(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["reservations"] }),
+    queryClient.invalidateQueries({ queryKey: ["availability"] }),
+    queryClient.invalidateQueries({ queryKey: ["stock"] }),
+    queryClient.invalidateQueries({ queryKey: ["stock-issues"] }),
+  ]);
+}
+
+export function useReservations(filters: ReservationsQuery = {}) {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["reservations", ctx.orgId, filters],
+    queryFn: () => api.listReservations(ctx, filters),
+    enabled: Boolean(ctx.orgId),
+  });
+}
+
+export function useCreateReservation() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateReservation) => api.createReservation(ctx, body),
+    onSuccess: () => invalidateReservations(queryClient),
+  });
+}
+
+export function useReleaseReservation() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.releaseReservation(ctx, id),
+    onSuccess: () => invalidateReservations(queryClient),
+  });
+}
+
+export function useCommitReservation() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.commitReservation(ctx, id),
+    onSuccess: () => invalidateReservations(queryClient),
+  });
+}
+
+export function useAvailability(query?: AvailabilityQuery) {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["availability", ctx.orgId, query],
+    queryFn: () => api.getAvailability(ctx, query!),
+    enabled: Boolean(ctx.orgId && query?.productId && query?.branchId),
+  });
+}
+
+export function useSupplierReturns() {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["supplier-returns", ctx.orgId],
+    queryFn: () => api.listSupplierReturns(ctx),
+    enabled: Boolean(ctx.orgId),
+  });
+}
+
+export function useCreateSupplierReturn() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateSupplierReturn) =>
+      api.createSupplierReturn(ctx, body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["supplier-returns"] }),
+  });
+}
+
+export function usePostSupplierReturn() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body = {},
+    }: {
+      id: string;
+      body?: PostSupplierReturn;
+    }) => api.postSupplierReturn(ctx, id, body),
+    onSuccess: () => invalidateOutbound(queryClient, "supplier-returns"),
+  });
+}
+
+export function useVoidSupplierReturn() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.voidSupplierReturn(ctx, id),
+    onSuccess: () => invalidateOutbound(queryClient, "supplier-returns"),
+  });
+}
+
+export function useCustomerReturns() {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["customer-returns", ctx.orgId],
+    queryFn: () => api.listCustomerReturns(ctx),
+    enabled: Boolean(ctx.orgId),
+  });
+}
+
+export function useCreateCustomerReturn() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateCustomerReturn) =>
+      api.createCustomerReturn(ctx, body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["customer-returns"] }),
+  });
+}
+
+export function usePostCustomerReturn() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body = {},
+    }: {
+      id: string;
+      body?: PostCustomerReturn;
+    }) => api.postCustomerReturn(ctx, id, body),
+    onSuccess: () => invalidateOutbound(queryClient, "customer-returns"),
+  });
+}
+
+export function useVoidCustomerReturn() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.voidCustomerReturn(ctx, id),
+    onSuccess: () => invalidateOutbound(queryClient, "customer-returns"),
   });
 }

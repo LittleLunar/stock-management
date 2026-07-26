@@ -1,26 +1,37 @@
 import {
+  type AvailabilityQuery,
+  type AvailabilityResponse,
   type Branch,
   type CreateBranch,
+  type CreateCustomer,
+  type CreateCustomerReturn,
   type CreateGoodsReceipt,
   type CreateLocation,
   type CreateOrganization,
   type CreateProduct,
   type CreatePurchaseOrder,
+  type CreateReservation,
   type CreateStockAdjustment,
   type CreateStockCount,
   type CreateStockIssue,
   type CreateStockTransfer,
   type CreateSupplier,
+  type CreateSupplierReturn,
+  type Customer,
+  type CustomerReturnLineInput,
   type GoodsReceiptLineInput,
   type Location,
   type Organization,
+  type PostCustomerReturn,
   type PostGoodsReceipt,
   type PostStockAdjustment,
   type PostStockCount,
   type PostStockIssue,
+  type PostSupplierReturn,
   type Product,
   type PurchaseOrderLineInput,
   type ReceiveStockTransfer,
+  type ReservationsQuery,
   type ShipStockTransfer,
   type StockAdjustmentLineInput,
   type StockBalancesQuery,
@@ -29,6 +40,7 @@ import {
   type StockMovementsQuery,
   type StockTransferLineInput,
   type Supplier,
+  type SupplierReturnLineInput,
   type UpdateStockCount,
 } from "@stock-management/shared";
 import { env } from "../lib/env";
@@ -265,15 +277,119 @@ export type StockCountActionResult = {
   movements: StockMovement[];
 };
 
+export type StockReservation = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  productId: string;
+  locationId: string;
+  lotId: string | null;
+  qty: string;
+  status: "open" | "committed" | "released";
+  expiresAt: string | null;
+  externalSystem: string | null;
+  externalId: string | null;
+  committedIssueId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CommitReservationResult = {
+  reservation: StockReservation;
+  issue: StockIssueWithLines;
+  movements: StockMovement[];
+};
+
+export type SupplierReturn = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  supplierId: string;
+  goodsReceiptId: string | null;
+  documentNumber: string | null;
+  status: "draft" | "posted" | "void";
+  externalSystem: string | null;
+  externalId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  postedAt: string | null;
+  voidedAt: string | null;
+};
+
+export type SupplierReturnLine = Omit<
+  SupplierReturnLineInput,
+  "id" | "serialNumbers"
+> & {
+  id: string;
+  orgId: string;
+  supplierReturnId: string;
+  lotId: string | null;
+  serialNumbers: string[];
+};
+
+export type SupplierReturnWithLines = SupplierReturn & {
+  lines: SupplierReturnLine[];
+};
+
+export type SupplierReturnActionResult = {
+  doc: SupplierReturn;
+  movements: StockMovement[];
+};
+
+export type CustomerReturn = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  customerId: string;
+  documentNumber: string | null;
+  status: "draft" | "posted" | "void";
+  externalSystem: string | null;
+  externalId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  postedAt: string | null;
+  voidedAt: string | null;
+};
+
+export type CustomerReturnLine = Omit<
+  CustomerReturnLineInput,
+  "id" | "serialNumbers"
+> & {
+  id: string;
+  orgId: string;
+  customerReturnId: string;
+  lotId: string | null;
+  serialNumbers: string[];
+};
+
+export type CustomerReturnWithLines = CustomerReturn & {
+  lines: CustomerReturnLine[];
+};
+
+export type CustomerReturnActionResult = {
+  doc: CustomerReturn;
+  movements: StockMovement[];
+};
+
 export type {
+  AvailabilityQuery,
+  AvailabilityResponse,
   Branch,
+  CreateCustomer,
+  CreateCustomerReturn,
   CreateGoodsReceipt,
+  CreateReservation,
   CreateStockAdjustment,
   CreateStockCount,
   CreateStockIssue,
   CreateStockTransfer,
+  CreateSupplierReturn,
+  Customer,
   Location,
   Product,
+  ReservationsQuery,
   Supplier,
   Organization,
   CreateBranch,
@@ -281,10 +397,12 @@ export type {
   CreateProduct,
   CreatePurchaseOrder,
   CreateSupplier,
+  PostCustomerReturn,
   PostGoodsReceipt,
   PostStockAdjustment,
   PostStockCount,
   PostStockIssue,
+  PostSupplierReturn,
   ReceiveStockTransfer,
   ShipStockTransfer,
   StockBalancesQuery,
@@ -527,4 +645,94 @@ export const api = {
     request<StockCountActionResult>(`/api/v1/stock-counts/${id}/void`, ctx, {
       method: "POST",
     }),
+  listCustomers: (ctx: ApiHeaders) =>
+    request<Customer[]>("/api/v1/customers", ctx),
+  createCustomer: (ctx: ApiHeaders, body: CreateCustomer) =>
+    request<Customer>("/api/v1/customers", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  listReservations: (ctx: ApiHeaders, query: ReservationsQuery = {}) =>
+    request<StockReservation[]>(
+      withQuery("/api/v1/reservations", query),
+      ctx,
+    ),
+  getReservation: (ctx: ApiHeaders, id: string) =>
+    request<StockReservation>(`/api/v1/reservations/${id}`, ctx),
+  createReservation: (ctx: ApiHeaders, body: CreateReservation) =>
+    request<StockReservation>("/api/v1/reservations", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  releaseReservation: (ctx: ApiHeaders, id: string) =>
+    request<StockReservation>(`/api/v1/reservations/${id}/release`, ctx, {
+      method: "POST",
+    }),
+  commitReservation: (ctx: ApiHeaders, id: string) =>
+    request<CommitReservationResult>(
+      `/api/v1/reservations/${id}/commit`,
+      ctx,
+      { method: "POST" },
+    ),
+  getAvailability: (ctx: ApiHeaders, query: AvailabilityQuery) =>
+    request<AvailabilityResponse>(
+      withQuery("/api/v1/availability", query),
+      ctx,
+    ),
+  listSupplierReturns: (ctx: ApiHeaders) =>
+    request<SupplierReturn[]>("/api/v1/supplier-returns", ctx),
+  getSupplierReturn: (ctx: ApiHeaders, id: string) =>
+    request<SupplierReturnWithLines>(`/api/v1/supplier-returns/${id}`, ctx),
+  createSupplierReturn: (ctx: ApiHeaders, body: CreateSupplierReturn) =>
+    request<SupplierReturnWithLines>("/api/v1/supplier-returns", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  postSupplierReturn: (
+    ctx: ApiHeaders,
+    id: string,
+    body: PostSupplierReturn = {},
+  ) =>
+    request<SupplierReturnActionResult>(
+      `/api/v1/supplier-returns/${id}/post`,
+      ctx,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    ),
+  voidSupplierReturn: (ctx: ApiHeaders, id: string) =>
+    request<SupplierReturnActionResult>(
+      `/api/v1/supplier-returns/${id}/void`,
+      ctx,
+      { method: "POST" },
+    ),
+  listCustomerReturns: (ctx: ApiHeaders) =>
+    request<CustomerReturn[]>("/api/v1/customer-returns", ctx),
+  getCustomerReturn: (ctx: ApiHeaders, id: string) =>
+    request<CustomerReturnWithLines>(`/api/v1/customer-returns/${id}`, ctx),
+  createCustomerReturn: (ctx: ApiHeaders, body: CreateCustomerReturn) =>
+    request<CustomerReturnWithLines>("/api/v1/customer-returns", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  postCustomerReturn: (
+    ctx: ApiHeaders,
+    id: string,
+    body: PostCustomerReturn = {},
+  ) =>
+    request<CustomerReturnActionResult>(
+      `/api/v1/customer-returns/${id}/post`,
+      ctx,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    ),
+  voidCustomerReturn: (ctx: ApiHeaders, id: string) =>
+    request<CustomerReturnActionResult>(
+      `/api/v1/customer-returns/${id}/void`,
+      ctx,
+      { method: "POST" },
+    ),
 };

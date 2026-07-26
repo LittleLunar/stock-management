@@ -30,7 +30,8 @@ export function StockPage() {
       <div>
         <h1 className="text-2xl font-semibold">Stock inquiry</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Inspect current balances and the immutable movement ledger.
+          Inspect balances (on hand, reserved, available) and the immutable
+          movement ledger.
         </p>
       </div>
 
@@ -84,10 +85,16 @@ export function StockPage() {
                 <th className="px-4 py-3">Lot</th>
                 <th className="px-4 py-3 text-right">On hand</th>
                 <th className="px-4 py-3 text-right">Reserved</th>
+                <th className="px-4 py-3 text-right">Available</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {(balances.data ?? []).map((balance) => (
+              {(balances.data ?? []).map((balance) => {
+                const available = Math.max(
+                  0,
+                  Number(balance.qtyOnHand) - Number(balance.qtyReserved),
+                );
+                return (
                 <tr key={balance.id}>
                   <td className="px-4 py-3 font-medium">
                     {productName(balance.productId)}
@@ -104,8 +111,12 @@ export function StockPage() {
                   <td className="px-4 py-3 text-right tabular-nums">
                     {balance.qtyReserved}
                   </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {Number.isFinite(available) ? String(available) : "—"}
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           {!balances.isLoading && (balances.data?.length ?? 0) === 0 ? (

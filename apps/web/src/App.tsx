@@ -10,6 +10,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CreateBranchSchema,
+  CreateCustomerSchema,
   CreateOrganizationSchema,
   CreateProductSchema,
   CreateSupplierSchema,
@@ -24,20 +25,25 @@ import { formatApiError } from "./lib/errors";
 import {
   useBranches,
   useCreateBranch,
+  useCreateCustomer,
   useCreateLocation,
   useCreateProduct,
   useCreateSupplier,
+  useCustomers,
   useLocations,
   useProducts,
   useSuppliers,
 } from "./hooks/masters";
+import { CustomerReturnsPage } from "./pages/CustomerReturnsPage";
 import { GoodsReceiptsPage } from "./pages/GoodsReceiptsPage";
 import { PurchaseOrdersPage } from "./pages/PurchaseOrdersPage";
+import { ReservationsPage } from "./pages/ReservationsPage";
 import { StockAdjustmentsPage } from "./pages/StockAdjustmentsPage";
 import { StockCountsPage } from "./pages/StockCountsPage";
 import { StockIssuesPage } from "./pages/StockIssuesPage";
 import { StockPage } from "./pages/StockPage";
 import { StockTransfersPage } from "./pages/StockTransfersPage";
+import { SupplierReturnsPage } from "./pages/SupplierReturnsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -113,6 +119,12 @@ function Shell() {
             Suppliers
           </Link>
           <Link
+            to="/customers"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Customers
+          </Link>
+          <Link
             to="/purchase-orders"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
@@ -126,6 +138,12 @@ function Shell() {
           </Link>
           <Link to="/stock" className="rounded px-2 py-1 hover:bg-slate-100">
             Stock inquiry
+          </Link>
+          <Link
+            to="/reservations"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Reservations
           </Link>
           <Link
             to="/stock-issues"
@@ -150,6 +168,18 @@ function Shell() {
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
             Stock counts
+          </Link>
+          <Link
+            to="/supplier-returns"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Supplier returns
+          </Link>
+          <Link
+            to="/customer-returns"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Customer returns
           </Link>
         </nav>
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
@@ -188,8 +218,8 @@ function DashboardPage() {
     <div>
       <h1 className="text-2xl font-semibold">Dashboard</h1>
       <p className="mt-2 text-slate-600">
-        Manage master data, purchasing, receipts, outbound documents, and stock
-        from the sidebar.
+        Manage master data, purchasing, receipts, returns, reservations,
+        outbound documents, and stock from the sidebar.
       </p>
     </div>
   );
@@ -517,6 +547,75 @@ function SuppliersPage() {
   );
 }
 
+function CustomersPage() {
+  const { data, isLoading, error } = useCustomers();
+  const create = useCreateCustomer();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(CreateCustomerSchema),
+    defaultValues: { code: "", name: "" },
+  });
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">Customers</h1>
+      <form
+        className="flex flex-wrap items-start gap-2"
+        onSubmit={handleSubmit((values) => {
+          create.mutate(values, { onSuccess: () => reset() });
+        })}
+      >
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Code"
+            {...register("code")}
+          />
+          {errors.code && (
+            <p className="mt-1 text-xs text-red-700">{errors.code.message}</p>
+          )}
+        </div>
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Name"
+            {...register("name")}
+          />
+          {errors.name && (
+            <p className="mt-1 text-xs text-red-700">{errors.name.message}</p>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="rounded bg-teal-800 px-4 py-2 text-white"
+        >
+          Add
+        </button>
+      </form>
+      {isLoading && <p>Loading…</p>}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
+      <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+        {(data ?? []).map((customer) => (
+          <li
+            key={customer.id}
+            className="flex justify-between px-4 py-3 text-sm"
+          >
+            <span>
+              <span className="font-medium">{customer.code}</span> —{" "}
+              {customer.name}
+            </span>
+            <span className="text-slate-500">{customer.status}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 const rootRoute = createRootRoute({
   component: Shell,
 });
@@ -551,6 +650,12 @@ const suppliersRoute = createRoute({
   component: SuppliersPage,
 });
 
+const customersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/customers",
+  component: CustomersPage,
+});
+
 const purchaseOrdersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/purchase-orders",
@@ -567,6 +672,12 @@ const stockRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/stock",
   component: StockPage,
+});
+
+const reservationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reservations",
+  component: ReservationsPage,
 });
 
 const stockIssuesRoute = createRoute({
@@ -593,19 +704,35 @@ const stockCountsRoute = createRoute({
   component: StockCountsPage,
 });
 
+const supplierReturnsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/supplier-returns",
+  component: SupplierReturnsPage,
+});
+
+const customerReturnsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/customer-returns",
+  component: CustomerReturnsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   branchesRoute,
   locationsRoute,
   productsRoute,
   suppliersRoute,
+  customersRoute,
   purchaseOrdersRoute,
   goodsReceiptsRoute,
   stockRoute,
+  reservationsRoute,
   stockIssuesRoute,
   stockTransfersRoute,
   stockAdjustmentsRoute,
   stockCountsRoute,
+  supplierReturnsRoute,
+  customerReturnsRoute,
 ]);
 
 const router = createRouter({ routeTree });
