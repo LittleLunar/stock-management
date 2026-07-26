@@ -1,4 +1,5 @@
 import type {
+  CustomerReturnPort,
   GoodsReceiptPort,
   IdempotencyPort,
   LocationLookupPort,
@@ -13,7 +14,9 @@ import type {
   StockIssuePort,
   StockPort,
   StockTransferPort,
+  SupplierReturnPort,
 } from "./inventory.js";
+import type { CustomerRepository } from "./repositories.js";
 
 export interface UowContext {
   po: PurchaseOrderPort;
@@ -23,6 +26,9 @@ export interface UowContext {
   adjustments?: StockAdjustmentPort;
   counts?: StockCountPort;
   reservations?: ReservationPort;
+  supplierReturns?: SupplierReturnPort;
+  customerReturns?: CustomerReturnPort;
+  customers?: CustomerRepository;
   products: ProductLookupPort;
   locations?: LocationLookupPort;
   stock: StockPort;

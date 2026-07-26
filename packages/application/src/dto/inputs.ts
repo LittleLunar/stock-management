@@ -243,3 +243,61 @@ export type UpdateReservationInput = {
   status?: "open" | "committed" | "released";
   committedIssueId?: string | null;
 };
+
+export type CreateCustomerInput = {
+  code: string;
+  name: string;
+  status?: MasterStatus;
+};
+
+export type SupplierReturnLineInput = {
+  id?: string;
+  productId: string;
+  qty: string;
+  lotId?: string | null;
+  goodsReceiptLineId?: string | null;
+  serialNumbers?: string[];
+  lineNumber: number;
+};
+
+export type CreateSupplierReturnInput = {
+  branchId: string;
+  locationId: string;
+  supplierId: string;
+  goodsReceiptId?: string | null;
+  documentNumber?: string | null;
+  externalSystem?: string | null;
+  externalId?: string | null;
+  lines: SupplierReturnLineInput[];
+};
+
+export type UpdateSupplierReturnInput = Partial<
+  Omit<CreateSupplierReturnInput, "lines">
+> & {
+  lines?: SupplierReturnLineInput[];
+};
+
+export type CustomerReturnLineInput = {
+  id?: string;
+  productId: string;
+  qty: string;
+  lotId?: string | null;
+  serialNumbers?: string[];
+  lineNumber: number;
+};
+
+export type CreateCustomerReturnInput = {
+  branchId: string;
+  locationId: string;
+  customerId: string;
+  documentNumber?: string | null;
+  externalSystem?: string | null;
+  externalId?: string | null;
+  lines: CustomerReturnLineInput[];
+};
+
+export type UpdateCustomerReturnInput = Partial<
+  Omit<CreateCustomerReturnInput, "lines">
+> & {
+  lines?: CustomerReturnLineInput[];
+};

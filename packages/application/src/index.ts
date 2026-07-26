@@ -22,3 +22,6 @@ export * from "./use-cases/reservation.js";
 export * from "./use-cases/release-reservation.js";
 export * from "./use-cases/commit-reservation.js";
 export * from "./use-cases/availability.js";
+export * from "./use-cases/customer.js";
+export * from "./use-cases/supplier-return.js";
+export * from "./use-cases/customer-return.js";

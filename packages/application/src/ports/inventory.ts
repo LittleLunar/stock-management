@@ -1,4 +1,6 @@
 import type {
+  CustomerReturn,
+  CustomerReturnLine,
   GoodsReceipt,
   GoodsReceiptLine,
   Location,
@@ -19,8 +21,11 @@ import type {
   StockReservation,
   StockTransfer,
   StockTransferLine,
+  SupplierReturn,
+  SupplierReturnLine,
 } from "@stock-management/domain";
 import type {
+  CreateCustomerReturnInput,
   CreateReservationInput,
   CreateStockAdjustmentInput,
   CreateStockCountInput,
@@ -28,7 +33,9 @@ import type {
   CreatePurchaseOrderInput,
   CreateStockIssueInput,
   CreateStockTransferInput,
+  CreateSupplierReturnInput,
   StockCountLineInput,
+  UpdateCustomerReturnInput,
   UpdateReservationInput,
   UpdateStockAdjustmentInput,
   UpdateStockCountInput,
@@ -36,6 +43,7 @@ import type {
   UpdatePurchaseOrderInput,
   UpdateStockIssueInput,
   UpdateStockTransferInput,
+  UpdateSupplierReturnInput,
 } from "../dto/inputs.js";
 
 export type PurchaseOrderWithLines = PurchaseOrder & {
@@ -245,6 +253,54 @@ export interface ReservationPort {
     id: string,
     input: UpdateReservationInput,
   ): Promise<StockReservation | null>;
+}
+
+export type SupplierReturnWithLines = SupplierReturn & {
+  lines: OutboundLineDetails<SupplierReturnLine>[];
+};
+
+export interface SupplierReturnPort {
+  list(orgId: string): Promise<SupplierReturn[]>;
+  findById(orgId: string, id: string): Promise<SupplierReturnWithLines | null>;
+  create(
+    orgId: string,
+    input: CreateSupplierReturnInput,
+  ): Promise<SupplierReturnWithLines>;
+  update(
+    orgId: string,
+    id: string,
+    input: UpdateSupplierReturnInput,
+  ): Promise<SupplierReturnWithLines | null>;
+  updateStatus(
+    orgId: string,
+    id: string,
+    status: SupplierReturn["status"],
+    occurredAt: Date,
+  ): Promise<SupplierReturn>;
+}
+
+export type CustomerReturnWithLines = CustomerReturn & {
+  lines: OutboundLineDetails<CustomerReturnLine>[];
+};
+
+export interface CustomerReturnPort {
+  list(orgId: string): Promise<CustomerReturn[]>;
+  findById(orgId: string, id: string): Promise<CustomerReturnWithLines | null>;
+  create(
+    orgId: string,
+    input: CreateCustomerReturnInput,
+  ): Promise<CustomerReturnWithLines>;
+  update(
+    orgId: string,
+    id: string,
+    input: UpdateCustomerReturnInput,
+  ): Promise<CustomerReturnWithLines | null>;
+  updateStatus(
+    orgId: string,
+    id: string,
+    status: CustomerReturn["status"],
+    occurredAt: Date,
+  ): Promise<CustomerReturn>;
 }
 
 export type StockBalanceKey = Pick<
