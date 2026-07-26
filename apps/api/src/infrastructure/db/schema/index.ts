@@ -1,6 +1,9 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -244,4 +247,316 @@ export const customers = pgTable(
     ...timestamps,
   },
   (t) => [uniqueIndex("customers_org_code_uidx").on(t.orgId, t.code)],
+);
+
+export const poStatusEnum = pgEnum("po_status", [
+  "draft",
+  "submitted",
+  "partially_received",
+  "received",
+  "closed",
+  "cancelled",
+]);
+
+export const documentStatusEnum = pgEnum("document_status", [
+  "draft",
+  "posted",
+  "void",
+]);
+
+export const lotStatusEnum = pgEnum("lot_status", [
+  "active",
+  "depleted",
+  "quarantine",
+]);
+
+export const serialStatusEnum = pgEnum("serial_status", [
+  "in_stock",
+  "issued",
+  "returned",
+]);
+
+export const movementTypeEnum = pgEnum("movement_type", [
+  "receipt",
+  "receipt_void",
+]);
+
+export const outboxStatusEnum = pgEnum("outbox_status", [
+  "pending",
+  "processed",
+  "failed",
+]);
+
+export const lots = pgTable(
+  "lots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    lotCode: text("lot_code").notNull(),
+    expiryDate: date("expiry_date", { mode: "date" }),
+    status: lotStatusEnum("status").notNull().default("active"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("lots_org_product_code_uidx").on(
+      t.orgId,
+      t.productId,
+      t.lotCode,
+    ),
+  ],
+);
+
+export const serials = pgTable(
+  "serials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    lotId: uuid("lot_id").references(() => lots.id),
+    serialNumber: text("serial_number").notNull(),
+    status: serialStatusEnum("status").notNull().default("in_stock"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("serials_org_product_number_uidx").on(
+      t.orgId,
+      t.productId,
+      t.serialNumber,
+    ),
+  ],
+);
+
+export const stockBalances = pgTable(
+  "stock_balances",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    lotId: uuid("lot_id").references(() => lots.id),
+    qtyOnHand: numeric("qty_on_hand", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    qtyReserved: numeric("qty_reserved", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_balances_org_product_location_lot_uidx").on(
+      t.orgId,
+      t.productId,
+      t.locationId,
+      sql`coalesce(${t.lotId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+    ),
+  ],
+);
+
+export const stockMovements = pgTable("stock_movements", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id),
+  lotId: uuid("lot_id").references(() => lots.id),
+  documentType: text("document_type").notNull(),
+  documentId: uuid("document_id").notNull(),
+  documentLineId: uuid("document_line_id"),
+  movementType: movementTypeEnum("movement_type").notNull(),
+  qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const purchaseOrders = pgTable(
+  "purchase_orders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id),
+    status: poStatusEnum("status").notNull().default("draft"),
+    documentNumber: text("document_number"),
+    expectedDate: date("expected_date", { mode: "date" }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("purchase_orders_org_document_number_uidx").on(
+      t.orgId,
+      t.documentNumber,
+    ),
+  ],
+);
+
+export const purchaseOrderLines = pgTable(
+  "purchase_order_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    purchaseOrderId: uuid("purchase_order_id")
+      .notNull()
+      .references(() => purchaseOrders.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    orderedQty: numeric("ordered_qty", { precision: 18, scale: 4 }).notNull(),
+    receivedQty: numeric("received_qty", { precision: 18, scale: 4 })
+      .notNull()
+      .default("0"),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }),
+    lineNumber: integer("line_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("purchase_order_lines_org_order_line_uidx").on(
+      t.orgId,
+      t.purchaseOrderId,
+      t.lineNumber,
+    ),
+  ],
+);
+
+export const goodsReceipts = pgTable("goods_receipts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  purchaseOrderId: uuid("purchase_order_id").references(
+    () => purchaseOrders.id,
+  ),
+  supplierId: uuid("supplier_id").references(() => suppliers.id),
+  branchId: uuid("branch_id")
+    .notNull()
+    .references(() => branches.id),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id),
+  status: documentStatusEnum("status").notNull().default("draft"),
+  postedAt: timestamp("posted_at", { withTimezone: true }),
+  voidedAt: timestamp("voided_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const goodsReceiptLines = pgTable(
+  "goods_receipt_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    goodsReceiptId: uuid("goods_receipt_id")
+      .notNull()
+      .references(() => goodsReceipts.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    purchaseOrderLineId: uuid("purchase_order_line_id").references(
+      () => purchaseOrderLines.id,
+    ),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }),
+    lotId: uuid("lot_id").references(() => lots.id),
+    lineNumber: integer("line_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("goods_receipt_lines_org_receipt_line_uidx").on(
+      t.orgId,
+      t.goodsReceiptId,
+      t.lineNumber,
+    ),
+  ],
+);
+
+export const goodsReceiptSerials = pgTable(
+  "goods_receipt_serials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    goodsReceiptLineId: uuid("goods_receipt_line_id")
+      .notNull()
+      .references(() => goodsReceiptLines.id),
+    serialNumber: text("serial_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("goods_receipt_serials_org_line_number_uidx").on(
+      t.orgId,
+      t.goodsReceiptLineId,
+      t.serialNumber,
+    ),
+  ],
+);
+
+export const outboxEvents = pgTable("outbox_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  eventType: text("event_type").notNull(),
+  aggregateType: text("aggregate_type").notNull(),
+  aggregateId: uuid("aggregate_id").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+  status: outboxStatusEnum("status").notNull().default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  availableAt: timestamp("available_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  ...timestamps,
+});
+
+export const idempotencyKeys = pgTable(
+  "idempotency_keys",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    operation: text("operation").notNull(),
+    externalSystem: text("external_system").notNull(),
+    externalId: text("external_id").notNull(),
+    result: jsonb("result").$type<unknown>().notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("idempotency_keys_org_operation_external_uidx").on(
+      t.orgId,
+      t.operation,
+      t.externalSystem,
+      t.externalId,
+    ),
+  ],
 );
