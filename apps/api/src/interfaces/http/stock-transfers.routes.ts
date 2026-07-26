@@ -6,6 +6,7 @@ import type {
   VoidStockTransfer,
 } from "@stock-management/application";
 import type { MembershipAccess } from "@stock-management/domain";
+import { assertBranchAccess } from "@stock-management/domain";
 import {
   CreateStockTransferSchema,
   ReceiveStockTransferHeadersSchema,
@@ -18,6 +19,8 @@ import {
 import type { RequestContext } from "../plugins/context.js";
 import {
   assertCanPerform,
+  assertDocumentBranchWrite,
+  assertTransferBranchRead,
   listFilterFromContext,
 } from "./branch-scope.js";
 
@@ -49,7 +52,16 @@ export function stockTransfersRoutes(
       "/stock-transfers/:id",
       async (request) => {
         const { id } = StockTransferIdParamsSchema.parse(request.params);
-        return useCases.stockTransfers.get(request.ctx.orgId, id);
+        const transfer = await useCases.stockTransfers.get(
+          request.ctx.orgId,
+          id,
+        );
+        assertTransferBranchRead(
+          request.ctx,
+          transfer.fromBranchId,
+          transfer.toBranchId,
+        );
+        return transfer;
       },
     );
 
@@ -89,12 +101,17 @@ export function stockTransfersRoutes(
     app.post<{ Params: { id: string } }>(
       "/stock-transfers/:id/ship",
       async (request) => {
-        assertCanPerform(
+        const { id } = StockTransferIdParamsSchema.parse(request.params);
+        const transfer = await useCases.stockTransfers.get(
+          request.ctx.orgId,
+          id,
+        );
+        assertDocumentBranchWrite(
           request.ctx,
           "inventory.post",
+          transfer.fromBranchId,
           "Role cannot post inventory documents",
         );
-        const { id } = StockTransferIdParamsSchema.parse(request.params);
         const body = ShipStockTransferSchema.parse(request.body ?? {});
         const headerKey = ShipStockTransferHeadersSchema.parse(request.headers);
         const externalSystem =
@@ -116,12 +133,24 @@ export function stockTransfersRoutes(
     app.post<{ Params: { id: string } }>(
       "/stock-transfers/:id/receive",
       async (request) => {
-        assertCanPerform(
+        const { id } = StockTransferIdParamsSchema.parse(request.params);
+        const transfer = await useCases.stockTransfers.get(
+          request.ctx.orgId,
+          id,
+        );
+        assertDocumentBranchWrite(
           request.ctx,
           "inventory.post",
+          transfer.toBranchId,
           "Role cannot post inventory documents",
         );
-        const { id } = StockTransferIdParamsSchema.parse(request.params);
+        // Replenishment create requires both ends; receive keeps the same grant.
+        if (transfer.purpose === "replenishment") {
+          assertBranchAccess(
+            membershipAccessFromCtx(request.ctx),
+            transfer.fromBranchId,
+          );
+        }
         const body = ReceiveStockTransferSchema.parse(request.body ?? {});
         const headerKey = ReceiveStockTransferHeadersSchema.parse(
           request.headers,
@@ -145,12 +174,17 @@ export function stockTransfersRoutes(
     app.post<{ Params: { id: string } }>(
       "/stock-transfers/:id/void",
       async (request) => {
-        assertCanPerform(
+        const { id } = StockTransferIdParamsSchema.parse(request.params);
+        const transfer = await useCases.stockTransfers.get(
+          request.ctx.orgId,
+          id,
+        );
+        assertDocumentBranchWrite(
           request.ctx,
           "inventory.post",
+          transfer.fromBranchId,
           "Role cannot post inventory documents",
         );
-        const { id } = StockTransferIdParamsSchema.parse(request.params);
         return useCases.voidStockTransfer.execute(
           request.ctx.orgId,
           request.ctx.userId,

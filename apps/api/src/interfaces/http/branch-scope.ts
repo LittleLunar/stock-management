@@ -77,3 +77,18 @@ export function assertOptionalDocumentBranchWrite(
     branchId,
   );
 }
+
+/** Branch-scoped users may read a transfer if they have from OR to branch. */
+export function assertTransferBranchRead(
+  ctx: Pick<RequestContext, "role" | "branchIds">,
+  fromBranchId: string,
+  toBranchId: string,
+): void {
+  if (ctx.branchIds.length === 0) return;
+  if (
+    !ctx.branchIds.includes(fromBranchId) &&
+    !ctx.branchIds.includes(toBranchId)
+  ) {
+    throw new ForbiddenError();
+  }
+}

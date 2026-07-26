@@ -620,4 +620,72 @@ describe("stock transfer routes", () => {
     });
     expect(list.json<StockTransfer[]>()).toHaveLength(0);
   });
+
+  it("returns 403 when branch-scoped user ships another branch's transfer", async () => {
+    const harness = makeHarness();
+    const hqApp = await harness.buildApp();
+    apps.push(hqApp);
+    const created = await createDraft(hqApp);
+
+    const otherBranchContext = createContextPlugin({
+      findActiveByUser: async (orgId, userId) => ({
+        id: "00000000-0000-4000-8000-ffffffffcccc",
+        orgId,
+        userId,
+        role: "warehouse",
+        status: "active",
+        branchIds: [STORE_BRANCH_ID],
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      }),
+    });
+    const scopedApp = await harness.buildApp(otherBranchContext);
+    apps.push(scopedApp);
+
+    const response = await scopedApp.inject({
+      method: "POST",
+      url: `/api/v1/stock-transfers/${created.id}/ship`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: { code: "FORBIDDEN" },
+    });
+    expect(harness.getBalance(FROM_LOCATION_ID)?.qtyOnHand).toBe("10");
+    expect(harness.getMovements()).toHaveLength(0);
+  });
+
+  it("returns 403 when branch-scoped user gets a transfer outside from/to branches", async () => {
+    const harness = makeHarness();
+    const hqApp = await harness.buildApp();
+    apps.push(hqApp);
+    const created = await createDraft(hqApp);
+
+    const otherBranchContext = createContextPlugin({
+      findActiveByUser: async (orgId, userId) => ({
+        id: "00000000-0000-4000-8000-ffffffffdddd",
+        orgId,
+        userId,
+        role: "warehouse",
+        status: "active",
+        branchIds: [STORE_BRANCH_ID],
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      }),
+    });
+    const scopedApp = await harness.buildApp(otherBranchContext);
+    apps.push(scopedApp);
+
+    const response = await scopedApp.inject({
+      method: "GET",
+      url: `/api/v1/stock-transfers/${created.id}`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: { code: "FORBIDDEN" },
+    });
+  });
 });
