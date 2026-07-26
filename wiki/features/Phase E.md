@@ -12,16 +12,24 @@ Multi-branch retail hardening.
 
 ## Status
 
-**E1 + E2 shipped (2026-07-27).** E3 plan ready; implement next. Slice order: **E1 → E2 → E3**.
+**Complete (E1–E3, 2026-07-27).** Slice order was **E1 → E2 → E3**.
 
 | Slice | Focus | Status / Plan |
 |-------|--------|----------------|
 | E1 | Membership→context ACL, branch-filtered lists, web branch switcher, HQ vs branch reports, outbox `branchId` attribution, transfer branch columns | **Complete** — `docs/superpowers/plans/2026-07-26-phase-e1-branch-hardening.md` |
 | E2 | Cross-branch replenishment transfers, reservation locking/expiry, approval policies for PO + adjustments | **Complete** — `docs/superpowers/plans/2026-07-26-phase-e2-ops-approvals.md` |
-| E3 | Webhook subscriptions + HMAC delivery via outbox, FEFO/quarantine hard rules, barcode lookup + scan UX | **Plan ready** — `docs/superpowers/plans/2026-07-26-phase-e3-webhooks-fefo-barcode.md` |
+| E3 | Webhook subscriptions + HMAC delivery via outbox, FEFO/quarantine hard rules, barcode lookup + scan UX | **Complete** — `docs/superpowers/plans/2026-07-26-phase-e3-webhooks-fefo-barcode.md` |
 
 Master: `docs/superpowers/plans/2026-07-26-phase-e-multi-branch.md`  
 Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md`
+
+## E3 shipped notes (2026-07-27)
+
+- **Webhooks** — `webhook_subscriptions` / `webhook_deliveries` (unique `(subscription_id, outbox_event_id)`); migration `0011_phase_e3_webhooks.sql`. HTTP `GET/POST/PATCH /webhook-subscriptions`, `GET /webhook-deliveries` gated by `webhook.admin` (`org_admin` only).
+- **Outbox order** — poller: journal → `ProcessOutboxForWebhooks` → mark processed. HMAC-SHA256 signature in `X-Webhook-Signature`. Failed deliveries retry; succeeded skipped on re-poll.
+- **FEFO / quarantine** — `assertLotSellable` / `pickFefoLot`; outbound hard-block on issue / transfer ship / reservation commit / negative adjustment. Quarantine release only via transfer (quarantine→non-quarantine) or adjustment at quarantine.
+- **Barcode** — `GET /products/by-barcode/:code` (registered before `:id`); web `BarcodeScanField` on GR / issue / count / transfer receive. Thin webhook admin page.
+- **Out of scope (deferred)** — Phase F POS UI, camera SDK, soft FEFO warnings, transform DSL.
 
 ## E2 shipped notes (2026-07-27)
 
@@ -32,7 +40,6 @@ Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md`
 - **PO gate** — `submitted` → `approved` via `POST .../approve`; GR post blocked when policy on and PO not approved.
 - **Adjustment gate** — `draft` → `pending_approval` (submit) → `approved` → `posted` when required; post from draft allowed when policy off.
 - **Approvers** — `document.approve` for `org_admin` / `branch_manager` + branch access.
-- **Out of scope (deferred to E3)** — webhooks, FEFO/quarantine hard rules, barcode scan UX.
 
 ## E1 shipped notes (2026-07-27)
 
@@ -66,9 +73,9 @@ Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md`
 - Inter-branch replenishment workflows — **E2 complete**
 - Reservation discipline / oversell prevention — **E2 complete**
 - Approval policies (PO + adjustments) — **E2 complete**
-- Webhooks for external systems — **E3 planned**
-- Quarantine / FEFO hard rules — **E3 planned**
-- Barcode scanning UX polish — **E3 planned**
+- Webhooks for external systems — **E3 complete**
+- Quarantine / FEFO hard rules — **E3 complete**
+- Barcode scanning UX polish — **E3 complete**
 
 ## Related
 

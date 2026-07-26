@@ -7,6 +7,16 @@ updated: 2026-07-27
 
 # Wiki Log
 
+## [2026-07-27] update | Phase E3 complete (webhooks / FEFO / barcode)
+
+Shipped E3: webhook subscriptions + HMAC-SHA256 deliveries after journals in
+outbox poller; FEFO/quarantine hard-block on outbound; barcode lookup + scan
+fields on GR/issue/count/transfer; thin webhook admin page. Verification green
+(domain/application/api tests + api/web typecheck). Marked [[Phase E]] E1–E3
+complete; updated [[POS Integration Boundary]], [[Feature Phases]], [[index]],
+`TASKS.md`, `docs/FEATURES.md`. Next: [[Phase F]]. Manual browser smoke not run
+this gate — covered by automated tests (HTTP + application + domain).
+
 ## [2026-07-27] update | Phase E2 complete (ops / approvals)
 
 Shipped E2: transfer `purpose` (replenishment needs distinct branches),

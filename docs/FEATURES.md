@@ -87,16 +87,18 @@ Canonical feature inventory for stock-management. Wiki mirror: [[Feature Phases]
 
 ## Phase E — Multi-branch hardening
 
-| Area | Features |
-|------|----------|
-| **Inter-branch replenishment** | HQ → branch, supplier → branch |
-| **Branch-scoped UX** | Managers vs HQ |
-| **Consolidated vs branch reports** | |
-| **Reservation discipline** | No oversell |
-| **Webhooks** | External push |
-| **Approval policies** | Adjustments & POs |
-| **Quarantine / FEFO** | Expired lots blocked |
-| **Barcode scanning UX** | Receive, pick, count |
+**Status: complete (E1–E3, 2026-07-27).**
+
+| Area | Features | Status |
+|------|----------|--------|
+| **Inter-branch replenishment** | HQ → branch, supplier → branch (`purpose: replenishment`) | E2 ✓ |
+| **Branch-scoped UX** | Managers vs HQ; `X-Branch-Id` | E1 ✓ |
+| **Consolidated vs branch reports** | HQ omit branch = all | E1 ✓ |
+| **Reservation discipline** | No oversell; lock + expire | E2 ✓ |
+| **Webhooks** | Subscriptions + HMAC outbox delivery | E3 ✓ |
+| **Approval policies** | Adjustments & POs | E2 ✓ |
+| **Quarantine / FEFO** | Expired/quarantine lots hard-blocked | E3 ✓ |
+| **Barcode scanning UX** | Receive, issue, count, transfer | E3 ✓ |
 
 ---
 

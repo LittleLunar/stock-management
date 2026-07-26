@@ -2,7 +2,7 @@
 
 ## Active
 
-- [ ] **Phase E3** — webhooks / FEFO / barcode (plan ready) — after E2
+- [ ] **Phase F POS integration** - plug into ipos or built-in POS
 
 ## Waiting On
 
@@ -10,10 +10,12 @@
 
 ## Someday
 
-- [ ] **Phase F POS integration** - plug into ipos or built-in POS
+_(none)_
 
 ## Done
 
+- [x] ~~Phase E3 — webhooks / FEFO / barcode~~ (2026-07-27)
+- [x] ~~Phase E complete (E1–E3)~~ (2026-07-27)
 - [x] ~~Phase E2 — replenishment / reservations / approvals~~ (2026-07-27)
 - [x] ~~Phase E1 — branch ACL / UX / attribution~~ (2026-07-27)
 - [x] ~~Phase E plans (design + master + E1–E3) written~~ (2026-07-26)
