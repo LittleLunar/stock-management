@@ -16,6 +16,13 @@ export class ProductUseCases {
     return { ...product, barcodes };
   }
 
+  async findByBarcode(orgId: string, code: string) {
+    const product = await this.repo.findByBarcode(orgId, code);
+    if (!product) throw new NotFoundError("Product");
+    const barcodes = await this.repo.listBarcodes(orgId, product.id);
+    return { ...product, barcodes };
+  }
+
   create(orgId: string, input: CreateProductInput) {
     return this.repo.create(orgId, input);
   }

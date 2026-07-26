@@ -26,6 +26,21 @@ export class DrizzleProductRepository implements ProductRepository {
       .then((rows) => (rows[0] as Product | undefined) ?? null);
   }
 
+  async findByBarcode(orgId: string, barcode: string): Promise<Product | null> {
+    const [row] = await this.db
+      .select({ product: products })
+      .from(productBarcodes)
+      .innerJoin(products, eq(productBarcodes.productId, products.id))
+      .where(
+        and(
+          eq(productBarcodes.orgId, orgId),
+          eq(productBarcodes.barcode, barcode),
+        ),
+      )
+      .limit(1);
+    return (row?.product as Product | undefined) ?? null;
+  }
+
   listBarcodes(orgId: string, productId: string): Promise<ProductBarcode[]> {
     return this.db
       .select()
