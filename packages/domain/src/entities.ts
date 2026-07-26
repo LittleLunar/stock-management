@@ -128,6 +128,7 @@ export type Serial = {
   orgId: string;
   productId: string;
   lotId: string | null;
+  locationId: string | null;
   serialNumber: string;
   status: SerialStatus;
   createdAt: Date;

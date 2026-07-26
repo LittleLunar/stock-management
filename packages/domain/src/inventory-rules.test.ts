@@ -15,6 +15,7 @@ import {
   assertCanVoidTransfer,
   assertLotSerialRules,
   assertNoOverReceive,
+  assertSerialAvailableForOutbound,
   assertSignedAdjustmentQty,
   countVariance,
   signedQtyForMovement,
@@ -71,6 +72,35 @@ describe("assertLotSerialRules", () => {
         { lotId: "lot-1", serialNumbers: ["SN-001"] },
       ),
     ).not.toThrow();
+  });
+});
+
+describe("assertSerialAvailableForOutbound", () => {
+  it("allows an in-stock serial at the source location", () => {
+    expect(() =>
+      assertSerialAvailableForOutbound(
+        { status: "in_stock", locationId: "location-1" },
+        "location-1",
+      ),
+    ).not.toThrow();
+  });
+
+  it("rejects a serial that is not in stock", () => {
+    expect(() =>
+      assertSerialAvailableForOutbound(
+        { status: "issued", locationId: "location-1" },
+        "location-1",
+      ),
+    ).toThrow(InvalidStateError);
+  });
+
+  it("rejects a serial outside the source location", () => {
+    expect(() =>
+      assertSerialAvailableForOutbound(
+        { status: "in_stock", locationId: "location-2" },
+        "location-1",
+      ),
+    ).toThrow(InvalidStateError);
   });
 });
 

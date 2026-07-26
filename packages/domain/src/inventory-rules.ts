@@ -2,6 +2,7 @@ import type {
   GoodsReceipt,
   Product,
   PurchaseOrder,
+  Serial,
   StockAdjustment,
   StockCount,
   StockIssue,
@@ -121,6 +122,18 @@ export function assertLotSerialRules(
         "Serial number(s) required for this product",
       );
     }
+  }
+}
+
+export function assertSerialAvailableForOutbound(
+  serial: Pick<Serial, "status" | "locationId">,
+  sourceLocationId: string,
+): void {
+  if (serial.status !== "in_stock") {
+    throw new InvalidStateError("Serial is not in stock");
+  }
+  if (serial.locationId !== sourceLocationId) {
+    throw new InvalidStateError("Serial is not at the source location");
   }
 }
 
