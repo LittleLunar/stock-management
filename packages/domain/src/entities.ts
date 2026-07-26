@@ -17,6 +17,7 @@ import type {
   SupplierInvoiceStatus,
   TransferPurpose,
   TransferStatus,
+  WebhookDeliveryStatus,
 } from "./types.js";
 
 export type Organization = {
@@ -585,4 +586,28 @@ export type InvoiceMatch = {
   goodsReceiptLineId: string;
   matchedQty: string;
   matchedAmount: string;
+};
+
+export type WebhookSubscription = {
+  id: string;
+  orgId: string;
+  url: string;
+  secret: string;
+  eventTypes: string[];
+  branchId: string | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type WebhookDelivery = {
+  id: string;
+  orgId: string;
+  subscriptionId: string;
+  outboxEventId: string;
+  status: WebhookDeliveryStatus;
+  httpStatus: number | null;
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };

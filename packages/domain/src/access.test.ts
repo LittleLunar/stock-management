@@ -76,3 +76,13 @@ describe("canPerform", () => {
     expect(canPerform("accountant", "document.approve")).toBe(false);
   });
 });
+
+describe("canPerform webhook.admin", () => {
+  it("allows org_admin only", () => {
+    expect(canPerform("org_admin", "webhook.admin")).toBe(true);
+    expect(canPerform("branch_manager", "webhook.admin")).toBe(false);
+    expect(canPerform("warehouse", "webhook.admin")).toBe(false);
+    expect(canPerform("purchasing", "webhook.admin")).toBe(false);
+    expect(canPerform("accountant", "webhook.admin")).toBe(false);
+  });
+});

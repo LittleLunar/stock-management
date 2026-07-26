@@ -7,7 +7,8 @@ export type AccessAction =
   | "inventory.post"
   | "po.write"
   | "accounting.read"
-  | "document.approve";
+  | "document.approve"
+  | "webhook.admin";
 
 export type MembershipAccess = Pick<Membership, "role" | "branchIds">;
 
@@ -18,6 +19,7 @@ const ROLE_ACTIONS: Record<MembershipRole, ReadonlySet<AccessAction>> = {
     "po.write",
     "accounting.read",
     "document.approve",
+    "webhook.admin",
   ]),
   branch_manager: new Set([
     "masters.write",

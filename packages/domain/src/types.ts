@@ -85,3 +85,5 @@ export const JOURNAL_EVENT_TYPES = [
 export type JournalEventType = (typeof JOURNAL_EVENT_TYPES)[number];
 
 export type SupplierInvoiceStatus = "draft" | "posted" | "voided";
+
+export type WebhookDeliveryStatus = "pending" | "succeeded" | "failed";

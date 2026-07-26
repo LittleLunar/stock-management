@@ -167,3 +167,10 @@ export class InvoiceAlreadyVoidedError extends DomainError {
     this.name = "InvoiceAlreadyVoidedError";
   }
 }
+
+export class WebhookDeliveryError extends DomainError {
+  constructor(message: string) {
+    super(message, "WEBHOOK_DELIVERY_FAILED");
+    this.name = "WebhookDeliveryError";
+  }
+}
