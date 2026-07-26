@@ -19,7 +19,9 @@ export function TrialBalancePage() {
   const [mode, setMode] = useState<"period" | "asOf">("period");
   const [periodId, setPeriodId] = useState("");
   const [asOf, setAsOf] = useState("");
-  const [branchId, setBranchId] = useState("");
+  const [branchId, setBranchId] = useState(
+    () => localStorage.getItem("activeBranchId") ?? "",
+  );
   const report = useTrialBalance({
     periodId: mode === "period" ? periodId || undefined : undefined,
     asOf: mode === "asOf" ? asOf || undefined : undefined,

@@ -19,7 +19,9 @@ export function CostValuationPage() {
   const { data: branches } = useBranches();
   const [productId, setProductId] = useState("");
   const [locationId, setLocationId] = useState("");
-  const [branchId, setBranchId] = useState("");
+  const [branchId, setBranchId] = useState(
+    () => localStorage.getItem("activeBranchId") ?? "",
+  );
   const [asOf, setAsOf] = useState("");
   const valuation = useValuation({
     productId: productId || undefined,

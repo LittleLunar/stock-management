@@ -80,6 +80,36 @@ const LocationFormSchema = z.object({
   name: z.string().min(1).max(256),
 });
 
+function BranchSwitcher() {
+  const { data: branches } = useBranches();
+  const [active, setActive] = useState(
+    () => localStorage.getItem("activeBranchId") ?? "",
+  );
+  return (
+    <label className="mt-4 block text-xs text-slate-500">
+      Branch
+      <select
+        className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
+        value={active}
+        onChange={(e) => {
+          const v = e.target.value;
+          setActive(v);
+          if (v) localStorage.setItem("activeBranchId", v);
+          else localStorage.removeItem("activeBranchId");
+          window.location.reload(); // simplest cache bust for query keys
+        }}
+      >
+        <option value="">All branches</option>
+        {(branches ?? []).map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.code} — {b.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function Shell() {
   const orgId = localStorage.getItem("orgId") ?? "";
   const {
@@ -257,7 +287,10 @@ function Shell() {
         </nav>
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
           {orgId ? (
-            <p className="break-all">Org: {orgId}</p>
+            <>
+              <p className="break-all">Org: {orgId}</p>
+              <BranchSwitcher />
+            </>
           ) : (
             <form className="space-y-2" onSubmit={handleSubmit(bootstrap)}>
               <input

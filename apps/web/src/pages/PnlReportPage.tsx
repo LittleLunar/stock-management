@@ -15,7 +15,9 @@ export function PnlReportPage() {
   const { data: periods } = useAccountingPeriods();
   const { data: branches } = useBranches();
   const [periodId, setPeriodId] = useState("");
-  const [branchId, setBranchId] = useState("");
+  const [branchId, setBranchId] = useState(
+    () => localStorage.getItem("activeBranchId") ?? "",
+  );
   const report = usePnl({
     periodId,
     branchId: branchId || undefined,

@@ -7,15 +7,18 @@ import type {
   CreateSupplier,
 } from "@stock-management/shared";
 import { api, type ApiHeaders } from "../api/client";
-
-const defaultCtx = (): ApiHeaders => ({
-  orgId: localStorage.getItem("orgId") ?? "",
-  userId:
-    localStorage.getItem("userId") ?? "00000000-0000-0000-0000-000000000001",
-});
+import { branchIdForHeaders } from "../lib/active-branch";
 
 export function useApiContext(): ApiHeaders {
-  return defaultCtx();
+  return {
+    orgId: localStorage.getItem("orgId") ?? "",
+    userId:
+      localStorage.getItem("userId") ??
+      "00000000-0000-0000-0000-000000000001",
+    branchId: branchIdForHeaders(
+      localStorage.getItem("activeBranchId") ?? "",
+    ),
+  };
 }
 
 export function useBranches() {

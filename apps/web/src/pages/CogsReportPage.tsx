@@ -25,7 +25,9 @@ export function CogsReportPage() {
   const defaults = defaultRange();
   const [from, setFrom] = useState(defaults.from);
   const [to, setTo] = useState(defaults.to);
-  const [branchId, setBranchId] = useState("");
+  const [branchId, setBranchId] = useState(
+    () => localStorage.getItem("activeBranchId") ?? "",
+  );
   const cogs = useCogs({
     from: new Date(from).toISOString(),
     to: new Date(to).toISOString(),

@@ -51,6 +51,7 @@ import { parseApiError } from "../lib/errors";
 export type ApiHeaders = {
   orgId: string;
   userId: string;
+  branchId?: string; // when set → X-Branch-Id
 };
 
 export type PurchaseOrder = {
@@ -419,6 +420,9 @@ function headers(ctx: ApiHeaders, init?: HeadersInit): Headers {
   h.set("Content-Type", "application/json");
   h.set("X-Org-Id", ctx.orgId);
   h.set("X-User-Id", ctx.userId);
+  if (ctx.branchId) {
+    h.set("X-Branch-Id", ctx.branchId);
+  }
   if (!h.has("X-Request-Id")) {
     h.set("X-Request-Id", crypto.randomUUID());
   }
