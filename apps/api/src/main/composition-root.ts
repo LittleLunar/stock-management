@@ -12,6 +12,7 @@ import {
   CommitReservation,
   type MembershipAccessPort,
   EnsureDefaultChartOfAccounts,
+  ExpireReservations,
   GoodsReceiptUseCases,
   JournalUseCases,
   LandedCostUseCases,
@@ -123,6 +124,7 @@ export type AppServices = {
   reservations: ReservationUseCases;
   releaseReservation: ReleaseReservation;
   commitReservation: CommitReservation;
+  expireReservations: ExpireReservations;
   availability: AvailabilityUseCases;
   supplierReturns: SupplierReturnUseCases;
   postSupplierReturn: PostSupplierReturn;
@@ -217,6 +219,7 @@ export function createAppServices(db: Db): AppServices {
     reservations: new ReservationUseCases(reservations, unitOfWork),
     releaseReservation: new ReleaseReservation(unitOfWork),
     commitReservation: new CommitReservation(unitOfWork),
+    expireReservations: new ExpireReservations(unitOfWork),
     availability: new AvailabilityUseCases(stock, reservations, locations),
     supplierReturns: new SupplierReturnUseCases(supplierReturns),
     postSupplierReturn: new PostSupplierReturn(unitOfWork),

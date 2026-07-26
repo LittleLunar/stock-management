@@ -6,6 +6,7 @@ import { loadEnv } from "./infrastructure/config/env.js";
 import { createDb } from "./infrastructure/db/client.js";
 import { DrizzleOutboxRepository } from "./infrastructure/persistence/outbox.repository.js";
 import { OutboxPoller } from "./infrastructure/workers/outbox-poller.js";
+import { ReservationExpirePoller } from "./infrastructure/workers/reservation-expire-poller.js";
 import { createAppServices } from "./main/composition-root.js";
 import { registerErrorHandler } from "./interfaces/plugins/error-handler.js";
 import { createContextPlugin } from "./interfaces/plugins/context.js";
@@ -157,6 +158,25 @@ if (outboxPoller) {
   app.addHook("onClose", async () => {
     outboxPoller.stop();
     app.log.info("outbox poller stopped");
+  });
+}
+
+const reservationExpirePoller = env.RESERVATION_EXPIRE_ENABLED
+  ? new ReservationExpirePoller(services.expireReservations, {
+      intervalMs: env.RESERVATION_EXPIRE_INTERVAL_MS,
+      log: app.log,
+    })
+  : null;
+
+if (reservationExpirePoller) {
+  reservationExpirePoller.start();
+  app.log.info(
+    { intervalMs: env.RESERVATION_EXPIRE_INTERVAL_MS },
+    "reservation expire poller started",
+  );
+  app.addHook("onClose", async () => {
+    reservationExpirePoller.stop();
+    app.log.info("reservation expire poller stopped");
   });
 }
 

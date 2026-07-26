@@ -257,6 +257,8 @@ export interface ReservationPort {
     id: string,
     input: UpdateReservationInput,
   ): Promise<StockReservation | null>;
+  /** Open reservations with expiresAt <= now (org-scoped or global worker). */
+  listExpiredOpen(now: Date, limit: number): Promise<StockReservation[]>;
 }
 
 export type SupplierReturnWithLines = SupplierReturn & {

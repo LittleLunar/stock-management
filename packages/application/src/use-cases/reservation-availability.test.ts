@@ -197,6 +197,16 @@ function makeFake(options: FakeOptions = {}) {
       };
       return reservations[index]!;
     },
+    async listExpiredOpen(at, limit) {
+      return reservations
+        .filter(
+          (r) =>
+            r.status === "open" &&
+            r.expiresAt !== null &&
+            r.expiresAt.getTime() <= at.getTime(),
+        )
+        .slice(0, limit);
+    },
   };
 
   const stock: StockPort = {

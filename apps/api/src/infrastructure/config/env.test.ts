@@ -7,6 +7,8 @@ describe("loadEnv", () => {
     expect(env.PORT).toBe(3001);
     expect(env.LOG_LEVEL).toBe("info");
     expect(env.NODE_ENV).toBe("development");
+    expect(env.RESERVATION_EXPIRE_ENABLED).toBe(false);
+    expect(env.RESERVATION_EXPIRE_INTERVAL_MS).toBe(60_000);
   });
 
   it("parses PORT and LOG_LEVEL", () => {

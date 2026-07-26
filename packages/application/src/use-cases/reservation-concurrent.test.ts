@@ -152,6 +152,16 @@ function createLockingReservationFake(seed: {
       reservations.set(id, next);
       return next;
     },
+    async listExpiredOpen(at, limit) {
+      return [...reservations.values()]
+        .filter(
+          (r) =>
+            r.status === "open" &&
+            r.expiresAt !== null &&
+            r.expiresAt.getTime() <= at.getTime(),
+        )
+        .slice(0, limit);
+    },
   };
 
   const uow: UnitOfWork = {
