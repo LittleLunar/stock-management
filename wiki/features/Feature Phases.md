@@ -19,7 +19,7 @@ Roadmap for [[Stock Management System]]. Full checklist: `docs/FEATURES.md`.
 | B | Internal inventory loop | **Complete** (B1–B3, 2026-07-26) | [[Phase B]] |
 | C | FIFO costing | **Complete** (C1–C3, 2026-07-26) | [[Phase C]] |
 | D | Accounting / AP | **Complete** (D1–D3, 2026-07-26) | [[Phase D]] |
-| E | Multi-branch hardening | Next (unblocked) | [[Phase E]] |
+| E | Multi-branch hardening | **Plans ready** / next to implement | [[Phase E]] |
 | F | POS / channels | Someday | [[Phase F]] |
 
 ```
@@ -36,5 +36,5 @@ F  POS / external channels on same APIs
 **Phase B:** complete — see [[Phase B]] and `docs/superpowers/plans/2026-07-26-phase-b-inventory-loop.md`.  
 **Phase C:** complete — see [[Phase C]].  
 **Phase D:** complete — see [[Phase D]].  
-**Next:** [[Phase E]] — multi-branch hardening / webhooks.  
-Design: `docs/superpowers/specs/2026-07-26-phase-d-accounting-design.md` · Master: `docs/superpowers/plans/2026-07-26-phase-d-accounting.md`
+**Next:** [[Phase E]] — multi-branch hardening / webhooks (**plans ready**; implement E1 → E2 → E3).  
+Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md` · Master: `docs/superpowers/plans/2026-07-26-phase-e-multi-branch.md` · Deep: E1 / E2 / E3 under `docs/superpowers/plans/2026-07-26-phase-e*.md`

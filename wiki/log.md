@@ -7,6 +7,14 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase E plans ready (design + E1–E3)
+
+Planning complete for [[Phase E]]: design spec
+(`docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md`) plus master
+and deep E1–E3 plans under `docs/superpowers/plans/`. Updated [[Phase E]],
+[[Feature Phases]], [[Org Branch Location]], [[POS Integration Boundary]],
+[[index]]; `TASKS.md` split into E1/E2/E3 Active items. Implementation not started.
+
 ## [2026-07-26] update | Phase D complete (D1–D3)
 
 Shipped D1 (CoA, periods, outbox→journals, journal browser), D2 (supplier
