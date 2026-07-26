@@ -1,5 +1,13 @@
-import type { GoodsReceipt, Product, PurchaseOrder } from "./entities.js";
-import type { MovementType } from "./types.js";
+import type {
+  GoodsReceipt,
+  Product,
+  PurchaseOrder,
+  StockAdjustment,
+  StockCount,
+  StockIssue,
+  StockTransfer,
+} from "./entities.js";
+import type { DocumentStatus, MovementType } from "./types.js";
 import {
   InvalidStateError,
   OverReceiveError,
@@ -43,6 +51,61 @@ export function assertCanPostReceipt(
   }
 }
 
+function assertDraftDocument(
+  status: DocumentStatus,
+  documentName: string,
+): void {
+  if (status !== "draft") {
+    throw new InvalidStateError(
+      `Cannot post ${documentName} in status ${status}`,
+    );
+  }
+}
+
+export function assertCanPostIssue(issue: Pick<StockIssue, "status">): void {
+  assertDraftDocument(issue.status, "stock issue");
+}
+
+export function assertCanPostAdjustment(
+  adjustment: Pick<StockAdjustment, "status">,
+): void {
+  assertDraftDocument(adjustment.status, "stock adjustment");
+}
+
+export function assertCanPostCount(count: Pick<StockCount, "status">): void {
+  assertDraftDocument(count.status, "stock count");
+}
+
+export function assertCanShipTransfer(
+  transfer: Pick<StockTransfer, "status">,
+): void {
+  if (transfer.status !== "draft") {
+    throw new InvalidStateError(
+      `Cannot ship stock transfer in status ${transfer.status}`,
+    );
+  }
+}
+
+export function assertCanReceiveTransfer(
+  transfer: Pick<StockTransfer, "status">,
+): void {
+  if (transfer.status !== "in_transit") {
+    throw new InvalidStateError(
+      `Cannot receive stock transfer in status ${transfer.status}`,
+    );
+  }
+}
+
+export function assertCanVoidTransfer(
+  transfer: Pick<StockTransfer, "status">,
+): void {
+  if (transfer.status !== "draft" && transfer.status !== "in_transit") {
+    throw new InvalidStateError(
+      `Cannot void stock transfer in status ${transfer.status}`,
+    );
+  }
+}
+
 export function assertLotSerialRules(
   product: ProductTrackingFlags,
   line: ReceiptLineTracking,
@@ -77,19 +140,44 @@ export function assertNoOverReceive(
   }
 }
 
+export function countVariance(expectedQty: string, countedQty: string): string {
+  return formatQty(parseQty(countedQty) - parseQty(expectedQty));
+}
+
+export function assertSignedAdjustmentQty(qty: string): void {
+  if (parseQty(qty) === 0) {
+    throw new InvalidStateError("Adjustment quantity must be non-zero");
+  }
+}
+
 export function signedQtyForMovement(
   movementType: MovementType,
   qty: string,
 ): string {
-  const absoluteQty = Math.abs(parseQty(qty));
+  const parsedQty = parseQty(qty);
+  const absoluteQty = Math.abs(parsedQty);
 
-  if (movementType === "receipt") {
+  if (
+    movementType === "receipt" ||
+    movementType === "issue_void" ||
+    movementType === "transfer_out_void" ||
+    movementType === "transfer_in"
+  ) {
     return formatQty(absoluteQty);
   }
 
-  if (movementType === "receipt_void") {
+  if (
+    movementType === "receipt_void" ||
+    movementType === "issue" ||
+    movementType === "transfer_out" ||
+    movementType === "transfer_in_void"
+  ) {
     return formatQty(-absoluteQty);
   }
 
-  throw new InvalidStateError(`Unsupported movement type: ${movementType}`);
+  if (movementType === "adjustment" || movementType === "count_variance") {
+    return formatQty(parsedQty);
+  }
+
+  return formatQty(-parsedQty);
 }

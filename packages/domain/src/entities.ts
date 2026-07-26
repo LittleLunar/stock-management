@@ -1,6 +1,7 @@
 import type {
   CostingMethod,
   DocumentStatus,
+  IssueType,
   LocationType,
   LotStatus,
   MasterStatus,
@@ -8,6 +9,7 @@ import type {
   MovementType,
   PoStatus,
   SerialStatus,
+  TransferStatus,
 } from "./types.js";
 
 export type Organization = {
@@ -211,4 +213,103 @@ export type GoodsReceiptSerial = {
   orgId: string;
   goodsReceiptLineId: string;
   serialNumber: string;
+};
+
+export type StockIssue = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  documentNumber: string | null;
+  issueType: IssueType;
+  reasonNote: string | null;
+  status: DocumentStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  postedAt: Date | null;
+  voidedAt: Date | null;
+};
+
+export type StockIssueLine = {
+  id: string;
+  orgId: string;
+  stockIssueId: string;
+  productId: string;
+  qty: string;
+  lotId: string | null;
+  lineNumber: number;
+};
+
+export type StockTransfer = {
+  id: string;
+  orgId: string;
+  fromLocationId: string;
+  toLocationId: string;
+  transitLocationId: string;
+  documentNumber: string | null;
+  status: TransferStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  shippedAt: Date | null;
+  receivedAt: Date | null;
+  voidedAt: Date | null;
+};
+
+export type StockTransferLine = {
+  id: string;
+  orgId: string;
+  stockTransferId: string;
+  productId: string;
+  qty: string;
+  lotId: string | null;
+  lineNumber: number;
+};
+
+export type StockAdjustment = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  documentNumber: string | null;
+  reasonCode: string;
+  reasonNote: string | null;
+  status: DocumentStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  postedAt: Date | null;
+  voidedAt: Date | null;
+};
+
+export type StockAdjustmentLine = {
+  id: string;
+  orgId: string;
+  stockAdjustmentId: string;
+  productId: string;
+  qty: string;
+  lotId: string | null;
+  lineNumber: number;
+};
+
+export type StockCount = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  documentNumber: string | null;
+  status: DocumentStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  postedAt: Date | null;
+  voidedAt: Date | null;
+};
+
+export type StockCountLine = {
+  id: string;
+  orgId: string;
+  stockCountId: string;
+  productId: string;
+  lotId: string | null;
+  expectedQty: string;
+  countedQty: string | null;
+  lineNumber: number;
 };

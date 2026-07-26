@@ -3,11 +3,7 @@ export type MasterStatus = "active" | "inactive";
 export type LocationType = "storage" | "receiving" | "transit" | "quarantine";
 
 export type MembershipRole =
-  | "org_admin"
-  | "branch_manager"
-  | "warehouse"
-  | "purchasing"
-  | "accountant";
+  "org_admin" | "branch_manager" | "warehouse" | "purchasing" | "accountant";
 
 export type CostingMethod = "fifo" | "avg";
 
@@ -21,8 +17,26 @@ export type PoStatus =
 
 export type DocumentStatus = "draft" | "posted" | "void";
 
+export const ISSUE_TYPES = ["consume", "sample", "write_off", "other"] as const;
+
+export type IssueType = (typeof ISSUE_TYPES)[number];
+
+export type TransferStatus = "draft" | "in_transit" | "received" | "void";
+
 export type LotStatus = "active" | "depleted" | "quarantine";
 
 export type SerialStatus = "in_stock" | "issued" | "returned";
 
-export type MovementType = "receipt" | "receipt_void";
+export type MovementType =
+  | "receipt"
+  | "receipt_void"
+  | "issue"
+  | "issue_void"
+  | "transfer_out"
+  | "transfer_out_void"
+  | "transfer_in"
+  | "transfer_in_void"
+  | "adjustment"
+  | "adjustment_void"
+  | "count_variance"
+  | "count_variance_void";
