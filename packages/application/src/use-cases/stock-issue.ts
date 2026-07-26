@@ -5,6 +5,7 @@ import {
   NotFoundError,
   assertCanPostIssue,
   assertLotSerialRules,
+  assertSerialAvailableForOutbound,
   signedQtyForMovement,
 } from "@stock-management/domain";
 import type { StockIssue, StockMovement } from "@stock-management/domain";
@@ -91,6 +92,7 @@ export class PostStockIssue {
           line.productId,
           line.lotId,
           line.serialNumbers,
+          issue.locationId,
         );
 
         const balance = await ctx.stock.findBalance({
@@ -253,6 +255,7 @@ async function assertSerialsAvailable(
   productId: string,
   lotId: string | null,
   serialNumbers: string[],
+  sourceLocationId: string,
 ): Promise<void> {
   if (serialNumbers.length === 0) return;
   if (!serials.findByNumber) {
@@ -260,13 +263,10 @@ async function assertSerialsAvailable(
   }
   for (const serialNumber of serialNumbers) {
     const serial = await serials.findByNumber(orgId, productId, serialNumber);
-    if (
-      !serial ||
-      serial.status !== "in_stock" ||
-      (lotId !== null && serial.lotId !== lotId)
-    ) {
+    if (!serial || (lotId !== null && serial.lotId !== lotId)) {
       throw new ConflictError(`Serial ${serialNumber} is not available`);
     }
+    assertSerialAvailableForOutbound(serial, sourceLocationId);
   }
 }
 

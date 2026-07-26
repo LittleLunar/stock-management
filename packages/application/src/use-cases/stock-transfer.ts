@@ -7,6 +7,7 @@ import {
   assertCanShipTransfer,
   assertCanVoidTransfer,
   assertLotSerialRules,
+  assertSerialAvailableForOutbound,
   signedQtyForMovement,
 } from "@stock-management/domain";
 import type {
@@ -261,8 +262,41 @@ async function validateTransferLines(
       lotId: line.lotId,
       serialNumbers: line.serialNumbers,
     });
+    await assertTransferSerialsAvailable(
+      ctx,
+      orgId,
+      line.productId,
+      line.lotId,
+      line.serialNumbers,
+      locationId,
+    );
   }
   await validateAvailableStock(ctx, orgId, locationId, lines);
+}
+
+async function assertTransferSerialsAvailable(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  productId: string,
+  lotId: string | null,
+  serialNumbers: string[],
+  sourceLocationId: string,
+): Promise<void> {
+  if (serialNumbers.length === 0) return;
+  if (!ctx.serials.findByNumber) {
+    throw new Error("Serial lookup is not configured");
+  }
+  for (const serialNumber of serialNumbers) {
+    const serial = await ctx.serials.findByNumber(
+      orgId,
+      productId,
+      serialNumber,
+    );
+    if (!serial || (lotId !== null && serial.lotId !== lotId)) {
+      throw new ConflictError(`Serial ${serialNumber} is not available`);
+    }
+    assertSerialAvailableForOutbound(serial, sourceLocationId);
+  }
 }
 
 async function validateAvailableStock(

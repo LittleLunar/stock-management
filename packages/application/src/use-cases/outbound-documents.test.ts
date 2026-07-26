@@ -1,5 +1,6 @@
 import type {
   Product,
+  Serial,
   StockAdjustment,
   StockBalance,
   StockCount,
@@ -50,9 +51,13 @@ type FakeOptions = {
   adjustmentQty?: string;
   countedQty?: string;
   onHand?: string;
+  serialNumbers?: string[];
+  serialStatus?: Serial["status"];
+  serialLocationId?: string | null;
 };
 
 function makeFake(options: FakeOptions = {}) {
+  const serialNumbers = options.serialNumbers ?? [];
   const product: Product = {
     id: productId,
     orgId,
@@ -61,7 +66,7 @@ function makeFake(options: FakeOptions = {}) {
     uom: "each",
     categoryId: null,
     trackLot: false,
-    trackSerial: false,
+    trackSerial: serialNumbers.length > 0,
     trackExpiry: false,
     costingMethod: "fifo",
     reorderMin: null,
@@ -92,7 +97,7 @@ function makeFake(options: FakeOptions = {}) {
         qty: options.issueQty ?? "3",
         lotId: null,
         lineNumber: 1,
-        serialNumbers: [],
+        serialNumbers,
       },
     ],
   };
@@ -118,7 +123,7 @@ function makeFake(options: FakeOptions = {}) {
         qty: "4",
         lotId: null,
         lineNumber: 1,
-        serialNumbers: [],
+        serialNumbers,
       },
     ],
   };
@@ -412,8 +417,23 @@ function makeFake(options: FakeOptions = {}) {
       async upsert() {
         throw new Error("Unexpected serial upsert");
       },
-      async findByNumber() {
-        return null;
+      async findByNumber(
+        _orgId: string,
+        _productId: string,
+        serialNumber: string,
+      ) {
+        if (!serialNumbers.includes(serialNumber)) return null;
+        return {
+          id: `serial-${serialNumber}`,
+          orgId,
+          productId,
+          lotId: null,
+          locationId: options.serialLocationId ?? fromLocationId,
+          serialNumber,
+          status: options.serialStatus ?? "in_stock",
+          createdAt: now,
+          updatedAt: now,
+        };
       },
       async updateStatus() {
         throw new Error("Unexpected serial status update");
@@ -488,6 +508,18 @@ describe("stock issue use cases", () => {
       drafts.update(orgId, "issue-1", { reasonNote: "too late" }),
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
   });
+
+  it("rejects a serial outside the issue source location", async () => {
+    const fake = makeFake({
+      serialNumbers: ["SN-1"],
+      serialLocationId: toLocationId,
+    });
+
+    await expect(
+      new PostStockIssue(fake.uow).execute(orgId, userId, "issue-1"),
+    ).rejects.toMatchObject({ code: "INVALID_STATE" });
+    expect(fake.getMovements()).toHaveLength(0);
+  });
 });
 
 describe("stock transfer use cases", () => {
@@ -545,6 +577,18 @@ describe("stock transfer use cases", () => {
     await expect(
       drafts.update(orgId, "transfer-1", { documentNumber: "TRF-2" }),
     ).resolves.toMatchObject({ id: "transfer-1" });
+  });
+
+  it("rejects shipping a serial outside the transfer source", async () => {
+    const fake = makeFake({
+      serialNumbers: ["SN-1"],
+      serialLocationId: toLocationId,
+    });
+
+    await expect(
+      new ShipStockTransfer(fake.uow).execute(orgId, userId, "transfer-1"),
+    ).rejects.toMatchObject({ code: "INVALID_STATE" });
+    expect(fake.getMovements()).toHaveLength(0);
   });
 });
 
