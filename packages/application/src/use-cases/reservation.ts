@@ -1,3 +1,7 @@
+/**
+ * Reserve must run inside UnitOfWork so StockPort.findBalance uses FOR UPDATE.
+ * Never call assertCanReserve against an unlocked balance read.
+ */
 import {
   InvalidStateError,
   NotFoundError,
