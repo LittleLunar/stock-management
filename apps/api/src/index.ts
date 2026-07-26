@@ -25,6 +25,8 @@ import { stockAdjustmentsRoutes } from "./interfaces/http/stock-adjustments.rout
 import { stockCountsRoutes } from "./interfaces/http/stock-counts.routes.js";
 import { reservationsRoutes } from "./interfaces/http/reservations.routes.js";
 import { availabilityRoutes } from "./interfaces/http/availability.routes.js";
+import { supplierReturnsRoutes } from "./interfaces/http/supplier-returns.routes.js";
+import { customerReturnsRoutes } from "./interfaces/http/customer-returns.routes.js";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
@@ -92,5 +94,7 @@ await app.register(reservationsRoutes(services), { prefix: "/api/v1" });
 await app.register(availabilityRoutes(services.availability), {
   prefix: "/api/v1",
 });
+await app.register(supplierReturnsRoutes(services), { prefix: "/api/v1" });
+await app.register(customerReturnsRoutes(services), { prefix: "/api/v1" });
 
 await app.listen({ port: env.PORT, host: "0.0.0.0" });

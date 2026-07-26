@@ -328,3 +328,107 @@ export const AvailabilityResponseSchema = z.object({
   available: z.string(),
 });
 export type AvailabilityResponse = z.infer<typeof AvailabilityResponseSchema>;
+
+export const SupplierReturnLineInputSchema = z.object({
+  id: UuidSchema.optional(),
+  productId: UuidSchema,
+  qty: PositiveQuantitySchema,
+  lotId: UuidSchema.nullable().optional(),
+  goodsReceiptLineId: UuidSchema.nullable().optional(),
+  serialNumbers: z.array(z.string().trim().min(1)).optional(),
+  lineNumber: z.number().int().positive(),
+});
+export type SupplierReturnLineInput = z.infer<
+  typeof SupplierReturnLineInputSchema
+>;
+
+const SupplierReturnFieldsSchema = z.object({
+  branchId: UuidSchema,
+  locationId: UuidSchema,
+  supplierId: UuidSchema,
+  goodsReceiptId: UuidSchema.nullable().optional(),
+  documentNumber: z.string().trim().min(1).nullable().optional(),
+  externalSystem: z.string().trim().min(1).nullable().optional(),
+  externalId: z.string().trim().min(1).nullable().optional(),
+  lines: z.array(SupplierReturnLineInputSchema).min(1),
+});
+
+export const CreateSupplierReturnSchema = SupplierReturnFieldsSchema.superRefine(
+  (value, ctx) => {
+    if (Boolean(value.externalSystem) === Boolean(value.externalId)) return;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "externalSystem and externalId must be provided together",
+    });
+  },
+);
+export type CreateSupplierReturn = z.infer<typeof CreateSupplierReturnSchema>;
+
+export const UpdateSupplierReturnSchema = SupplierReturnFieldsSchema.partial();
+export type UpdateSupplierReturn = z.infer<typeof UpdateSupplierReturnSchema>;
+
+export const SupplierReturnIdParamsSchema = z.object({
+  id: UuidSchema,
+});
+export type SupplierReturnIdParams = z.infer<
+  typeof SupplierReturnIdParamsSchema
+>;
+
+export const PostSupplierReturnSchema = PostGoodsReceiptSchema;
+export type PostSupplierReturn = z.infer<typeof PostSupplierReturnSchema>;
+
+export const PostSupplierReturnHeadersSchema = PostGoodsReceiptHeadersSchema;
+export type PostSupplierReturnHeaders = z.infer<
+  typeof PostSupplierReturnHeadersSchema
+>;
+
+export const CustomerReturnLineInputSchema = z.object({
+  id: UuidSchema.optional(),
+  productId: UuidSchema,
+  qty: PositiveQuantitySchema,
+  lotId: UuidSchema.nullable().optional(),
+  serialNumbers: z.array(z.string().trim().min(1)).optional(),
+  lineNumber: z.number().int().positive(),
+});
+export type CustomerReturnLineInput = z.infer<
+  typeof CustomerReturnLineInputSchema
+>;
+
+const CustomerReturnFieldsSchema = z.object({
+  branchId: UuidSchema,
+  locationId: UuidSchema,
+  customerId: UuidSchema,
+  documentNumber: z.string().trim().min(1).nullable().optional(),
+  externalSystem: z.string().trim().min(1).nullable().optional(),
+  externalId: z.string().trim().min(1).nullable().optional(),
+  lines: z.array(CustomerReturnLineInputSchema).min(1),
+});
+
+export const CreateCustomerReturnSchema = CustomerReturnFieldsSchema.superRefine(
+  (value, ctx) => {
+    if (Boolean(value.externalSystem) === Boolean(value.externalId)) return;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "externalSystem and externalId must be provided together",
+    });
+  },
+);
+export type CreateCustomerReturn = z.infer<typeof CreateCustomerReturnSchema>;
+
+export const UpdateCustomerReturnSchema = CustomerReturnFieldsSchema.partial();
+export type UpdateCustomerReturn = z.infer<typeof UpdateCustomerReturnSchema>;
+
+export const CustomerReturnIdParamsSchema = z.object({
+  id: UuidSchema,
+});
+export type CustomerReturnIdParams = z.infer<
+  typeof CustomerReturnIdParamsSchema
+>;
+
+export const PostCustomerReturnSchema = PostGoodsReceiptSchema;
+export type PostCustomerReturn = z.infer<typeof PostCustomerReturnSchema>;
+
+export const PostCustomerReturnHeadersSchema = PostGoodsReceiptHeadersSchema;
+export type PostCustomerReturnHeaders = z.infer<
+  typeof PostCustomerReturnHeadersSchema
+>;
