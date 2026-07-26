@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  index,
   integer,
   jsonb,
   numeric,
@@ -300,6 +301,10 @@ export const movementTypeEnum = pgEnum("movement_type", [
   "adjustment_void",
   "count_variance",
   "count_variance_void",
+  "supplier_return",
+  "supplier_return_void",
+  "customer_return",
+  "customer_return_void",
 ]);
 
 export const issueTypeEnum = pgEnum("issue_type", [
@@ -314,6 +319,12 @@ export const transferStatusEnum = pgEnum("transfer_status", [
   "in_transit",
   "received",
   "void",
+]);
+
+export const reservationStatusEnum = pgEnum("reservation_status", [
+  "open",
+  "committed",
+  "released",
 ]);
 
 export const outboxStatusEnum = pgEnum("outbox_status", [
@@ -875,6 +886,236 @@ export const stockCountLines = pgTable(
       t.orgId,
       t.stockCountId,
       t.lineNumber,
+    ),
+  ],
+);
+
+export const stockReservations = pgTable(
+  "stock_reservations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    lotId: uuid("lot_id").references(() => lots.id),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    status: reservationStatusEnum("status").notNull().default("open"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    externalSystem: text("external_system"),
+    externalId: text("external_id"),
+    committedIssueId: uuid("committed_issue_id").references(
+      () => stockIssues.id,
+    ),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_reservations_org_external_uidx").on(
+      t.orgId,
+      t.externalSystem,
+      t.externalId,
+    ),
+    index("stock_reservations_org_product_location_status_idx").on(
+      t.orgId,
+      t.productId,
+      t.locationId,
+      t.status,
+    ),
+    index("stock_reservations_org_status_expires_idx").on(
+      t.orgId,
+      t.status,
+      t.expiresAt,
+    ),
+    check("stock_reservations_qty_positive", sql`${t.qty} > 0`),
+  ],
+);
+
+export const supplierReturns = pgTable(
+  "supplier_returns",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    goodsReceiptId: uuid("goods_receipt_id").references(() => goodsReceipts.id),
+    documentNumber: text("document_number"),
+    status: documentStatusEnum("status").notNull().default("draft"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    postedBy: uuid("posted_by").references(() => users.id),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => users.id),
+    externalSystem: text("external_system"),
+    externalId: text("external_id"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("supplier_returns_org_document_number_uidx").on(
+      t.orgId,
+      t.documentNumber,
+    ),
+    uniqueIndex("supplier_returns_org_external_uidx").on(
+      t.orgId,
+      t.externalSystem,
+      t.externalId,
+    ),
+  ],
+);
+
+export const supplierReturnLines = pgTable(
+  "supplier_return_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    supplierReturnId: uuid("supplier_return_id")
+      .notNull()
+      .references(() => supplierReturns.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    lotId: uuid("lot_id").references(() => lots.id),
+    goodsReceiptLineId: uuid("goods_receipt_line_id").references(
+      () => goodsReceiptLines.id,
+    ),
+    lineNumber: integer("line_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("supplier_return_lines_org_return_line_uidx").on(
+      t.orgId,
+      t.supplierReturnId,
+      t.lineNumber,
+    ),
+    check("supplier_return_lines_qty_positive", sql`${t.qty} > 0`),
+  ],
+);
+
+export const supplierReturnSerials = pgTable(
+  "supplier_return_serials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    supplierReturnLineId: uuid("supplier_return_line_id")
+      .notNull()
+      .references(() => supplierReturnLines.id),
+    serialNumber: text("serial_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("supplier_return_serials_org_line_number_uidx").on(
+      t.orgId,
+      t.supplierReturnLineId,
+      t.serialNumber,
+    ),
+  ],
+);
+
+export const customerReturns = pgTable(
+  "customer_returns",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id),
+    documentNumber: text("document_number"),
+    status: documentStatusEnum("status").notNull().default("draft"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    postedBy: uuid("posted_by").references(() => users.id),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => users.id),
+    externalSystem: text("external_system"),
+    externalId: text("external_id"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("customer_returns_org_document_number_uidx").on(
+      t.orgId,
+      t.documentNumber,
+    ),
+    uniqueIndex("customer_returns_org_external_uidx").on(
+      t.orgId,
+      t.externalSystem,
+      t.externalId,
+    ),
+  ],
+);
+
+export const customerReturnLines = pgTable(
+  "customer_return_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    customerReturnId: uuid("customer_return_id")
+      .notNull()
+      .references(() => customerReturns.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    lotId: uuid("lot_id").references(() => lots.id),
+    lineNumber: integer("line_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("customer_return_lines_org_return_line_uidx").on(
+      t.orgId,
+      t.customerReturnId,
+      t.lineNumber,
+    ),
+    check("customer_return_lines_qty_positive", sql`${t.qty} > 0`),
+  ],
+);
+
+export const customerReturnSerials = pgTable(
+  "customer_return_serials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    customerReturnLineId: uuid("customer_return_line_id")
+      .notNull()
+      .references(() => customerReturnLines.id),
+    serialNumber: text("serial_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("customer_return_serials_org_line_number_uidx").on(
+      t.orgId,
+      t.customerReturnLineId,
+      t.serialNumber,
     ),
   ],
 );
