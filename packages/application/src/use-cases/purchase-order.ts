@@ -7,13 +7,14 @@ import type {
   CreatePurchaseOrderInput,
   UpdatePurchaseOrderInput,
 } from "../dto/inputs.js";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type { PurchaseOrderPort } from "../ports/inventory.js";
 
 export class PurchaseOrderUseCases {
   constructor(private readonly repo: PurchaseOrderPort) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {

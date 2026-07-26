@@ -3,13 +3,14 @@ import type {
   CreateGoodsReceiptInput,
   UpdateGoodsReceiptInput,
 } from "../dto/inputs.js";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type { GoodsReceiptPort } from "../ports/inventory.js";
 
 export class GoodsReceiptUseCases {
   constructor(private readonly repo: GoodsReceiptPort) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {

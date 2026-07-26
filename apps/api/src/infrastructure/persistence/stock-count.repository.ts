@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CreateStockCountSnapshotInput,
   StockCountPort,
   StockCountWithLines,
@@ -17,11 +18,15 @@ export class DrizzleStockCountRepository implements StockCountPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  list(orgId: string): Promise<StockCount[]> {
+  list(orgId: string, filter?: BranchListFilter): Promise<StockCount[]> {
+    const conditions = [eq(stockCounts.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(stockCounts.branchId, filter.branchId));
+    }
     return this.db
       .select()
       .from(stockCounts)
-      .where(eq(stockCounts.orgId, orgId)) as Promise<StockCount[]>;
+      .where(and(...conditions)) as Promise<StockCount[]>;
   }
 
   async findById(

@@ -1,4 +1,5 @@
 import type { DocumentStatus } from "@stock-management/domain";
+import type { BranchListFilter } from "../access/list-scope.js";
 
 export type CostRevaluationLine = {
   id: string;
@@ -42,7 +43,7 @@ export interface CostRevaluationPort {
     input: CreateCostRevaluationInput,
   ): Promise<CostRevaluation>;
   findById(orgId: string, id: string): Promise<CostRevaluation | null>;
-  list(orgId: string): Promise<CostRevaluation[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<CostRevaluation[]>;
   update(
     orgId: string,
     id: string,

@@ -11,6 +11,10 @@ import {
   StockCountIdParamsSchema,
   UpdateStockCountSchema,
 } from "@stock-management/shared";
+import {
+  assertDocumentBranchWrite,
+  listFilterFromContext,
+} from "./branch-scope.js";
 
 export type StockCountRouteUseCases = {
   stockCounts: StockCountUseCases;
@@ -23,7 +27,10 @@ export function stockCountsRoutes(
 ): FastifyPluginAsync {
   return async (app) => {
     app.get("/stock-counts", async (request) =>
-      useCases.stockCounts.list(request.ctx.orgId),
+      useCases.stockCounts.list(
+        request.ctx.orgId,
+        listFilterFromContext(request.ctx),
+      ),
     );
 
     app.get<{ Params: { id: string } }>(
@@ -36,6 +43,12 @@ export function stockCountsRoutes(
 
     app.post("/stock-counts", async (request) => {
       const body = CreateStockCountSchema.parse(request.body);
+      assertDocumentBranchWrite(
+        request.ctx,
+        "inventory.post",
+        body.branchId,
+        "Role cannot post inventory documents",
+      );
       return useCases.stockCounts.create(request.ctx.orgId, body);
     });
 
@@ -44,6 +57,13 @@ export function stockCountsRoutes(
       async (request) => {
         const { id } = StockCountIdParamsSchema.parse(request.params);
         const body = UpdateStockCountSchema.parse(request.body);
+        const existing = await useCases.stockCounts.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          body.branchId ?? existing.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.stockCounts.update(request.ctx.orgId, id, body);
       },
     );
@@ -52,6 +72,13 @@ export function stockCountsRoutes(
       "/stock-counts/:id/post",
       async (request) => {
         const { id } = StockCountIdParamsSchema.parse(request.params);
+        const doc = await useCases.stockCounts.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         const body = PostStockCountSchema.parse(request.body ?? {});
         const headerKey = PostStockCountHeadersSchema.parse(request.headers);
         const externalSystem =
@@ -74,6 +101,13 @@ export function stockCountsRoutes(
       "/stock-counts/:id/void",
       async (request) => {
         const { id } = StockCountIdParamsSchema.parse(request.params);
+        const doc = await useCases.stockCounts.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.voidStockCount.execute(
           request.ctx.orgId,
           request.ctx.userId,

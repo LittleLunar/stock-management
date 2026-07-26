@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CreateSupplierReturnInput,
   SupplierReturnPort,
   SupplierReturnWithLines,
@@ -21,11 +22,15 @@ export class DrizzleSupplierReturnRepository implements SupplierReturnPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  list(orgId: string): Promise<SupplierReturn[]> {
+  list(orgId: string, filter?: BranchListFilter): Promise<SupplierReturn[]> {
+    const conditions = [eq(supplierReturns.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(supplierReturns.branchId, filter.branchId));
+    }
     return this.db
       .select()
       .from(supplierReturns)
-      .where(eq(supplierReturns.orgId, orgId)) as Promise<SupplierReturn[]>;
+      .where(and(...conditions)) as Promise<SupplierReturn[]>;
   }
 
   async findById(

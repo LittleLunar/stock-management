@@ -19,6 +19,7 @@ import {
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type { StockCountPort, StockPort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -33,8 +34,8 @@ export class StockCountUseCases {
     private readonly stock: StockPort,
   ) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {

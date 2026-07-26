@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CreatePurchaseOrderInput,
   PurchaseOrderPort,
   PurchaseOrderWithLines,
@@ -15,11 +16,15 @@ export class DrizzlePurchaseOrderRepository implements PurchaseOrderPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  list(orgId: string): Promise<PurchaseOrder[]> {
+  list(orgId: string, filter?: BranchListFilter): Promise<PurchaseOrder[]> {
+    const conditions = [eq(purchaseOrders.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(purchaseOrders.branchId, filter.branchId));
+    }
     return this.db
       .select()
       .from(purchaseOrders)
-      .where(eq(purchaseOrders.orgId, orgId)) as Promise<PurchaseOrder[]>;
+      .where(and(...conditions)) as Promise<PurchaseOrder[]>;
   }
 
   async findById(orgId: string, id: string): Promise<PurchaseOrderWithLines | null> {

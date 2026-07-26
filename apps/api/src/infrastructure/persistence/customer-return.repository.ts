@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CreateCustomerReturnInput,
   CustomerReturnPort,
   CustomerReturnWithLines,
@@ -21,11 +22,15 @@ export class DrizzleCustomerReturnRepository implements CustomerReturnPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  list(orgId: string): Promise<CustomerReturn[]> {
+  list(orgId: string, filter?: BranchListFilter): Promise<CustomerReturn[]> {
+    const conditions = [eq(customerReturns.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(customerReturns.branchId, filter.branchId));
+    }
     return this.db
       .select()
       .from(customerReturns)
-      .where(eq(customerReturns.orgId, orgId)) as Promise<CustomerReturn[]>;
+      .where(and(...conditions)) as Promise<CustomerReturn[]>;
   }
 
   async findById(

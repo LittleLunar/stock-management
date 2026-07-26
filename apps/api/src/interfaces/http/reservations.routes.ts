@@ -9,6 +9,10 @@ import {
   ReservationIdParamsSchema,
   ReservationsQuerySchema,
 } from "@stock-management/shared";
+import {
+  assertDocumentBranchWrite,
+  listFilterFromContext,
+} from "./branch-scope.js";
 
 export type ReservationRouteUseCases = {
   reservations: ReservationUseCases;
@@ -22,7 +26,11 @@ export function reservationsRoutes(
   return async (app) => {
     app.get("/reservations", async (request) => {
       const query = ReservationsQuerySchema.parse(request.query);
-      return useCases.reservations.list(request.ctx.orgId, query);
+      return useCases.reservations.list(
+        request.ctx.orgId,
+        query,
+        listFilterFromContext(request.ctx),
+      );
     });
 
     app.get<{ Params: { id: string } }>(
@@ -35,6 +43,12 @@ export function reservationsRoutes(
 
     app.post("/reservations", async (request) => {
       const body = CreateReservationSchema.parse(request.body);
+      assertDocumentBranchWrite(
+        request.ctx,
+        "inventory.post",
+        body.branchId,
+        "Role cannot post inventory documents",
+      );
       return useCases.reservations.create(request.ctx.orgId, body);
     });
 
@@ -42,6 +56,13 @@ export function reservationsRoutes(
       "/reservations/:id/release",
       async (request) => {
         const { id } = ReservationIdParamsSchema.parse(request.params);
+        const doc = await useCases.reservations.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.releaseReservation.execute(request.ctx.orgId, id);
       },
     );
@@ -50,6 +71,13 @@ export function reservationsRoutes(
       "/reservations/:id/commit",
       async (request) => {
         const { id } = ReservationIdParamsSchema.parse(request.params);
+        const doc = await useCases.reservations.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.commitReservation.execute(
           request.ctx.orgId,
           request.ctx.userId,

@@ -7,6 +7,7 @@ import {
 import type { IdempotencyInput } from "../dto/inputs.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import { refreshCostSummary } from "../costing/refresh-cost-summary.js";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type {
   CostRevaluation,
   CostRevaluationPort,
@@ -20,8 +21,8 @@ const POST_OPERATION = "post-cost-revaluation";
 export class CostRevaluationUseCases {
   constructor(private readonly repo: CostRevaluationPort) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {

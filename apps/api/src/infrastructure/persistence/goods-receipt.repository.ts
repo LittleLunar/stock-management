@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CreateGoodsReceiptInput,
   GoodsReceiptPort,
   GoodsReceiptWithLines,
@@ -22,11 +23,15 @@ export class DrizzleGoodsReceiptRepository implements GoodsReceiptPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  list(orgId: string): Promise<GoodsReceipt[]> {
+  list(orgId: string, filter?: BranchListFilter): Promise<GoodsReceipt[]> {
+    const conditions = [eq(goodsReceipts.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(goodsReceipts.branchId, filter.branchId));
+    }
     return this.db
       .select()
       .from(goodsReceipts)
-      .where(eq(goodsReceipts.orgId, orgId)) as Promise<GoodsReceipt[]>;
+      .where(and(...conditions)) as Promise<GoodsReceipt[]>;
   }
 
   async findById(orgId: string, id: string): Promise<GoodsReceiptWithLines | null> {

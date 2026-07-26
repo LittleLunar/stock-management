@@ -1,4 +1,5 @@
 export * from "./dto/inputs.js";
+export * from "./access/list-scope.js";
 export * from "./ports/repositories.js";
 export * from "./ports/membership-access.js";
 export * from "./ports/inventory.js";

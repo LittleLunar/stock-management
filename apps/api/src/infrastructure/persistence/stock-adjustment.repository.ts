@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CreateStockAdjustmentInput,
   StockAdjustmentPort,
   StockAdjustmentWithLines,
@@ -24,11 +25,15 @@ export class DrizzleStockAdjustmentRepository implements StockAdjustmentPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  list(orgId: string): Promise<StockAdjustment[]> {
+  list(orgId: string, filter?: BranchListFilter): Promise<StockAdjustment[]> {
+    const conditions = [eq(stockAdjustments.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(stockAdjustments.branchId, filter.branchId));
+    }
     return this.db
       .select()
       .from(stockAdjustments)
-      .where(eq(stockAdjustments.orgId, orgId)) as Promise<StockAdjustment[]>;
+      .where(and(...conditions)) as Promise<StockAdjustment[]>;
   }
 
   async findById(
