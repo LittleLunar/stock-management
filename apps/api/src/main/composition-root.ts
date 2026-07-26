@@ -27,6 +27,7 @@ import {
   PostStockIssue,
   PostSupplierReturn,
   ProcessOutboxForJournals,
+  ProcessOutboxForWebhooks,
   ProductUseCases,
   PurchaseOrderUseCases,
   ReceiveStockTransfer,
@@ -60,6 +61,7 @@ import {
   PnlReportUseCase,
   TrialBalanceUseCase,
   ApprovalPolicyUseCases,
+  type HttpPoster,
 } from "@stock-management/application";
 import { NotFoundError } from "@stock-management/domain";
 import type { Db } from "../infrastructure/db/client.js";
@@ -92,6 +94,13 @@ import { DrizzleSupplierRepository } from "../infrastructure/persistence/supplie
 import { DrizzleSupplierReturnRepository } from "../infrastructure/persistence/supplier-return.repository.js";
 import { DrizzleUnitOfWork } from "../infrastructure/persistence/unit-of-work.js";
 import { DrizzleUsersRepository } from "../infrastructure/persistence/users.repository.js";
+import { DrizzleWebhookRepository } from "../infrastructure/persistence/webhook.repository.js";
+
+const defaultHttpPoster: HttpPoster = async (url, init) => {
+  const res = await fetch(url, init);
+  const bodyText = await res.text();
+  return { status: res.status, bodyText };
+};
 
 export type AppServices = {
   org: OrganizationUseCases;
@@ -147,6 +156,8 @@ export type AppServices = {
   accounts: AccountUseCases;
   journals: JournalUseCases;
   processOutboxForJournals: ProcessOutboxForJournals;
+  processOutboxForWebhooks: ProcessOutboxForWebhooks;
+  webhooks: DrizzleWebhookRepository;
   accounting: DrizzleAccountingRepository;
   supplierInvoices: SupplierInvoiceUseCases;
   postSupplierInvoice: PostSupplierInvoice;
@@ -189,6 +200,7 @@ export function createAppServices(db: Db): AppServices {
   const ensureDefaultChartOfAccounts = new EnsureDefaultChartOfAccounts(
     accounting,
   );
+  const webhooks = new DrizzleWebhookRepository(db);
 
   return {
     org: new OrganizationUseCases(orgRepo),
@@ -254,6 +266,11 @@ export function createAppServices(db: Db): AppServices {
       accounting,
       ensureDefaultChartOfAccounts,
     ),
+    processOutboxForWebhooks: new ProcessOutboxForWebhooks(
+      webhooks,
+      defaultHttpPoster,
+    ),
+    webhooks,
     accounting,
     supplierInvoices: new SupplierInvoiceUseCases(ap),
     postSupplierInvoice: new PostSupplierInvoice(

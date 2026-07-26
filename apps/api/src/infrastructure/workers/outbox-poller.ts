@@ -21,6 +21,7 @@ export type OutboxPollerLog = {
 export type ProcessOutboxBatchDeps = {
   store: OutboxPollerStore;
   processJournal: (event: PendingOutboxEvent) => Promise<void>;
+  processWebhooks: (event: PendingOutboxEvent) => Promise<void>;
 };
 
 export type ProcessOutboxBatchOptions = {
@@ -33,8 +34,9 @@ export type ProcessOutboxBatchOptions = {
 
 /**
  * Claim a batch of pending outbox events (caller supplies SKIP LOCKED store),
- * create journals when applicable, log each payload, and mark processed —
- * or failed if processing throws.
+ * create journals when applicable, deliver webhooks, log each payload, and
+ * mark processed — or failed if processing throws.
+ * Order is mandatory: journal → webhooks → markProcessed.
  */
 export async function processOutboxBatch(
   options: ProcessOutboxBatchOptions,
@@ -46,6 +48,7 @@ export async function processOutboxBatch(
     for (const row of rows) {
       try {
         await deps.processJournal(row);
+        await deps.processWebhooks(row);
         options.log.info(
           {
             eventId: row.id,

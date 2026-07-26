@@ -9,14 +9,14 @@ import type {
   WebhookDeliveryStatus,
   WebhookSubscription,
 } from "@stock-management/domain";
-import type { Db } from "../db/client.js";
+import type { DbClient } from "../db/client.js";
 import {
   webhookDeliveries,
   webhookSubscriptions,
 } from "../db/schema/index.js";
 
 export class DrizzleWebhookRepository implements WebhookPort {
-  constructor(private readonly db: Db) {}
+  constructor(private readonly db: DbClient) {}
 
   listSubscriptions(orgId: string): Promise<WebhookSubscription[]> {
     return this.db

@@ -44,11 +44,20 @@ import { DrizzleAccountingRepository } from "./infrastructure/persistence/accoun
 import {
   EnsureDefaultChartOfAccounts,
   ProcessOutboxForJournals,
+  ProcessOutboxForWebhooks,
+  type HttpPoster,
 } from "@stock-management/application";
+import { DrizzleWebhookRepository } from "./infrastructure/persistence/webhook.repository.js";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
 const services = createAppServices(db);
+
+const httpPoster: HttpPoster = async (url, init) => {
+  const res = await fetch(url, init);
+  const bodyText = await res.text();
+  return { status: res.status, bodyText };
+};
 
 const app = Fastify({
   logger: {
@@ -143,10 +152,17 @@ const outboxPoller = env.OUTBOX_POLLER_ENABLED
             accounting,
             new EnsureDefaultChartOfAccounts(accounting),
           );
+          const webhooks = new ProcessOutboxForWebhooks(
+            new DrizzleWebhookRepository(tx),
+            httpPoster,
+          );
           return fn({
             store,
             processJournal: async (event) => {
               await processor.execute(event);
+            },
+            processWebhooks: async (event) => {
+              await webhooks.execute(event);
             },
           });
         }),
