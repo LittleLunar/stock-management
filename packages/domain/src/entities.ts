@@ -13,6 +13,7 @@ import type {
   PoStatus,
   ReservationStatus,
   SerialStatus,
+  SupplierInvoiceStatus,
   TransferStatus,
 } from "./types.js";
 
@@ -531,3 +532,42 @@ export type JournalLineDraft = {
   lineNo: number;
 };
 
+export type SupplierInvoice = {
+  id: string;
+  orgId: string;
+  supplierId: string;
+  branchId: string | null;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string | null;
+  status: SupplierInvoiceStatus;
+  externalSystem: string | null;
+  externalId: string | null;
+  postedAt: Date | null;
+  voidedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type SupplierInvoiceLine = {
+  id: string;
+  orgId: string;
+  supplierInvoiceId: string;
+  productId: string | null;
+  lineNumber: number;
+  qty: string;
+  unitCost: string;
+  amount: string;
+  purchaseOrderLineId: string;
+  goodsReceiptLineId: string;
+};
+
+export type InvoiceMatch = {
+  id: string;
+  orgId: string;
+  supplierInvoiceLineId: string;
+  purchaseOrderLineId: string;
+  goodsReceiptLineId: string;
+  matchedQty: string;
+  matchedAmount: string;
+};

@@ -313,3 +313,16 @@ export {
   type GeneratePeriodsBody,
   type JournalsQuery,
 } from "./accounting.js";
+
+export {
+  SupplierInvoiceStatusSchema,
+  SupplierInvoiceLineInputSchema,
+  CreateSupplierInvoiceSchema,
+  UpdateSupplierInvoiceSchema,
+  SupplierInvoiceIdParamsSchema,
+  ApAgingQuerySchema,
+  type CreateSupplierInvoice,
+  type UpdateSupplierInvoice,
+  type SupplierInvoiceIdParams,
+  type ApAgingQuery,
+} from "./ap.js";

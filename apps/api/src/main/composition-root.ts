@@ -49,10 +49,15 @@ import {
   VoidStockIssue,
   VoidStockTransfer,
   VoidSupplierReturn,
+  SupplierInvoiceUseCases,
+  PostSupplierInvoice,
+  VoidSupplierInvoice,
+  ApAgingReportUseCase,
 } from "@stock-management/application";
 import { NotFoundError } from "@stock-management/domain";
 import type { Db } from "../infrastructure/db/client.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
+import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
 import { DrizzleBranchRepository } from "../infrastructure/persistence/branch.repository.js";
 import { DrizzleCategoryRepository } from "../infrastructure/persistence/category.repository.js";
 import { DrizzleCogsMovementSource } from "../infrastructure/persistence/cogs-movement.repository.js";
@@ -132,6 +137,10 @@ export type AppServices = {
   journals: JournalUseCases;
   processOutboxForJournals: ProcessOutboxForJournals;
   accounting: DrizzleAccountingRepository;
+  supplierInvoices: SupplierInvoiceUseCases;
+  postSupplierInvoice: PostSupplierInvoice;
+  voidSupplierInvoice: VoidSupplierInvoice;
+  apAging: ApAgingReportUseCase;
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
@@ -154,6 +163,7 @@ export function createAppServices(db: Db): AppServices {
   const costRevaluations = new DrizzleCostRevaluationRepository(db);
   const costing = new DrizzleCostingRepository(db);
   const accounting = new DrizzleAccountingRepository(db);
+  const ap = new DrizzleApRepository(db);
   const orgRepo = new DrizzleOrganizationRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
   const ensureDefaultChartOfAccounts = new EnsureDefaultChartOfAccounts(
@@ -223,5 +233,15 @@ export function createAppServices(db: Db): AppServices {
       ensureDefaultChartOfAccounts,
     ),
     accounting,
+    supplierInvoices: new SupplierInvoiceUseCases(ap),
+    postSupplierInvoice: new PostSupplierInvoice(
+      unitOfWork,
+      ensureDefaultChartOfAccounts,
+    ),
+    voidSupplierInvoice: new VoidSupplierInvoice(
+      unitOfWork,
+      ensureDefaultChartOfAccounts,
+    ),
+    apAging: new ApAgingReportUseCase(ap),
   };
 }

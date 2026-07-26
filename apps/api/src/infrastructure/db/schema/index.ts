@@ -1487,3 +1487,97 @@ export const journalLines = pgTable("journal_lines", {
   credit: numeric("credit", { precision: 18, scale: 4 }).notNull().default("0"),
   lineNo: integer("line_no").notNull(),
 });
+
+export const supplierInvoiceStatusEnum = pgEnum("supplier_invoice_status", [
+  "draft",
+  "posted",
+  "voided",
+]);
+
+export const supplierInvoices = pgTable(
+  "supplier_invoices",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    branchId: uuid("branch_id").references(() => branches.id),
+    invoiceNumber: text("invoice_number").notNull(),
+    invoiceDate: date("invoice_date", { mode: "string" }).notNull(),
+    dueDate: date("due_date", { mode: "string" }),
+    status: supplierInvoiceStatusEnum("status").notNull().default("draft"),
+    externalSystem: text("external_system"),
+    externalId: text("external_id"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("supplier_invoices_org_number_uidx").on(
+      t.orgId,
+      t.invoiceNumber,
+    ),
+    uniqueIndex("supplier_invoices_org_external_uidx").on(
+      t.orgId,
+      t.externalSystem,
+      t.externalId,
+    ),
+  ],
+);
+
+export const supplierInvoiceLines = pgTable(
+  "supplier_invoice_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    supplierInvoiceId: uuid("supplier_invoice_id")
+      .notNull()
+      .references(() => supplierInvoices.id),
+    productId: uuid("product_id").references(() => products.id),
+    lineNumber: integer("line_number").notNull(),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }).notNull(),
+    amount: numeric("amount", { precision: 18, scale: 4 }).notNull(),
+    purchaseOrderLineId: uuid("purchase_order_line_id")
+      .notNull()
+      .references(() => purchaseOrderLines.id),
+    goodsReceiptLineId: uuid("goods_receipt_line_id")
+      .notNull()
+      .references(() => goodsReceiptLines.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("supplier_invoice_lines_org_doc_line_uidx").on(
+      t.orgId,
+      t.supplierInvoiceId,
+      t.lineNumber,
+    ),
+  ],
+);
+
+export const invoiceMatches = pgTable("invoice_matches", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  supplierInvoiceLineId: uuid("supplier_invoice_line_id")
+    .notNull()
+    .references(() => supplierInvoiceLines.id),
+  purchaseOrderLineId: uuid("purchase_order_line_id")
+    .notNull()
+    .references(() => purchaseOrderLines.id),
+  goodsReceiptLineId: uuid("goods_receipt_line_id")
+    .notNull()
+    .references(() => goodsReceiptLines.id),
+  matchedQty: numeric("matched_qty", { precision: 18, scale: 4 }).notNull(),
+  matchedAmount: numeric("matched_amount", {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  ...timestamps,
+});

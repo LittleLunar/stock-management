@@ -89,6 +89,21 @@ export class DrizzleGoodsReceiptRepository implements GoodsReceiptPort {
     };
   }
 
+  async findLineById(
+    orgId: string,
+    id: string,
+  ): Promise<GoodsReceiptLine | null> {
+    const query = this.db
+      .select()
+      .from(goodsReceiptLines)
+      .where(
+        and(eq(goodsReceiptLines.orgId, orgId), eq(goodsReceiptLines.id, id)),
+      );
+    const rows = this.lockForUpdate ? await query.for("update") : await query;
+    const line = rows[0];
+    return line ? (line as GoodsReceiptLine) : null;
+  }
+
   create(orgId: string, input: CreateGoodsReceiptInput): Promise<GoodsReceiptWithLines> {
     return this.inTransaction(async (client) => {
       const [receipt] = await client

@@ -33,6 +33,10 @@ import { landedCostsRoutes } from "./interfaces/http/landed-costs.routes.js";
 import { costRevaluationsRoutes } from "./interfaces/http/cost-revaluations.routes.js";
 import { costReportsRoutes } from "./interfaces/http/cost-reports.routes.js";
 import { accountingRoutes } from "./interfaces/http/accounting.routes.js";
+import {
+  apReportsRoutes,
+  supplierInvoicesRoutes,
+} from "./interfaces/http/supplier-invoices.routes.js";
 import { DrizzleAccountingRepository } from "./infrastructure/persistence/accounting.repository.js";
 import {
   EnsureDefaultChartOfAccounts,
@@ -113,6 +117,8 @@ await app.register(landedCostsRoutes(services), { prefix: "/api/v1" });
 await app.register(costRevaluationsRoutes(services), { prefix: "/api/v1" });
 await app.register(costReportsRoutes(services), { prefix: "/api/v1" });
 await app.register(accountingRoutes(services), { prefix: "/api/v1" });
+await app.register(supplierInvoicesRoutes(services), { prefix: "/api/v1" });
+await app.register(apReportsRoutes(services.apAging), { prefix: "/api/v1" });
 
 const outboxPoller = env.OUTBOX_POLLER_ENABLED
   ? new OutboxPoller({
