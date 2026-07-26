@@ -1,5 +1,6 @@
 import type {
   Account,
+  AccountBalanceRow,
   AccountMapping,
   AccountingPeriod,
   JournalEntry,
@@ -63,5 +64,13 @@ export interface AccountingPort {
     entry: Omit<JournalEntry, "id" | "createdAt"> & { id?: string };
     lines: Array<Omit<JournalLine, "id" | "journalEntryId"> & { id?: string }>;
   }): Promise<JournalWithLines>;
-}
 
+  sumLinesByAccount(
+    orgId: string,
+    filter: {
+      periodId?: string;
+      asOf?: string;
+      branchId?: string;
+    },
+  ): Promise<AccountBalanceRow[]>;
+}

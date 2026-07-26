@@ -88,6 +88,7 @@ export interface PurchaseOrderPort {
 export interface GoodsReceiptPort {
   list(orgId: string): Promise<GoodsReceipt[]>;
   findById(orgId: string, id: string): Promise<GoodsReceiptWithLines | null>;
+  findLineById(orgId: string, id: string): Promise<GoodsReceiptLine | null>;
   create(
     orgId: string,
     input: CreateGoodsReceiptInput,

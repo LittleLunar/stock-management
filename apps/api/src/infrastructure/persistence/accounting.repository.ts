@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type {
   AccountingPort,
   JournalWithLines,
@@ -12,7 +12,7 @@ import type {
   JournalEventType,
   PeriodStatus,
 } from "@stock-management/domain";
-import { NotFoundError } from "@stock-management/domain";
+import { NotFoundError, formatMoney } from "@stock-management/domain";
 import type { DbClient } from "../db/client.js";
 import {
   accountMappings,
@@ -397,4 +397,74 @@ export class DrizzleAccountingRepository implements AccountingPort {
     return { ...entry, lines: lineRows.map(mapLine) };
   }
 
+  async sumLinesByAccount(
+    orgId: string,
+    filter: {
+      periodId?: string;
+      asOf?: string;
+      branchId?: string;
+    },
+  ) {
+    const conditions = [
+      eq(journalLines.orgId, orgId),
+      eq(journalEntries.orgId, orgId),
+      eq(accounts.orgId, orgId),
+    ];
+
+    if (filter.periodId !== undefined) {
+      conditions.push(eq(journalEntries.periodId, filter.periodId));
+    }
+    if (filter.asOf !== undefined) {
+      conditions.push(
+        sql`(${journalEntries.postedAt} AT TIME ZONE 'UTC')::date <= ${filter.asOf}::date`,
+      );
+    }
+    if (filter.branchId !== undefined) {
+      conditions.push(eq(journalEntries.branchId, filter.branchId));
+    }
+
+    const rows = await this.db
+      .select({
+        accountId: accounts.id,
+        code: accounts.code,
+        name: accounts.name,
+        type: accounts.type,
+        debitTotal: sql<string>`COALESCE(SUM(${journalLines.debit}), 0)`.as(
+          "debit_total",
+        ),
+        creditTotal: sql<string>`COALESCE(SUM(${journalLines.credit}), 0)`.as(
+          "credit_total",
+        ),
+      })
+      .from(journalLines)
+      .innerJoin(
+        journalEntries,
+        and(
+          eq(journalLines.journalEntryId, journalEntries.id),
+          eq(journalLines.orgId, journalEntries.orgId),
+        ),
+      )
+      .innerJoin(
+        accounts,
+        and(
+          eq(journalLines.accountId, accounts.id),
+          eq(journalLines.orgId, accounts.orgId),
+        ),
+      )
+      .where(and(...conditions))
+      .groupBy(accounts.id, accounts.code, accounts.name, accounts.type)
+      .having(
+        sql`SUM(${journalLines.debit}) <> 0 OR SUM(${journalLines.credit}) <> 0`,
+      )
+      .orderBy(asc(accounts.code));
+
+    return rows.map((row) => ({
+      accountId: row.accountId,
+      code: row.code,
+      name: row.name,
+      type: row.type,
+      debitTotal: formatMoney(Number(row.debitTotal)),
+      creditTotal: formatMoney(Number(row.creditTotal)),
+    }));
+  }
 }

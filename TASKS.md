@@ -2,9 +2,7 @@
 
 ## Active
 
-- [ ] **Phase D1** — GL / CoA / periods / auto journals (plan ready) — implement first
-- [ ] **Phase D2** — AP / 3-way / aging (plan ready) — after D1
-- [ ] **Phase D3** — reports / close checklist / web (plan ready) — after D2
+- [ ] **Phase E** — multi-branch hardening / webhooks (unblocked after D)
 
 ## Waiting On
 
@@ -12,11 +10,13 @@
 
 ## Someday
 
-- [ ] **Phase E** — multi-branch hardening / webhooks
 - [ ] **Phase F POS integration** - plug into ipos or built-in POS
 
 ## Done
 
+- [x] ~~Phase D3 — reports / close checklist / thin web~~ (2026-07-26)
+- [x] ~~Phase D2 — AP / 3-way / aging~~ (2026-07-26)
+- [x] ~~Phase D1 — GL / CoA / periods / auto journals~~ (2026-07-26)
 - [x] ~~Phase D plans (design + master + D1–D3) written~~ (2026-07-26)
 - [x] ~~Phase C3 — landed, reval, reports, web~~ (2026-07-26)
 - [x] ~~Phase C2 — FIFO consumption on all inventory docs~~ (2026-07-26)

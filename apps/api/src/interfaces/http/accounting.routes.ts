@@ -5,8 +5,10 @@ import type {
   EnsureDefaultChartOfAccounts,
   JournalUseCases,
   JournalWithLines,
+  PeriodCloseChecklistUseCase,
 } from "@stock-management/application";
 import {
+  AccountingPeriodIdParamsSchema,
   CreateAccountBodySchema,
   GeneratePeriodsBodySchema,
   JournalsQuerySchema,
@@ -21,6 +23,7 @@ export type AccountingRouteUseCases = {
   accountingPeriods: AccountingPeriodUseCases;
   accounts: AccountUseCases;
   journals: JournalUseCases;
+  periodCloseChecklist: PeriodCloseChecklistUseCase;
 };
 
 function serializeJournal(journal: JournalWithLines) {
@@ -97,6 +100,10 @@ export function accountingRoutes(
       return useCases.accountingPeriods.close(request.ctx.orgId, id);
     });
 
+    app.get("/accounting-periods/:id/close-checklist", async (request) => {
+      const { id } = AccountingPeriodIdParamsSchema.parse(request.params);
+      return useCases.periodCloseChecklist.execute(request.ctx.orgId, id);
+    });
 
     app.get("/journals/:id", async (request) => {
       const { id } = z.object({ id: UuidSchema }).parse(request.params);

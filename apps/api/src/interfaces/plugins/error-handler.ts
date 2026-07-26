@@ -7,10 +7,14 @@ import {
   DomainError,
   InsufficientCostError,
   InsufficientStockError,
+  InvoiceAlreadyVoidedError,
+  InvoiceNotDraftError,
+  InvoiceNotPostedError,
   LayerInUseError,
   MissingUnitCostError,
   NotFoundError,
   PeriodClosedError,
+  ThreeWayMatchError,
   UnauthorizedError,
   UnbalancedJournalError,
   UnsupportedCostingMethodError,
@@ -52,7 +56,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
     if (
       error instanceof ConflictError ||
       error instanceof LayerInUseError ||
-      error instanceof PeriodClosedError
+      error instanceof PeriodClosedError ||
+      error instanceof InvoiceNotDraftError ||
+      error instanceof InvoiceNotPostedError ||
+      error instanceof InvoiceAlreadyVoidedError
     ) {
       return reply
         .status(409)
@@ -66,7 +73,8 @@ export function registerErrorHandler(app: FastifyInstance): void {
       error instanceof UnsupportedCostingMethodError ||
       error instanceof AllocationMismatchError ||
       error instanceof AccountMappingMissingError ||
-      error instanceof AccountingPeriodMissingError
+      error instanceof AccountingPeriodMissingError ||
+      error instanceof ThreeWayMatchError
     ) {
       return reply
         .status(400)

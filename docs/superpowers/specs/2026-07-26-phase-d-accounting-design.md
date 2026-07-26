@@ -1,7 +1,7 @@
 # Phase D Design — Accounting
 
 **Date:** 2026-07-26  
-**Status:** Planning complete (2026-07-26). Deep D1–D3 plans ready. Implement D1 → D2 → D3.  
+**Status:** Complete (2026-07-26). D1–D3 implemented.  
 **Features:** `docs/FEATURES.md` § Phase D  
 **Wiki:** [[Phase D]], [[Inventory Accounting]], [[Feature Phases]]
 

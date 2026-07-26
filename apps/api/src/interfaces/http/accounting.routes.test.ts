@@ -6,7 +6,10 @@ import {
   AccountingPeriodUseCases,
   EnsureDefaultChartOfAccounts,
   JournalUseCases,
+  PeriodCloseChecklistUseCase,
+  type CloseChecklistPort,
 } from "@stock-management/application";
+import { CloseChecklistResponseSchema } from "@stock-management/shared";
 import { accountingRoutes } from "./accounting.routes.js";
 import { contextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
@@ -21,7 +24,7 @@ describe("accounting routes", () => {
     await Promise.all(apps.splice(0).map((app) => app.close()));
   });
 
-  async function buildAccountingApp() {
+  async function buildAccountingApp(checklist?: CloseChecklistPort) {
     const { port } = makeFakeAccounting();
     const ensureDefaultChartOfAccounts = new EnsureDefaultChartOfAccounts(port);
     const services = {
@@ -29,6 +32,23 @@ describe("accounting routes", () => {
       accountingPeriods: new AccountingPeriodUseCases(port, async () => 1),
       accounts: new AccountUseCases(port),
       journals: new JournalUseCases(port),
+      periodCloseChecklist: new PeriodCloseChecklistUseCase(
+        port,
+        checklist ?? {
+          async countDraftInventoryDocsInRange() {
+            return [];
+          },
+          async countOutboxPendingOrFailed() {
+            return { pending: 0, failed: 0 };
+          },
+          async sumUnmatchedPostedGrAmount() {
+            return "0.0000";
+          },
+          async countDraftSupplierInvoices() {
+            return 0;
+          },
+        },
+      ),
     };
     const app = Fastify();
     apps.push(app);
@@ -57,5 +77,36 @@ describe("accounting routes", () => {
     });
     expect(gen.statusCode).toBe(200);
     expect(gen.json().created).toHaveLength(12);
+  });
+
+  it("GET /accounting-periods/:id/close-checklist returns warnings shape", async () => {
+    const app = await buildAccountingApp();
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/accounting-periods/generate",
+      headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+      payload: { fiscalYear: 2026 },
+    });
+    const periods = (
+      await app.inject({
+        method: "GET",
+        url: "/api/v1/accounting-periods",
+        headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+      })
+    ).json();
+    const periodId = periods[0].id;
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/v1/accounting-periods/${periodId}/close-checklist`,
+      headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = CloseChecklistResponseSchema.parse(res.json());
+    expect(body).toMatchObject({
+      periodId,
+      warnings: expect.any(Array),
+      canCloseSuggested: expect.any(Boolean),
+    });
   });
 });

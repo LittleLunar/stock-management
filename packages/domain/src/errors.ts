@@ -133,3 +133,30 @@ export class AccountingPeriodMissingError extends DomainError {
   }
 }
 
+export class ThreeWayMatchError extends DomainError {
+  constructor(message: string) {
+    super(message, "THREE_WAY_MATCH");
+    this.name = "ThreeWayMatchError";
+  }
+}
+
+export class InvoiceNotDraftError extends DomainError {
+  constructor(message = "Invoice is not in draft status") {
+    super(message, "INVALID_STATE");
+    this.name = "InvoiceNotDraftError";
+  }
+}
+
+export class InvoiceNotPostedError extends DomainError {
+  constructor(message = "Invoice is not posted") {
+    super(message, "INVALID_STATE");
+    this.name = "InvoiceNotPostedError";
+  }
+}
+
+export class InvoiceAlreadyVoidedError extends DomainError {
+  constructor(message = "Invoice is already voided") {
+    super(message, "INVALID_STATE");
+    this.name = "InvoiceAlreadyVoidedError";
+  }
+}
