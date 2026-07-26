@@ -53,9 +53,14 @@ import {
   PostSupplierInvoice,
   VoidSupplierInvoice,
   ApAgingReportUseCase,
+  BalanceSheetUseCase,
+  PeriodCloseChecklistUseCase,
+  PnlReportUseCase,
+  TrialBalanceUseCase,
 } from "@stock-management/application";
 import { NotFoundError } from "@stock-management/domain";
 import type { Db } from "../infrastructure/db/client.js";
+import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
 import { DrizzleBranchRepository } from "../infrastructure/persistence/branch.repository.js";
@@ -141,6 +146,10 @@ export type AppServices = {
   postSupplierInvoice: PostSupplierInvoice;
   voidSupplierInvoice: VoidSupplierInvoice;
   apAging: ApAgingReportUseCase;
+  trialBalance: TrialBalanceUseCase;
+  pnlReport: PnlReportUseCase;
+  balanceSheet: BalanceSheetUseCase;
+  periodCloseChecklist: PeriodCloseChecklistUseCase;
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
@@ -164,6 +173,7 @@ export function createAppServices(db: Db): AppServices {
   const costing = new DrizzleCostingRepository(db);
   const accounting = new DrizzleAccountingRepository(db);
   const ap = new DrizzleApRepository(db);
+  const closeChecklist = new DrizzleCloseChecklistRepository(db);
   const orgRepo = new DrizzleOrganizationRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
   const ensureDefaultChartOfAccounts = new EnsureDefaultChartOfAccounts(
@@ -243,5 +253,12 @@ export function createAppServices(db: Db): AppServices {
       ensureDefaultChartOfAccounts,
     ),
     apAging: new ApAgingReportUseCase(ap),
+    trialBalance: new TrialBalanceUseCase(accounting),
+    pnlReport: new PnlReportUseCase(accounting),
+    balanceSheet: new BalanceSheetUseCase(accounting),
+    periodCloseChecklist: new PeriodCloseChecklistUseCase(
+      accounting,
+      closeChecklist,
+    ),
   };
 }

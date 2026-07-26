@@ -799,4 +799,63 @@ export const api = {
     request<unknown>(`/api/v1/cost-revaluations/${id}/void`, ctx, {
       method: "POST",
     }),
+  listAccounts: (ctx: ApiHeaders) => request<unknown[]>("/api/v1/accounts", ctx),
+  ensureDefaultAccounts: (ctx: ApiHeaders) =>
+    request<unknown>("/api/v1/accounts/ensure-defaults", ctx, {
+      method: "POST",
+    }),
+  listAccountMappings: (ctx: ApiHeaders) =>
+    request<unknown[]>("/api/v1/account-mappings", ctx),
+  listAccountingPeriods: (ctx: ApiHeaders) =>
+    request<unknown[]>("/api/v1/accounting-periods", ctx),
+  generateAccountingPeriods: (ctx: ApiHeaders, body: { fiscalYear: number }) =>
+    request<unknown>("/api/v1/accounting-periods/generate", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  openAccountingPeriod: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/accounting-periods/${id}/open`, ctx, {
+      method: "POST",
+    }),
+  closeAccountingPeriod: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/accounting-periods/${id}/close`, ctx, {
+      method: "POST",
+    }),
+  getCloseChecklist: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/accounting-periods/${id}/close-checklist`, ctx),
+  getJournal: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/journals/${id}`, ctx),
+  listJournalsBySource: (
+    ctx: ApiHeaders,
+    q: { sourceDocumentType: string; sourceDocumentId: string },
+  ) => request<unknown[]>(withQuery("/api/v1/journals", q), ctx),
+  listSupplierInvoices: (ctx: ApiHeaders) =>
+    request<unknown[]>("/api/v1/supplier-invoices", ctx),
+  getSupplierInvoice: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/supplier-invoices/${id}`, ctx),
+  createSupplierInvoice: (ctx: ApiHeaders, body: unknown) =>
+    request<unknown>("/api/v1/supplier-invoices", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  postSupplierInvoice: (ctx: ApiHeaders, id: string, body?: unknown) =>
+    request<unknown>(`/api/v1/supplier-invoices/${id}/post`, ctx, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+  voidSupplierInvoice: (ctx: ApiHeaders, id: string, body?: unknown) =>
+    request<unknown>(`/api/v1/supplier-invoices/${id}/void`, ctx, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+  listApAging: (ctx: ApiHeaders, q: { asOf: string }) =>
+    request<unknown>(withQuery("/api/v1/reports/ap-aging", q), ctx),
+  listTrialBalance: (
+    ctx: ApiHeaders,
+    q: { periodId?: string; asOf?: string; branchId?: string },
+  ) => request<unknown>(withQuery("/api/v1/reports/trial-balance", q), ctx),
+  listPnl: (ctx: ApiHeaders, q: { periodId: string; branchId?: string }) =>
+    request<unknown>(withQuery("/api/v1/reports/pnl", q), ctx),
+  listBalanceSheet: (ctx: ApiHeaders, q: { asOf: string; branchId?: string }) =>
+    request<unknown>(withQuery("/api/v1/reports/balance-sheet", q), ctx),
 };

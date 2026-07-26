@@ -67,6 +67,8 @@ Canonical feature inventory for stock-management. Wiki mirror: [[Feature Phases]
 
 ## Phase D — Accounting
 
+> **Complete (2026-07-26)** — D1–D3 shipped. See `wiki/features/Phase D.md`.
+
 | Area | Features |
 |------|----------|
 | **Chart of accounts** | Asset/liability/equity/income/expense |

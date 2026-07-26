@@ -18,8 +18,8 @@ Roadmap for [[Stock Management System]]. Full checklist: `docs/FEATURES.md`.
 | A | Platform skeleton | Complete (polish optional) | [[Phase A]] |
 | B | Internal inventory loop | **Complete** (B1–B3, 2026-07-26) | [[Phase B]] |
 | C | FIFO costing | **Complete** (C1–C3, 2026-07-26) | [[Phase C]] |
-| D | Accounting / AP | Next (unblocked); planning complete; deep D1–D3 ready | [[Phase D]] |
-| E | Multi-branch hardening | Someday | [[Phase E]] |
+| D | Accounting / AP | **Complete** (D1–D3, 2026-07-26) | [[Phase D]] |
+| E | Multi-branch hardening | Next (unblocked) | [[Phase E]] |
 | F | POS / channels | Someday | [[Phase F]] |
 
 ```
@@ -35,5 +35,6 @@ F  POS / external channels on same APIs
 
 **Phase B:** complete — see [[Phase B]] and `docs/superpowers/plans/2026-07-26-phase-b-inventory-loop.md`.  
 **Phase C:** complete — see [[Phase C]].  
-**Next:** [[Phase D]] — planning complete; implement D1 → D2 → D3 when started (outbox cost fields already enriched in C3).  
+**Phase D:** complete — see [[Phase D]].  
+**Next:** [[Phase E]] — multi-branch hardening / webhooks.  
 Design: `docs/superpowers/specs/2026-07-26-phase-d-accounting-design.md` · Master: `docs/superpowers/plans/2026-07-26-phase-d-accounting.md`

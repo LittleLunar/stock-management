@@ -8,7 +8,7 @@
 
 **Tech Stack:** Fastify, Drizzle, PostgreSQL, Zod, Vitest, Vite/React, TanStack Query.
 
-**Status:** Planning complete (2026-07-26). Deep D1–D3 plans ready. Implementation not started.
+**Status:** Implementation complete (2026-07-26). D1–D3 shipped.
 
 ## Global Constraints
 
