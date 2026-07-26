@@ -6,7 +6,8 @@ export type AccessAction =
   | "masters.write"
   | "inventory.post"
   | "po.write"
-  | "accounting.read";
+  | "accounting.read"
+  | "document.approve";
 
 export type MembershipAccess = Pick<Membership, "role" | "branchIds">;
 
@@ -16,12 +17,14 @@ const ROLE_ACTIONS: Record<MembershipRole, ReadonlySet<AccessAction>> = {
     "inventory.post",
     "po.write",
     "accounting.read",
+    "document.approve",
   ]),
   branch_manager: new Set([
     "masters.write",
     "inventory.post",
     "po.write",
     "accounting.read",
+    "document.approve",
   ]),
   warehouse: new Set(["inventory.post"]),
   purchasing: new Set(["po.write"]),

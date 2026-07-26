@@ -10,12 +10,20 @@ export type CostingMethod = "fifo" | "avg";
 export type PoStatus =
   | "draft"
   | "submitted"
+  | "approved"
   | "partially_received"
   | "received"
   | "closed"
   | "cancelled";
 
-export type DocumentStatus = "draft" | "posted" | "void";
+export type DocumentStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "posted"
+  | "void";
+
+export type ApprovalDocumentType = "purchase_order" | "stock_adjustment";
 
 export const ISSUE_TYPES = ["consume", "sample", "write_off", "other"] as const;
 

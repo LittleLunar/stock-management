@@ -1,5 +1,6 @@
 import type {
   AccountType,
+  ApprovalDocumentType,
   CostingMethod,
   DocumentStatus,
   IssueType,
@@ -230,6 +231,15 @@ export type ProductCostSummary = {
   lotId: string | null;
   qtyRemainingSum: string;
   onHandValue: string;
+  updatedAt: Date;
+};
+
+export type ApprovalPolicy = {
+  id: string;
+  orgId: string;
+  documentType: ApprovalDocumentType;
+  required: boolean;
+  createdAt: Date;
   updatedAt: Date;
 };
 

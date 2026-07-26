@@ -67,4 +67,12 @@ describe("canPerform", () => {
       expect(canPerform("org_admin", a)).toBe(true);
     }
   });
+
+  it("document.approve is org_admin and branch_manager only", () => {
+    expect(canPerform("org_admin", "document.approve")).toBe(true);
+    expect(canPerform("branch_manager", "document.approve")).toBe(true);
+    expect(canPerform("warehouse", "document.approve")).toBe(false);
+    expect(canPerform("purchasing", "document.approve")).toBe(false);
+    expect(canPerform("accountant", "document.approve")).toBe(false);
+  });
 });

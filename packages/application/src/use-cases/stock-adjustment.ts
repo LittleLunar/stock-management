@@ -90,7 +90,7 @@ export class PostStockAdjustment {
 
       const adjustment = await adjustments.findById(orgId, adjustmentId);
       if (!adjustment) throw new NotFoundError("Stock adjustment");
-      assertCanPostAdjustment(adjustment);
+      assertCanPostAdjustment(adjustment, { required: false });
 
       const serialTrackedProductIds = new Set<string>();
       for (const line of adjustment.lines) {

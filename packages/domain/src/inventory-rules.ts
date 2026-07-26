@@ -1,4 +1,5 @@
 import type {
+  ApprovalPolicy,
   CustomerReturn,
   GoodsReceipt,
   Product,
@@ -67,6 +68,30 @@ export function assertCanSubmitPo(po: Pick<PurchaseOrder, "status">): void {
   }
 }
 
+export function assertCanApprovePo(po: Pick<PurchaseOrder, "status">): void {
+  if (po.status !== "submitted") {
+    throw new InvalidStateError(
+      `Cannot approve purchase order in status ${po.status}`,
+    );
+  }
+}
+
+export function assertPoReceivable(
+  po: Pick<PurchaseOrder, "status">,
+  policy: Pick<ApprovalPolicy, "required">,
+): void {
+  const allowed = policy.required
+    ? (["approved", "partially_received", "received"] as const)
+    : (["submitted", "approved", "partially_received", "received"] as const);
+  if (!(allowed as readonly string[]).includes(po.status)) {
+    throw new InvalidStateError(
+      policy.required
+        ? `Purchase order must be approved before goods receipt (status ${po.status})`
+        : `Cannot receive against purchase order in status ${po.status}`,
+    );
+  }
+}
+
 export function assertCanPostReceipt(
   receipt: Pick<GoodsReceipt, "status">,
 ): void {
@@ -104,10 +129,43 @@ export function assertCanPostCustomerReturn(
   assertDraftDocument(doc.status, "customer return");
 }
 
-export function assertCanPostAdjustment(
-  adjustment: Pick<StockAdjustment, "status">,
+export function assertCanSubmitAdjustment(
+  adj: Pick<StockAdjustment, "status">,
 ): void {
-  assertDraftDocument(adjustment.status, "stock adjustment");
+  if (adj.status !== "draft") {
+    throw new InvalidStateError(
+      `Cannot submit stock adjustment in status ${adj.status}`,
+    );
+  }
+}
+
+export function assertCanApproveAdjustment(
+  adj: Pick<StockAdjustment, "status">,
+): void {
+  if (adj.status !== "pending_approval") {
+    throw new InvalidStateError(
+      `Cannot approve stock adjustment in status ${adj.status}`,
+    );
+  }
+}
+
+export function assertCanPostAdjustment(
+  adj: Pick<StockAdjustment, "status">,
+  policy: Pick<ApprovalPolicy, "required">,
+): void {
+  if (policy.required) {
+    if (adj.status !== "approved") {
+      throw new InvalidStateError(
+        `Cannot post stock adjustment in status ${adj.status}; approval required`,
+      );
+    }
+    return;
+  }
+  if (adj.status !== "draft" && adj.status !== "approved") {
+    throw new InvalidStateError(
+      `Cannot post stock adjustment in status ${adj.status}`,
+    );
+  }
 }
 
 export function assertCanPostCount(count: Pick<StockCount, "status">): void {

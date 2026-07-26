@@ -172,11 +172,19 @@ describe("transfer state rules", () => {
 describe("outbound document posting rules", () => {
   it.each([
     ["issue", assertCanPostIssue],
-    ["adjustment", assertCanPostAdjustment],
     ["count", assertCanPostCount],
   ] as const)("allows posting a draft %s only", (_name, assertion) => {
     expect(() => assertion({ status: "draft" })).not.toThrow();
     expect(() => assertion({ status: "posted" })).toThrow(InvalidStateError);
+  });
+
+  it("allows posting a draft adjustment when policy not required", () => {
+    expect(() =>
+      assertCanPostAdjustment({ status: "draft" }, { required: false }),
+    ).not.toThrow();
+    expect(() =>
+      assertCanPostAdjustment({ status: "posted" }, { required: false }),
+    ).toThrow(InvalidStateError);
   });
 });
 
