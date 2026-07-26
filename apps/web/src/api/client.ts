@@ -62,6 +62,7 @@ export type PurchaseOrder = {
   status:
     | "draft"
     | "submitted"
+    | "approved"
     | "partially_received"
     | "received"
     | "closed"
@@ -187,6 +188,7 @@ export type StockTransfer = {
   transitLocationId: string;
   fromBranchId: string;
   toBranchId: string;
+  purpose: "standard" | "replenishment";
   documentNumber: string | null;
   status: "draft" | "in_transit" | "received" | "void";
   createdAt: string;
@@ -224,11 +226,20 @@ export type StockAdjustment = {
   documentNumber: string | null;
   reasonCode: string;
   reasonNote: string | null;
-  status: "draft" | "posted" | "void";
+  status: "draft" | "pending_approval" | "approved" | "posted" | "void";
   createdAt: string;
   updatedAt: string;
   postedAt: string | null;
   voidedAt: string | null;
+};
+
+export type ApprovalPolicy = {
+  id: string;
+  orgId: string;
+  documentType: "purchase_order" | "stock_adjustment";
+  required: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type StockAdjustmentLine = Omit<
@@ -517,6 +528,10 @@ export const api = {
     request<PurchaseOrder>(`/api/v1/purchase-orders/${id}/submit`, ctx, {
       method: "POST",
     }),
+  approvePurchaseOrder: (ctx: ApiHeaders, id: string) =>
+    request<PurchaseOrder>(`/api/v1/purchase-orders/${id}/approve`, ctx, {
+      method: "POST",
+    }),
   listGoodsReceipts: (ctx: ApiHeaders) =>
     request<GoodsReceipt[]>("/api/v1/goods-receipts", ctx),
   getGoodsReceipt: (ctx: ApiHeaders, id: string) =>
@@ -611,6 +626,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  submitStockAdjustment: (ctx: ApiHeaders, id: string) =>
+    request<StockAdjustment>(`/api/v1/stock-adjustments/${id}/submit`, ctx, {
+      method: "POST",
+    }),
+  approveStockAdjustment: (ctx: ApiHeaders, id: string) =>
+    request<StockAdjustment>(`/api/v1/stock-adjustments/${id}/approve`, ctx, {
+      method: "POST",
+    }),
   postStockAdjustment: (
     ctx: ApiHeaders,
     id: string,
@@ -630,6 +653,19 @@ export const api = {
       ctx,
       { method: "POST" },
     ),
+  listApprovalPolicies: (ctx: ApiHeaders) =>
+    request<ApprovalPolicy[]>("/api/v1/approval-policies", ctx),
+  upsertApprovalPolicy: (
+    ctx: ApiHeaders,
+    body: {
+      documentType: "purchase_order" | "stock_adjustment";
+      required: boolean;
+    },
+  ) =>
+    request<ApprovalPolicy>("/api/v1/approval-policies", ctx, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   listStockCounts: (ctx: ApiHeaders) =>
     request<StockCount[]>("/api/v1/stock-counts", ctx),
   getStockCount: (ctx: ApiHeaders, id: string) =>

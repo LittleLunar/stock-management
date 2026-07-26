@@ -7,7 +7,7 @@ import {
   useStockTransfers,
   useVoidStockTransfer,
 } from "../hooks/inventory";
-import { useLocations, useProducts } from "../hooks/masters";
+import { useBranches, useLocations, useProducts } from "../hooks/masters";
 import { formatApiError } from "../lib/errors";
 
 type TransferLineDraft = {
@@ -23,6 +23,160 @@ const emptyLine = (): TransferLineDraft => ({
   lotId: "",
   serialNumbers: "",
 });
+
+function ReplenishWizard() {
+  const { data: branches } = useBranches();
+  const { data: locations } = useLocations();
+  const { data: products } = useProducts();
+  const create = useCreateStockTransfer();
+  const [toBranchId, setToBranchId] = useState("");
+  const [fromLocationId, setFromLocationId] = useState("");
+  const [toLocationId, setToLocationId] = useState("");
+  const [transitLocationId, setTransitLocationId] = useState("");
+  const [productId, setProductId] = useState("");
+  const [qty, setQty] = useState("1");
+
+  const toLocations = (locations ?? []).filter(
+    (l) => l.branchId === toBranchId && l.type !== "transit",
+  );
+
+  function handleReplenish(event: FormEvent) {
+    event.preventDefault();
+    if (
+      !toBranchId ||
+      !fromLocationId ||
+      !toLocationId ||
+      !transitLocationId ||
+      !productId
+    ) {
+      toast.error("Select destination branch, locations, and a product");
+      return;
+    }
+    if (fromLocationId === toLocationId) {
+      toast.error("From and to locations must be different");
+      return;
+    }
+    create.mutate(
+      {
+        fromLocationId,
+        toLocationId,
+        transitLocationId,
+        purpose: "replenishment",
+        lines: [{ productId, qty, lineNumber: 1 }],
+      },
+      {
+        onSuccess: () => {
+          toast.success("Replenishment transfer created");
+          setProductId("");
+          setQty("1");
+        },
+        onError: (err) => toast.error(formatApiError(err)),
+      },
+    );
+  }
+
+  return (
+    <form
+      className="space-y-4 rounded border border-slate-200 bg-white p-5"
+      onSubmit={handleReplenish}
+    >
+      <h2 className="font-semibold">Replenish branch</h2>
+      <p className="text-sm text-slate-600">
+        Cross-branch transfer with purpose{" "}
+        <span className="font-medium">replenishment</span>.
+      </p>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <select
+          required
+          className="rounded border border-slate-300 px-3 py-2"
+          value={toBranchId}
+          onChange={(e) => {
+            setToBranchId(e.target.value);
+            setToLocationId("");
+          }}
+        >
+          <option value="">Destination branch</option>
+          {(branches ?? []).map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.code} — {b.name}
+            </option>
+          ))}
+        </select>
+        <select
+          required
+          className="rounded border border-slate-300 px-3 py-2"
+          value={fromLocationId}
+          onChange={(e) => setFromLocationId(e.target.value)}
+        >
+          <option value="">From location</option>
+          {(locations ?? [])
+            .filter((l) => l.type !== "transit")
+            .map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.code} — {l.name}
+              </option>
+            ))}
+        </select>
+        <select
+          required
+          className="rounded border border-slate-300 px-3 py-2"
+          value={toLocationId}
+          onChange={(e) => setToLocationId(e.target.value)}
+        >
+          <option value="">To location</option>
+          {toLocations.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.code} — {l.name}
+            </option>
+          ))}
+        </select>
+        <select
+          required
+          className="rounded border border-slate-300 px-3 py-2"
+          value={transitLocationId}
+          onChange={(e) => setTransitLocationId(e.target.value)}
+        >
+          <option value="">Transit</option>
+          {(locations ?? [])
+            .filter((l) => l.type === "transit")
+            .map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.code} — {l.name}
+              </option>
+            ))}
+        </select>
+        <select
+          required
+          className="rounded border border-slate-300 px-3 py-2"
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+        >
+          <option value="">Product</option>
+          {(products ?? []).map((product) => (
+            <option key={product.id} value={product.id}>
+              {product.sku} — {product.name}
+            </option>
+          ))}
+        </select>
+        <input
+          required
+          inputMode="decimal"
+          className="rounded border border-slate-300 px-3 py-2"
+          placeholder="Quantity"
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={create.isPending}
+        className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
+      >
+        {create.isPending ? "Creating…" : "Create replenishment"}
+      </button>
+    </form>
+  );
+}
 
 export function StockTransfersPage() {
   const { data: transfers, isLoading, error } = useStockTransfers();
@@ -77,6 +231,7 @@ export function StockTransfersPage() {
         fromLocationId,
         toLocationId,
         transitLocationId,
+        purpose: "standard",
         documentNumber: documentNumber || null,
         lines: lines.map((line, index) => ({
           productId: line.productId,
@@ -113,6 +268,8 @@ export function StockTransfersPage() {
           receive.
         </p>
       </div>
+
+      <ReplenishWizard />
 
       <form
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
@@ -168,8 +325,9 @@ export function StockTransfersPage() {
         </div>
         {transitLocations.length === 0 ? (
           <p className="text-sm text-amber-800">
-            Create a location with type <span className="font-medium">transit</span>{" "}
-            before shipping transfers.
+            Create a location with type{" "}
+            <span className="font-medium">transit</span> before shipping
+            transfers.
           </p>
         ) : null}
 
@@ -268,6 +426,7 @@ export function StockTransfersPage() {
                 <th className="px-4 py-3">From</th>
                 <th className="px-4 py-3">Transit</th>
                 <th className="px-4 py-3">To</th>
+                <th className="px-4 py-3">Purpose</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -286,6 +445,17 @@ export function StockTransfersPage() {
                   </td>
                   <td className="px-4 py-3">
                     {locationName(transfer.toLocationId)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={
+                        transfer.purpose === "replenishment"
+                          ? "rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900"
+                          : "rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
+                      }
+                    >
+                      {transfer.purpose ?? "standard"}
+                    </span>
                   </td>
                   <td className="px-4 py-3">{transfer.status}</td>
                   <td className="space-x-2 px-4 py-3 text-right">

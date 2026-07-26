@@ -65,6 +65,26 @@ export function useSubmitPurchaseOrder() {
   });
 }
 
+export function useSubmitStockAdjustment() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.submitStockAdjustment(ctx, id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-adjustments"] }),
+  });
+}
+
+export function useApproveStockAdjustment() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.approveStockAdjustment(ctx, id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-adjustments"] }),
+  });
+}
+
 export function useGoodsReceipts() {
   const ctx = useApiContext();
   return useQuery({

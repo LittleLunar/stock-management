@@ -51,6 +51,7 @@ import { SupplierReturnsPage } from "./pages/SupplierReturnsPage";
 import { AccountsPage } from "./pages/AccountsPage";
 import { AccountingPeriodsPage } from "./pages/AccountingPeriodsPage";
 import { ApAgingPage } from "./pages/ApAgingPage";
+import { ApprovalPoliciesPage } from "./pages/ApprovalPoliciesPage";
 import { BalanceSheetPage } from "./pages/BalanceSheetPage";
 import { JournalsPage } from "./pages/JournalsPage";
 import { PnlReportPage } from "./pages/PnlReportPage";
@@ -283,6 +284,15 @@ function Shell() {
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
             Customer returns
+          </Link>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Org settings
+          </p>
+          <Link
+            to="/approval-policies"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Approval policies
           </Link>
         </nav>
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
@@ -900,6 +910,12 @@ const balanceSheetRoute = createRoute({
   component: BalanceSheetPage,
 });
 
+const approvalPoliciesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/approval-policies",
+  component: ApprovalPoliciesPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   branchesRoute,
@@ -930,6 +946,7 @@ const routeTree = rootRoute.addChildren([
   trialBalanceRoute,
   pnlRoute,
   balanceSheetRoute,
+  approvalPoliciesRoute,
 ]);
 
 const router = createRouter({ routeTree });
