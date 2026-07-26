@@ -64,6 +64,7 @@ import type { Db } from "../infrastructure/db/client.js";
 import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
+import { DrizzleApprovalPolicyRepository } from "../infrastructure/persistence/approval-policy.repository.js";
 import { DrizzleBranchRepository } from "../infrastructure/persistence/branch.repository.js";
 import { DrizzleCategoryRepository } from "../infrastructure/persistence/category.repository.js";
 import { DrizzleCogsMovementSource } from "../infrastructure/persistence/cogs-movement.repository.js";
@@ -152,6 +153,7 @@ export type AppServices = {
   pnlReport: PnlReportUseCase;
   balanceSheet: BalanceSheetUseCase;
   periodCloseChecklist: PeriodCloseChecklistUseCase;
+  approvalPolicies: DrizzleApprovalPolicyRepository;
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
@@ -264,5 +266,6 @@ export function createAppServices(db: Db): AppServices {
       accounting,
       closeChecklist,
     ),
+    approvalPolicies: new DrizzleApprovalPolicyRepository(db),
   };
 }

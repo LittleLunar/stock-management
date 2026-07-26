@@ -265,6 +265,7 @@ export const customers = pgTable(
 export const poStatusEnum = pgEnum("po_status", [
   "draft",
   "submitted",
+  "approved",
   "partially_received",
   "received",
   "closed",
@@ -273,8 +274,15 @@ export const poStatusEnum = pgEnum("po_status", [
 
 export const documentStatusEnum = pgEnum("document_status", [
   "draft",
+  "pending_approval",
+  "approved",
   "posted",
   "void",
+]);
+
+export const transferPurposeEnum = pgEnum("transfer_purpose", [
+  "standard",
+  "replenishment",
 ]);
 
 export const landedCostTypeEnum = pgEnum("landed_cost_type", [
@@ -876,6 +884,7 @@ export const stockTransfers = pgTable(
     toBranchId: uuid("to_branch_id")
       .notNull()
       .references(() => branches.id),
+    purpose: transferPurposeEnum("purpose").notNull().default("standard"),
     documentNumber: text("document_number"),
     status: transferStatusEnum("status").notNull().default("draft"),
     shippedAt: timestamp("shipped_at", { withTimezone: true }),
@@ -947,6 +956,30 @@ export const stockTransferSerials = pgTable(
       t.orgId,
       t.stockTransferLineId,
       t.serialNumber,
+    ),
+  ],
+);
+
+export const approvalPolicies = pgTable(
+  "approval_policies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    documentType: text("document_type").notNull(),
+    required: boolean("required").notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("approval_policies_org_type_uidx").on(
+      t.orgId,
+      t.documentType,
+    ),
+    index("approval_policies_org_idx").on(t.orgId),
+    check(
+      "approval_policies_document_type_chk",
+      sql`${t.documentType} IN ('purchase_order', 'stock_adjustment')`,
     ),
   ],
 );

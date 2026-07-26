@@ -71,6 +71,13 @@
       "when": 1785153600000,
       "tag": "0009_phase_e1_branch_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785160800000,
+      "tag": "0010_phase_e2_ops_approvals",
+      "breakpoints": true
     }
   ]
 }
