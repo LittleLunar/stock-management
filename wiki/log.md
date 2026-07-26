@@ -2,10 +2,19 @@
 tags:
   - wiki/log
 created: 2026-07-25
-updated: 2026-07-26
+updated: 2026-07-27
 ---
 
 # Wiki Log
+
+## [2026-07-27] update | Phase E1 complete (branch hardening)
+
+Shipped E1: membership→context ACL (`branchIds`, `X-Branch-Id`), branch-filtered
+document lists + write gates, transfer `from_branch_id`/`to_branch_id`, outbox
+`branchId` attribution for journals, web branch switcher. Verification green
+(domain/application/api tests + api/web typecheck). Marked [[Phase E]] E1
+complete; updated [[Org Branch Location]], [[Feature Phases]], [[index]],
+`TASKS.md`. Next: E2.
 
 ## [2026-07-26] update | Phase E plans ready (design + E1–E3)
 

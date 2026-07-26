@@ -3,7 +3,7 @@ tags:
   - feature
   - phase-e
 created: 2026-07-25
-updated: 2026-07-26
+updated: 2026-07-27
 ---
 
 # Phase E
@@ -12,16 +12,26 @@ Multi-branch retail hardening.
 
 ## Status
 
-**Plans ready (2026-07-26).** E1–E3 deep plans written; implementation not started. Slice order: **E1 → E2 → E3**.
+**E1 shipped (2026-07-27).** E2–E3 plans ready; implement next. Slice order: **E1 → E2 → E3**.
 
 | Slice | Focus | Status / Plan |
 |-------|--------|----------------|
-| E1 | Membership→context ACL, branch-filtered lists, web branch switcher, HQ vs branch reports, outbox `branchId` attribution | **Plan ready** — `docs/superpowers/plans/2026-07-26-phase-e1-branch-hardening.md` |
+| E1 | Membership→context ACL, branch-filtered lists, web branch switcher, HQ vs branch reports, outbox `branchId` attribution, transfer branch columns | **Complete** — `docs/superpowers/plans/2026-07-26-phase-e1-branch-hardening.md` |
 | E2 | Cross-branch replenishment transfers, reservation locking/expiry, approval policies for PO + adjustments | **Plan ready** — `docs/superpowers/plans/2026-07-26-phase-e2-ops-approvals.md` |
 | E3 | Webhook subscriptions + HMAC delivery via outbox, FEFO/quarantine hard rules, barcode lookup + scan UX | **Plan ready** — `docs/superpowers/plans/2026-07-26-phase-e3-webhooks-fefo-barcode.md` |
 
 Master: `docs/superpowers/plans/2026-07-26-phase-e-multi-branch.md`  
 Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md`
+
+## E1 shipped notes (2026-07-27)
+
+- **Context ACL** — `Membership.branchIds` (empty = HQ); `assertBranchAccess` / `resolveActiveBranch` / `canPerform` in domain; HTTP `RequestContext` loads role + branch grants from DB and optional `X-Branch-Id`. No membership → 401; bad branch / role denial → 403.
+- **List filters** — document lists use server `BranchListFilter`; client cannot widen scope.
+- **Write gates** — create/post gated by role matrix + branch assert when scoped.
+- **Transfer columns** — migration `0009_phase_e1_branch_hardening.sql` adds `stock_transfers.from_branch_id` / `to_branch_id` (set from locations).
+- **Outbox / journals** — `document.posted` / `document.voided` payloads include `branchId` when resolvable; journal mapper carries `branch_id`.
+- **Web** — shell branch switcher persists `activeBranchId`, sends `X-Branch-Id`; reports default to active branch; empty = HQ “All branches” consolidated.
+- **Out of scope (deferred)** — E2/E3: transfer `purpose`, approvals, webhooks, FEFO, barcode scan UX.
 
 ## Locked decisions (summary)
 
@@ -39,9 +49,10 @@ Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md`
 
 ## Features
 
-- Branch-scoped UX vs HQ consolidated views — **E1 planned**
-- Membership ACL + `X-Branch-Id` request context — **E1 planned**
-- Outbox `branchId` attribution for journals — **E1 planned**
+- Branch-scoped UX vs HQ consolidated views — **E1 complete**
+- Membership ACL + `X-Branch-Id` request context — **E1 complete**
+- Outbox `branchId` attribution for journals — **E1 complete**
+- Transfer `from_branch_id` / `to_branch_id` denormalized — **E1 complete**
 - Inter-branch replenishment workflows — **E2 planned**
 - Reservation discipline / oversell prevention — **E2 planned**
 - Approval policies (PO + adjustments) — **E2 planned**
