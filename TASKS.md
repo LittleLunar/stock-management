@@ -2,7 +2,7 @@
 
 ## Active
 
-- [ ] **Phase B3 — returns, reservations, outbox** - executing: `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md`
+- [ ] **Phase C FIFO costing** - next after Phase B qty loop; plan under `docs/superpowers/plans/` when started
 
 ## Waiting On
 
@@ -10,7 +10,6 @@
 
 ## Someday
 
-- [ ] **Phase C FIFO costing** - after Phase B
 - [ ] **Phase D accounting** - after Phase C
 - [ ] **Phase E multi-branch hardening**
 - [ ] **Phase F POS integration** - plug into ipos or built-in POS
@@ -18,6 +17,8 @@
 
 ## Done
 
+- [x] ~~Phase B complete (qty loop B1–B3)~~ (2026-07-26)
+- [x] ~~Phase B3 — returns, reservations, outbox~~ (2026-07-26)
 - [x] ~~Phase B2 — outbound documents~~ (2026-07-26)
 - [x] ~~Phase B1 — PO → goods receipt~~ (2026-07-26)
 - [x] ~~Phase B plans (B1–B3) written~~ (2026-07-26)

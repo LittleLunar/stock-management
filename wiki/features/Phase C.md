@@ -3,12 +3,17 @@ tags:
   - feature
   - phase-c
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 ---
 
 # Phase C
 
 Costing — every stock change valued.
+
+## Status
+
+**Unblocked (2026-07-26).** [[Phase B]] quantity loop is complete; FIFO
+cost layers and valuation can proceed next.
 
 ## Features
 
@@ -21,4 +26,4 @@ Costing — every stock change valued.
 
 ## Related
 
-[[FIFO Costing]] · [[Feature Phases]]
+[[FIFO Costing]] · [[Feature Phases]] · [[Phase B]]

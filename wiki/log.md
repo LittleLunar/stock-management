@@ -7,6 +7,13 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B complete
+
+Marked Phase B (B1–B3 qty loop) complete in `TASKS.md` and [[Phase B]].
+B3 returns, reservations, availability, and outbox poller closed the
+internal inventory loop. [[Phase C]] FIFO costing is unblocked / next.
+Updated [[Feature Phases]], [[POS Integration Boundary]], and [[index]].
+
 ## [2026-07-26] update | Phase B2 complete
 
 Marked Phase B2 (issue, transfer, adjustment, count) complete in `TASKS.md`

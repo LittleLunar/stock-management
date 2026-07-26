@@ -12,6 +12,9 @@ Internal inventory loop — full quantity cycle across locations.
 
 ## Status
 
+**Phase B complete (2026-07-26).** Quantity loop closed across B1–B3.
+[[Phase C]] (FIFO costing) is unblocked.
+
 **B1 complete (2026-07-26).** Purchase-order, goods-receipt, and stock-inquiry
 application/HTTP flows shipped, including transactional receipt post/void,
 idempotency, outbox enqueue, and a thin web UI for the inbound workflow.
@@ -19,13 +22,15 @@ idempotency, outbox enqueue, and a thin web UI for the inbound workflow.
 adjustment, and count — REST lifecycles, transactional post/void (or
 ship/receive for transfers), idempotency, outbox enqueue, and thin web UI for
 all four outbound document types.
-**B3 active:** returns, reservations, availability APIs, and outbox poller.
+**B3 complete (2026-07-26).** Supplier/customer returns, reservations
+(create/release/commit), branch-scoped availability, outbox poller (mark
+processed only — no webhook HTTP), and thin web UI.
 
-| Slice | Focus                                                                                    | Status / Plan                                                                         |
-| ----- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| B1    | PO → GR, ledger, lots/serials, UoW, idempotency, outbox enqueue, stock inquiry, thin web | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b1-po-goods-receipt.md`       |
-| B2    | Issue, transfer (explicit transit loc), adjustment, count                                | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b2-outbound-documents.md`     |
-| B3    | Returns, reservations, availability, outbox poller                                       | **Active** — `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md` |
+| Slice | Focus                                                                                    | Status / Plan                                                                            |
+| ----- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| B1    | PO → GR, ledger, lots/serials, UoW, idempotency, outbox enqueue, stock inquiry, thin web | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b1-po-goods-receipt.md`          |
+| B2    | Issue, transfer (explicit transit loc), adjustment, count                                | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b2-outbound-documents.md`        |
+| B3    | Returns, reservations, availability, outbox poller                                       | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md` |
 
 Master: `docs/superpowers/plans/2026-07-26-phase-b-inventory-loop.md`  
 Design: `docs/superpowers/specs/2026-07-26-phase-b-design.md`
@@ -58,10 +63,15 @@ Design: `docs/superpowers/specs/2026-07-26-phase-b-design.md`
   (counted − expected) as adjustment movements; expected qty visible in UI
 - Thin web pages for stock issues, transfers (ship/receive/void), adjustments,
   and counts — same page → hook → API client pattern as B1
-- Supplier / customer returns structure
+- Supplier / customer returns (draft → post → void); reservation commit posts
+  a stock issue — no silent on-hand decrement without issue
 - Low stock, lot/serial lookup
-- Reservations + availability APIs (POS stubs)
-- Idempotency + outbox events
+- Reservations API (create / release / commit) — location-scoped reserve;
+  commit posts a stock issue; expired reservations soft-ignored (no background
+  release job)
+- Availability API — branch-scoped on-hand − reserved by SKU
+- Idempotency + outbox events (`stock.changed`, `document.posted`)
+- Outbox poller marks rows processed only (no webhook HTTP in Phase B)
 
 ## Architecture
 
