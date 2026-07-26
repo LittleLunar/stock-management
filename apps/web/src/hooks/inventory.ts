@@ -2,9 +2,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateGoodsReceipt,
   CreatePurchaseOrder,
+  CreateStockAdjustment,
+  CreateStockCount,
+  CreateStockIssue,
+  CreateStockTransfer,
   PostGoodsReceipt,
+  PostStockAdjustment,
+  PostStockCount,
+  PostStockIssue,
+  ReceiveStockTransfer,
+  ShipStockTransfer,
   StockBalancesQuery,
   StockMovementsQuery,
+  UpdateStockCount,
 } from "@stock-management/shared";
 import { api } from "../api/client";
 import { useApiContext } from "./masters";
@@ -122,5 +132,214 @@ export function useStockMovements(filters: StockMovementsQuery = {}) {
     queryKey: ["stock", "movements", ctx.orgId, filters],
     queryFn: () => api.listStockMovements(ctx, filters),
     enabled: Boolean(ctx.orgId),
+  });
+}
+
+async function invalidateOutbound(
+  queryClient: ReturnType<typeof useQueryClient>,
+  documentKey: string,
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: [documentKey] }),
+    queryClient.invalidateQueries({ queryKey: ["stock"] }),
+  ]);
+}
+
+export function useStockIssues() {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["stock-issues", ctx.orgId],
+    queryFn: () => api.listStockIssues(ctx),
+    enabled: Boolean(ctx.orgId),
+  });
+}
+
+export function useCreateStockIssue() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateStockIssue) => api.createStockIssue(ctx, body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-issues"] }),
+  });
+}
+
+export function usePostStockIssue() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body = {} }: { id: string; body?: PostStockIssue }) =>
+      api.postStockIssue(ctx, id, body),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-issues"),
+  });
+}
+
+export function useVoidStockIssue() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.voidStockIssue(ctx, id),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-issues"),
+  });
+}
+
+export function useStockTransfers() {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["stock-transfers", ctx.orgId],
+    queryFn: () => api.listStockTransfers(ctx),
+    enabled: Boolean(ctx.orgId),
+  });
+}
+
+export function useCreateStockTransfer() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateStockTransfer) =>
+      api.createStockTransfer(ctx, body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-transfers"] }),
+  });
+}
+
+export function useShipStockTransfer() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body = {},
+    }: {
+      id: string;
+      body?: ShipStockTransfer;
+    }) => api.shipStockTransfer(ctx, id, body),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-transfers"),
+  });
+}
+
+export function useReceiveStockTransfer() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body = {},
+    }: {
+      id: string;
+      body?: ReceiveStockTransfer;
+    }) => api.receiveStockTransfer(ctx, id, body),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-transfers"),
+  });
+}
+
+export function useVoidStockTransfer() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.voidStockTransfer(ctx, id),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-transfers"),
+  });
+}
+
+export function useStockAdjustments() {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["stock-adjustments", ctx.orgId],
+    queryFn: () => api.listStockAdjustments(ctx),
+    enabled: Boolean(ctx.orgId),
+  });
+}
+
+export function useCreateStockAdjustment() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateStockAdjustment) =>
+      api.createStockAdjustment(ctx, body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-adjustments"] }),
+  });
+}
+
+export function usePostStockAdjustment() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      body = {},
+    }: {
+      id: string;
+      body?: PostStockAdjustment;
+    }) => api.postStockAdjustment(ctx, id, body),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-adjustments"),
+  });
+}
+
+export function useVoidStockAdjustment() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.voidStockAdjustment(ctx, id),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-adjustments"),
+  });
+}
+
+export function useStockCounts() {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["stock-counts", ctx.orgId],
+    queryFn: () => api.listStockCounts(ctx),
+    enabled: Boolean(ctx.orgId),
+  });
+}
+
+export function useStockCount(id?: string) {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["stock-counts", ctx.orgId, id],
+    queryFn: () => api.getStockCount(ctx, id!),
+    enabled: Boolean(ctx.orgId && id),
+  });
+}
+
+export function useCreateStockCount() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateStockCount) => api.createStockCount(ctx, body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-counts"] }),
+  });
+}
+
+export function useUpdateStockCount() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateStockCount }) =>
+      api.updateStockCount(ctx, id, body),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["stock-counts"] }),
+  });
+}
+
+export function usePostStockCount() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body = {} }: { id: string; body?: PostStockCount }) =>
+      api.postStockCount(ctx, id, body),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-counts"),
+  });
+}
+
+export function useVoidStockCount() {
+  const ctx = useApiContext();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.voidStockCount(ctx, id),
+    onSuccess: () => invalidateOutbound(queryClient, "stock-counts"),
   });
 }

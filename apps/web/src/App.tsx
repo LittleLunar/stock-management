@@ -33,7 +33,11 @@ import {
 } from "./hooks/masters";
 import { GoodsReceiptsPage } from "./pages/GoodsReceiptsPage";
 import { PurchaseOrdersPage } from "./pages/PurchaseOrdersPage";
+import { StockAdjustmentsPage } from "./pages/StockAdjustmentsPage";
+import { StockCountsPage } from "./pages/StockCountsPage";
+import { StockIssuesPage } from "./pages/StockIssuesPage";
 import { StockPage } from "./pages/StockPage";
+import { StockTransfersPage } from "./pages/StockTransfersPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,6 +127,30 @@ function Shell() {
           <Link to="/stock" className="rounded px-2 py-1 hover:bg-slate-100">
             Stock inquiry
           </Link>
+          <Link
+            to="/stock-issues"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Stock issues
+          </Link>
+          <Link
+            to="/stock-transfers"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Stock transfers
+          </Link>
+          <Link
+            to="/stock-adjustments"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Stock adjustments
+          </Link>
+          <Link
+            to="/stock-counts"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Stock counts
+          </Link>
         </nav>
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
           {orgId ? (
@@ -160,7 +188,8 @@ function DashboardPage() {
     <div>
       <h1 className="text-2xl font-semibold">Dashboard</h1>
       <p className="mt-2 text-slate-600">
-        Manage master data, purchasing, receipts, and stock from the sidebar.
+        Manage master data, purchasing, receipts, outbound documents, and stock
+        from the sidebar.
       </p>
     </div>
   );
@@ -540,6 +569,30 @@ const stockRoute = createRoute({
   component: StockPage,
 });
 
+const stockIssuesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock-issues",
+  component: StockIssuesPage,
+});
+
+const stockTransfersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock-transfers",
+  component: StockTransfersPage,
+});
+
+const stockAdjustmentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock-adjustments",
+  component: StockAdjustmentsPage,
+});
+
+const stockCountsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock-counts",
+  component: StockCountsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   branchesRoute,
@@ -549,6 +602,10 @@ const routeTree = rootRoute.addChildren([
   purchaseOrdersRoute,
   goodsReceiptsRoute,
   stockRoute,
+  stockIssuesRoute,
+  stockTransfersRoute,
+  stockAdjustmentsRoute,
+  stockCountsRoute,
 ]);
 
 const router = createRouter({ routeTree });

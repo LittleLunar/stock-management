@@ -6,16 +6,30 @@ import {
   type CreateOrganization,
   type CreateProduct,
   type CreatePurchaseOrder,
+  type CreateStockAdjustment,
+  type CreateStockCount,
+  type CreateStockIssue,
+  type CreateStockTransfer,
   type CreateSupplier,
   type GoodsReceiptLineInput,
   type Location,
   type Organization,
   type PostGoodsReceipt,
+  type PostStockAdjustment,
+  type PostStockCount,
+  type PostStockIssue,
   type Product,
   type PurchaseOrderLineInput,
+  type ReceiveStockTransfer,
+  type ShipStockTransfer,
+  type StockAdjustmentLineInput,
   type StockBalancesQuery,
+  type StockCountLineInput,
+  type StockIssueLineInput,
   type StockMovementsQuery,
+  type StockTransferLineInput,
   type Supplier,
+  type UpdateStockCount,
 } from "@stock-management/shared";
 import { env } from "../lib/env";
 import { parseApiError } from "../lib/errors";
@@ -110,14 +124,154 @@ export type StockMovement = {
   documentType: string;
   documentId: string;
   documentLineId: string | null;
-  movementType: "receipt" | "receipt_void";
+  movementType: string;
   qty: string;
   createdAt: string;
+};
+
+export type StockIssue = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  documentNumber: string | null;
+  issueType: "consume" | "sample" | "write_off" | "other";
+  reasonNote: string | null;
+  status: "draft" | "posted" | "void";
+  createdAt: string;
+  updatedAt: string;
+  postedAt: string | null;
+  voidedAt: string | null;
+};
+
+export type StockIssueLine = Omit<
+  StockIssueLineInput,
+  "id" | "serialNumbers"
+> & {
+  id: string;
+  orgId: string;
+  stockIssueId: string;
+  lotId: string | null;
+  serialNumbers: string[];
+};
+
+export type StockIssueWithLines = StockIssue & {
+  lines: StockIssueLine[];
+};
+
+export type StockIssueActionResult = {
+  issue: StockIssue;
+  movements: StockMovement[];
+};
+
+export type StockTransfer = {
+  id: string;
+  orgId: string;
+  fromLocationId: string;
+  toLocationId: string;
+  transitLocationId: string;
+  documentNumber: string | null;
+  status: "draft" | "in_transit" | "received" | "void";
+  createdAt: string;
+  updatedAt: string;
+  shippedAt: string | null;
+  receivedAt: string | null;
+  voidedAt: string | null;
+};
+
+export type StockTransferLine = Omit<
+  StockTransferLineInput,
+  "id" | "serialNumbers"
+> & {
+  id: string;
+  orgId: string;
+  stockTransferId: string;
+  lotId: string | null;
+  serialNumbers: string[];
+};
+
+export type StockTransferWithLines = StockTransfer & {
+  lines: StockTransferLine[];
+};
+
+export type StockTransferActionResult = {
+  transfer: StockTransfer;
+  movements: StockMovement[];
+};
+
+export type StockAdjustment = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  documentNumber: string | null;
+  reasonCode: string;
+  reasonNote: string | null;
+  status: "draft" | "posted" | "void";
+  createdAt: string;
+  updatedAt: string;
+  postedAt: string | null;
+  voidedAt: string | null;
+};
+
+export type StockAdjustmentLine = Omit<
+  StockAdjustmentLineInput,
+  "id" | "serialNumbers"
+> & {
+  id: string;
+  orgId: string;
+  stockAdjustmentId: string;
+  lotId: string | null;
+  serialNumbers: string[];
+};
+
+export type StockAdjustmentWithLines = StockAdjustment & {
+  lines: StockAdjustmentLine[];
+};
+
+export type StockAdjustmentActionResult = {
+  adjustment: StockAdjustment;
+  movements: StockMovement[];
+};
+
+export type StockCount = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  documentNumber: string | null;
+  status: "draft" | "posted" | "void";
+  createdAt: string;
+  updatedAt: string;
+  postedAt: string | null;
+  voidedAt: string | null;
+};
+
+export type StockCountLine = Omit<StockCountLineInput, "id"> & {
+  id: string;
+  orgId: string;
+  stockCountId: string;
+  lotId: string | null;
+  expectedQty: string;
+  countedQty: string | null;
+};
+
+export type StockCountWithLines = StockCount & {
+  lines: StockCountLine[];
+};
+
+export type StockCountActionResult = {
+  count: StockCount;
+  movements: StockMovement[];
 };
 
 export type {
   Branch,
   CreateGoodsReceipt,
+  CreateStockAdjustment,
+  CreateStockCount,
+  CreateStockIssue,
+  CreateStockTransfer,
   Location,
   Product,
   Supplier,
@@ -128,8 +282,14 @@ export type {
   CreatePurchaseOrder,
   CreateSupplier,
   PostGoodsReceipt,
+  PostStockAdjustment,
+  PostStockCount,
+  PostStockIssue,
+  ReceiveStockTransfer,
+  ShipStockTransfer,
   StockBalancesQuery,
   StockMovementsQuery,
+  UpdateStockCount,
 };
 
 function headers(ctx: ApiHeaders, init?: HeadersInit): Headers {
@@ -257,4 +417,114 @@ export const api = {
     request<StockBalance[]>(withQuery("/api/v1/stock/balances", query), ctx),
   listStockMovements: (ctx: ApiHeaders, query: StockMovementsQuery = {}) =>
     request<StockMovement[]>(withQuery("/api/v1/stock/movements", query), ctx),
+  listStockIssues: (ctx: ApiHeaders) =>
+    request<StockIssue[]>("/api/v1/stock-issues", ctx),
+  getStockIssue: (ctx: ApiHeaders, id: string) =>
+    request<StockIssueWithLines>(`/api/v1/stock-issues/${id}`, ctx),
+  createStockIssue: (ctx: ApiHeaders, body: CreateStockIssue) =>
+    request<StockIssueWithLines>("/api/v1/stock-issues", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  postStockIssue: (ctx: ApiHeaders, id: string, body: PostStockIssue = {}) =>
+    request<StockIssueActionResult>(`/api/v1/stock-issues/${id}/post`, ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  voidStockIssue: (ctx: ApiHeaders, id: string) =>
+    request<StockIssueActionResult>(`/api/v1/stock-issues/${id}/void`, ctx, {
+      method: "POST",
+    }),
+  listStockTransfers: (ctx: ApiHeaders) =>
+    request<StockTransfer[]>("/api/v1/stock-transfers", ctx),
+  getStockTransfer: (ctx: ApiHeaders, id: string) =>
+    request<StockTransferWithLines>(`/api/v1/stock-transfers/${id}`, ctx),
+  createStockTransfer: (ctx: ApiHeaders, body: CreateStockTransfer) =>
+    request<StockTransferWithLines>("/api/v1/stock-transfers", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  shipStockTransfer: (
+    ctx: ApiHeaders,
+    id: string,
+    body: ShipStockTransfer = {},
+  ) =>
+    request<StockTransferActionResult>(
+      `/api/v1/stock-transfers/${id}/ship`,
+      ctx,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    ),
+  receiveStockTransfer: (
+    ctx: ApiHeaders,
+    id: string,
+    body: ReceiveStockTransfer = {},
+  ) =>
+    request<StockTransferActionResult>(
+      `/api/v1/stock-transfers/${id}/receive`,
+      ctx,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    ),
+  voidStockTransfer: (ctx: ApiHeaders, id: string) =>
+    request<StockTransferActionResult>(
+      `/api/v1/stock-transfers/${id}/void`,
+      ctx,
+      { method: "POST" },
+    ),
+  listStockAdjustments: (ctx: ApiHeaders) =>
+    request<StockAdjustment[]>("/api/v1/stock-adjustments", ctx),
+  getStockAdjustment: (ctx: ApiHeaders, id: string) =>
+    request<StockAdjustmentWithLines>(`/api/v1/stock-adjustments/${id}`, ctx),
+  createStockAdjustment: (ctx: ApiHeaders, body: CreateStockAdjustment) =>
+    request<StockAdjustmentWithLines>("/api/v1/stock-adjustments", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  postStockAdjustment: (
+    ctx: ApiHeaders,
+    id: string,
+    body: PostStockAdjustment = {},
+  ) =>
+    request<StockAdjustmentActionResult>(
+      `/api/v1/stock-adjustments/${id}/post`,
+      ctx,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    ),
+  voidStockAdjustment: (ctx: ApiHeaders, id: string) =>
+    request<StockAdjustmentActionResult>(
+      `/api/v1/stock-adjustments/${id}/void`,
+      ctx,
+      { method: "POST" },
+    ),
+  listStockCounts: (ctx: ApiHeaders) =>
+    request<StockCount[]>("/api/v1/stock-counts", ctx),
+  getStockCount: (ctx: ApiHeaders, id: string) =>
+    request<StockCountWithLines>(`/api/v1/stock-counts/${id}`, ctx),
+  createStockCount: (ctx: ApiHeaders, body: CreateStockCount) =>
+    request<StockCountWithLines>("/api/v1/stock-counts", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateStockCount: (ctx: ApiHeaders, id: string, body: UpdateStockCount) =>
+    request<StockCountWithLines>(`/api/v1/stock-counts/${id}`, ctx, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  postStockCount: (ctx: ApiHeaders, id: string, body: PostStockCount = {}) =>
+    request<StockCountActionResult>(`/api/v1/stock-counts/${id}/post`, ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  voidStockCount: (ctx: ApiHeaders, id: string) =>
+    request<StockCountActionResult>(`/api/v1/stock-counts/${id}/void`, ctx, {
+      method: "POST",
+    }),
 };
