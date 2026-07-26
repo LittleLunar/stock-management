@@ -247,9 +247,14 @@ function makeHarness(transitType: Location["type"] = "transit") {
     },
     costing: {
       async insertLayer() { throw new Error("costing not used"); },
+      async getLayer() { return null; },
       async listOpenLayers() { return []; },
       async listLayersBySourceDocument() { return []; },
       async setQtyRemaining() {},
+      async lockOpenLayersFifo() { return []; },
+      async listOpenLayersBySourceLine() { return []; },
+      async insertConsumption() { throw new Error("costing not used"); },
+      async listConsumptionsByMovementIds() { return []; },
     },
     outbox: { async enqueue() {} },
     idempotency: {

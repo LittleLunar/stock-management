@@ -314,6 +314,10 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
         layers.set(created.id, created);
         return created;
       },
+      async getLayer(orgId, layerId) {
+        const layer = layers.get(layerId);
+        return layer && layer.orgId === orgId ? layer : null;
+      },
       async listOpenLayers(orgId, filter) {
         return [...layers.values()].filter(
           (layer) =>
@@ -335,6 +339,18 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
         const layer = layers.get(layerId);
         if (!layer || layer.orgId !== orgId) return;
         layers.set(layerId, { ...layer, qtyRemaining });
+      },
+      async lockOpenLayersFifo() {
+        return [];
+      },
+      async listOpenLayersBySourceLine() {
+        return [];
+      },
+      async insertConsumption() {
+        throw new Error("unused");
+      },
+      async listConsumptionsByMovementIds() {
+        return [];
       },
     },
     outbox: {

@@ -241,6 +241,10 @@ function makeFake(options: FakeOptions | string = {}) {
         layers.set(created.id, created);
         return created;
       },
+      async getLayer(orgId, layerId) {
+        const layer = layers.get(layerId);
+        return layer && layer.orgId === orgId ? layer : null;
+      },
       async listOpenLayers(orgId, filter) {
         return [...layers.values()].filter((layer) => {
           if (layer.orgId !== orgId) return false;
@@ -262,6 +266,36 @@ function makeFake(options: FakeOptions | string = {}) {
         const layer = layers.get(layerId);
         if (!layer || layer.orgId !== orgId) return;
         layers.set(layerId, { ...layer, qtyRemaining });
+      },
+      async lockOpenLayersFifo(key) {
+        return [...layers.values()]
+          .filter(
+            (layer) =>
+              layer.orgId === key.orgId &&
+              layer.productId === key.productId &&
+              layer.locationId === key.locationId &&
+              (layer.lotId ?? null) === (key.lotId ?? null) &&
+              Number(layer.qtyRemaining) > 0,
+          )
+          .sort(
+            (a, b) =>
+              a.receivedAt.getTime() - b.receivedAt.getTime() ||
+              a.id.localeCompare(b.id),
+          );
+      },
+      async listOpenLayersBySourceLine(orgId, sourceDocumentLineId) {
+        return [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === orgId &&
+            layer.sourceDocumentLineId === sourceDocumentLineId &&
+            Number(layer.qtyRemaining) > 0,
+        );
+      },
+      async insertConsumption() {
+        throw new Error("consumption not used in GR tests");
+      },
+      async listConsumptionsByMovementIds() {
+        return [];
       },
     },
     lots: {

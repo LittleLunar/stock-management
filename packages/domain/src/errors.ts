@@ -79,7 +79,7 @@ export class UnsupportedCostingMethodError extends DomainError {
 }
 
 export class InsufficientCostError extends DomainError {
-  constructor(message: string) {
+  constructor(message = "Insufficient open cost layer quantity") {
     super(message, "INSUFFICIENT_COST");
     this.name = "InsufficientCostError";
   }

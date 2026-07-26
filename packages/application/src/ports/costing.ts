@@ -1,4 +1,4 @@
-import type { CostLayer } from "@stock-management/domain";
+import type { CostConsumption, CostLayer } from "@stock-management/domain";
 
 export type CostLayerKey = {
   orgId: string;
@@ -11,6 +11,7 @@ export interface CostingPort {
   insertLayer(
     layer: Omit<CostLayer, "id"> & { id?: string },
   ): Promise<CostLayer>;
+  getLayer(orgId: string, layerId: string): Promise<CostLayer | null>;
   listOpenLayers(
     orgId: string,
     filter: { productId?: string; locationId?: string },
@@ -25,4 +26,16 @@ export interface CostingPort {
     layerId: string,
     qtyRemaining: string,
   ): Promise<void>;
+  lockOpenLayersFifo(key: CostLayerKey): Promise<CostLayer[]>;
+  listOpenLayersBySourceLine(
+    orgId: string,
+    sourceDocumentLineId: string,
+  ): Promise<CostLayer[]>;
+  insertConsumption(
+    input: Omit<CostConsumption, "id" | "createdAt"> & { id?: string },
+  ): Promise<CostConsumption>;
+  listConsumptionsByMovementIds(
+    orgId: string,
+    movementIds: string[],
+  ): Promise<CostConsumption[]>;
 }

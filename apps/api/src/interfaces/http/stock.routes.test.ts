@@ -225,6 +225,9 @@ describe("stock inquiry routes", () => {
             async insertLayer() {
               throw new Error("unused");
             },
+            async getLayer() {
+              return null;
+            },
             async listOpenLayers(orgId, filter) {
               return costLayers.filter(
                 (layer) =>
@@ -238,6 +241,18 @@ describe("stock inquiry routes", () => {
               return [];
             },
             async setQtyRemaining() {},
+            async lockOpenLayersFifo() {
+              return [];
+            },
+            async listOpenLayersBySourceLine() {
+              return [];
+            },
+            async insertConsumption() {
+              throw new Error("unused");
+            },
+            async listConsumptionsByMovementIds() {
+              return [];
+            },
           },
         } as never);
       },
