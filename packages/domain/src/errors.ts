@@ -174,3 +174,26 @@ export class WebhookDeliveryError extends DomainError {
     this.name = "WebhookDeliveryError";
   }
 }
+
+export class LotExpiredError extends DomainError {
+  constructor(message = "Lot is expired and cannot be sold or issued") {
+    super(message, "LOT_EXPIRED");
+    this.name = "LotExpiredError";
+  }
+}
+
+export class LotQuarantinedError extends DomainError {
+  constructor(message = "Lot is quarantined and cannot be sold or issued") {
+    super(message, "LOT_QUARANTINED");
+    this.name = "LotQuarantinedError";
+  }
+}
+
+export class LocationQuarantinedError extends DomainError {
+  constructor(
+    message = "Cannot sell or issue from a quarantine location",
+  ) {
+    super(message, "LOCATION_QUARANTINED");
+    this.name = "LocationQuarantinedError";
+  }
+}
