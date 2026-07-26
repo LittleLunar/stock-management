@@ -5,6 +5,7 @@ import type {
   StockTransferUseCases,
   VoidStockTransfer,
 } from "@stock-management/application";
+import { assertBranchAccess } from "@stock-management/domain";
 import {
   CreateStockTransferSchema,
   ReceiveStockTransferHeadersSchema,
@@ -52,7 +53,21 @@ export function stockTransfersRoutes(
         "Role cannot post inventory documents",
       );
       const body = CreateStockTransferSchema.parse(request.body);
-      return useCases.stockTransfers.create(request.ctx.orgId, body);
+      const transfer = await useCases.stockTransfers.create(
+        request.ctx.orgId,
+        body,
+      );
+      assertBranchAccess(
+        { role: request.ctx.role, branchIds: request.ctx.branchIds },
+        transfer.fromBranchId,
+      );
+      if (transfer.purpose === "replenishment") {
+        assertBranchAccess(
+          { role: request.ctx.role, branchIds: request.ctx.branchIds },
+          transfer.toBranchId,
+        );
+      }
+      return transfer;
     });
 
     app.patch<{ Params: { id: string } }>(
@@ -65,7 +80,22 @@ export function stockTransfersRoutes(
         );
         const { id } = StockTransferIdParamsSchema.parse(request.params);
         const body = UpdateStockTransferSchema.parse(request.body);
-        return useCases.stockTransfers.update(request.ctx.orgId, id, body);
+        const transfer = await useCases.stockTransfers.update(
+          request.ctx.orgId,
+          id,
+          body,
+        );
+        assertBranchAccess(
+          { role: request.ctx.role, branchIds: request.ctx.branchIds },
+          transfer.fromBranchId,
+        );
+        if (transfer.purpose === "replenishment") {
+          assertBranchAccess(
+            { role: request.ctx.role, branchIds: request.ctx.branchIds },
+            transfer.toBranchId,
+          );
+        }
+        return transfer;
       },
     );
 

@@ -9,6 +9,7 @@ import {
   assertLayersFullyOpen,
   assertLotSerialRules,
   assertSerialAvailableForOutbound,
+  assertTransferPurpose,
   signedQtyForMovement,
 } from "@stock-management/domain";
 import type {
@@ -27,6 +28,7 @@ import {
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
 import type {
+  LocationLookupPort,
   StockTransferPort,
   StockTransferWithLines,
 } from "../ports/inventory.js";
@@ -38,7 +40,10 @@ export type StockTransferResult = {
 };
 
 export class StockTransferUseCases {
-  constructor(private readonly repo: StockTransferPort) {}
+  constructor(
+    private readonly repo: StockTransferPort,
+    private readonly locations: LocationLookupPort,
+  ) {}
 
   list(orgId: string, filter?: BranchListFilter) {
     return this.repo.list(orgId, filter);
@@ -50,9 +55,17 @@ export class StockTransferUseCases {
     return transfer;
   }
 
-  create(orgId: string, input: CreateStockTransferInput) {
+  async create(orgId: string, input: CreateStockTransferInput) {
     assertDistinctLocations(input.fromLocationId, input.toLocationId);
-    return this.repo.create(orgId, input);
+    const purpose = input.purpose ?? "standard";
+    const { fromBranchId, toBranchId } = await resolveTransferBranches(
+      this.locations,
+      orgId,
+      input.fromLocationId,
+      input.toLocationId,
+    );
+    assertTransferPurpose(purpose, fromBranchId, toBranchId);
+    return this.repo.create(orgId, { ...input, purpose });
   }
 
   async update(orgId: string, id: string, input: UpdateStockTransferInput) {
@@ -60,14 +73,33 @@ export class StockTransferUseCases {
     if (transfer.status !== "draft") {
       throw new InvalidStateError("Only draft stock transfers can be updated");
     }
-    assertDistinctLocations(
-      input.fromLocationId ?? transfer.fromLocationId,
-      input.toLocationId ?? transfer.toLocationId,
+    const fromLocationId = input.fromLocationId ?? transfer.fromLocationId;
+    const toLocationId = input.toLocationId ?? transfer.toLocationId;
+    assertDistinctLocations(fromLocationId, toLocationId);
+    const purpose = input.purpose ?? transfer.purpose;
+    const { fromBranchId, toBranchId } = await resolveTransferBranches(
+      this.locations,
+      orgId,
+      fromLocationId,
+      toLocationId,
     );
-    const updated = await this.repo.update(orgId, id, input);
+    assertTransferPurpose(purpose, fromBranchId, toBranchId);
+    const updated = await this.repo.update(orgId, id, { ...input, purpose });
     if (!updated) throw new NotFoundError("Stock transfer");
     return updated;
   }
+}
+
+async function resolveTransferBranches(
+  locations: LocationLookupPort,
+  orgId: string,
+  fromLocationId: string,
+  toLocationId: string,
+): Promise<{ fromBranchId: string; toBranchId: string }> {
+  const from = await locations.findById(orgId, fromLocationId);
+  const to = await locations.findById(orgId, toLocationId);
+  if (!from || !to) throw new NotFoundError("Location");
+  return { fromBranchId: from.branchId, toBranchId: to.branchId };
 }
 
 const SHIP_OPERATION = "ship-stock-transfer";

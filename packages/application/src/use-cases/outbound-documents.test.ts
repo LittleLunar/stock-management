@@ -116,6 +116,7 @@ function makeFake(options: FakeOptions = {}) {
     transitLocationId,
     fromBranchId: "branch-1",
     toBranchId: "branch-1",
+    purpose: "standard",
     documentNumber: "TRF-1",
     status: "draft",
     createdAt: now,
@@ -795,7 +796,10 @@ describe("stock transfer use cases", () => {
 
   it("supports draft list, get, create, and update operations", async () => {
     const fake = makeFake();
-    const drafts = new StockTransferUseCases(fake.ctx.transfers);
+    const drafts = new StockTransferUseCases(
+      fake.ctx.transfers,
+      fake.ctx.locations!,
+    );
 
     await expect(drafts.list(orgId)).resolves.toHaveLength(1);
     await expect(drafts.get(orgId, "transfer-1")).resolves.toMatchObject({

@@ -47,7 +47,11 @@ describe("StockTransferUseCases.list filter", () => {
         return [] as StockTransfer[];
       },
     } as unknown as StockTransferPort;
-    const uc = new StockTransferUseCases(repo);
+    const uc = new StockTransferUseCases(repo, {
+      async findById() {
+        return null;
+      },
+    });
     await uc.list("org-1", { kind: "branch", branchId: "b1" });
     expect(seen[0]).toEqual({ kind: "branch", branchId: "b1" });
   });

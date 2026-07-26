@@ -94,7 +94,7 @@ export class DrizzleStockTransferRepository implements StockTransferPort {
           transitLocationId: input.transitLocationId,
           fromBranchId: branches.fromBranchId,
           toBranchId: branches.toBranchId,
-          purpose: "standard",
+          purpose: input.purpose ?? "standard",
           documentNumber: input.documentNumber ?? null,
         })
         .returning();
@@ -133,6 +133,7 @@ export class DrizzleStockTransferRepository implements StockTransferPort {
             input.transitLocationId ?? existing.transitLocationId,
           fromBranchId: branches.fromBranchId,
           toBranchId: branches.toBranchId,
+          purpose: input.purpose ?? existing.purpose,
           documentNumber:
             input.documentNumber !== undefined
               ? input.documentNumber

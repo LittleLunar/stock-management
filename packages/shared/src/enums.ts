@@ -36,4 +36,7 @@ export type PoStatus = z.infer<typeof PoStatusSchema>;
 export const DocumentStatusSchema = z.enum(["draft", "posted", "void"]);
 export type DocumentStatus = z.infer<typeof DocumentStatusSchema>;
 
+export const TransferPurposeSchema = z.enum(["standard", "replenishment"]);
+export type TransferPurpose = z.infer<typeof TransferPurposeSchema>;
+
 export const UuidSchema = z.string().uuid();

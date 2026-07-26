@@ -204,7 +204,7 @@ export function createAppServices(db: Db): AppServices {
     stockIssues: new StockIssueUseCases(stockIssues),
     postStockIssue: new PostStockIssue(unitOfWork),
     voidStockIssue: new VoidStockIssue(unitOfWork),
-    stockTransfers: new StockTransferUseCases(stockTransfers),
+    stockTransfers: new StockTransferUseCases(stockTransfers, locations),
     shipStockTransfer: new ShipStockTransfer(unitOfWork),
     receiveStockTransfer: new ReceiveStockTransfer(unitOfWork),
     voidStockTransfer: new VoidStockTransfer(unitOfWork),

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UuidSchema } from "./enums.js";
+import { TransferPurposeSchema, UuidSchema } from "./enums.js";
 
 const PositiveQuantitySchema = z
   .string()
@@ -151,12 +151,16 @@ export const CreateStockTransferSchema = z.object({
   fromLocationId: UuidSchema,
   toLocationId: UuidSchema,
   transitLocationId: UuidSchema,
+  purpose: TransferPurposeSchema.optional().default("standard"),
   documentNumber: z.string().trim().min(1).nullable().optional(),
   lines: z.array(StockTransferLineInputSchema).min(1),
 });
 export type CreateStockTransfer = z.infer<typeof CreateStockTransferSchema>;
 
-export const UpdateStockTransferSchema = CreateStockTransferSchema.partial();
+/** Partial update — purpose has no default so omitted PATCH fields stay unchanged. */
+export const UpdateStockTransferSchema = CreateStockTransferSchema.partial().extend({
+  purpose: TransferPurposeSchema.optional(),
+});
 export type UpdateStockTransfer = z.infer<typeof UpdateStockTransferSchema>;
 
 export const StockTransferIdParamsSchema = z.object({
