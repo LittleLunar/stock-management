@@ -30,6 +30,7 @@ Building **stock-management** — multi-branch inventory + costing + accounting 
 - HTMX rejected as primary UI; JSON API required for future POS
 - FIFO cost layers as primary costing
 - Modular monolith; no microservices day one
+- **SOLID + design patterns for all phases (A–F):** routes → services → repositories; thin web (page → hook → API client)
 - Wiki at `wiki/`; plans at `docs/superpowers/plans/`
 - Follow global skills under `~/.agents/skills/`
 
@@ -38,6 +39,7 @@ Building **stock-management** — multi-branch inventory + costing + accounting 
 |------|------|
 | `wiki/` | LLM wiki |
 | `docs/` | Specs, features, plans |
+| `docs/architecture/coding-standards.md` | SOLID / layered modules |
 | `TASKS.md` | Task board |
 | `.cursor/rules/` | Project AI rules |
-| `apps/api`, `apps/web` | Target monorepo layout (not scaffolded yet) |
+| `apps/api`, `apps/web` | Monorepo apps |

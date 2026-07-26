@@ -2,6 +2,8 @@
 
 Canonical feature inventory for stock-management. Wiki mirror: [[Feature Phases]].
 
+**Implementation rule:** All phases (A–F) follow [architecture/coding-standards.md](./architecture/coding-standards.md) (SOLID: routes → services → repositories).
+
 ---
 
 ## Phase A — Platform skeleton

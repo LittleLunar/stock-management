@@ -3,12 +3,15 @@ tags:
   - feature
   - roadmap
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 ---
 
 # Feature Phases
 
 Roadmap for [[Stock Management System]]. Full checklist: `docs/FEATURES.md`.
+
+> [!important]
+> Implementation for **every** phase (A–F) must follow [[SOLID and Design Patterns]] (`docs/architecture/coding-standards.md`).
 
 | Phase | Focus | Page |
 |-------|--------|------|

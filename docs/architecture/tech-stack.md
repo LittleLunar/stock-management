@@ -18,6 +18,10 @@ Locked choices for this repo. Wiki: [[Tech Stack]]. Rule: `.cursor/rules/stack-c
 
 Next.js, HTMX-as-primary-UI, Mongo-as-SOR, day-one microservices.
 
+## Coding standards
+
+All phases: [coding-standards.md](./coding-standards.md) (SOLID + layered modules).
+
 ## Target layout
 
 ```

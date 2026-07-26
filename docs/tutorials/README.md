@@ -1,6 +1,5 @@
 # Tutorials
 
-Learning-oriented docs (Diátaxis). Populate after Phase A scaffold, e.g.:
+Learning-oriented docs (Diátaxis).
 
-- Local setup (Postgres, API, web)
-- Create first org / branch / product
+- [Local setup](./local-setup.md) — install, Postgres, run API + web (Phase A)

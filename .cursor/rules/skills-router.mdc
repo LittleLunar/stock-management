@@ -22,9 +22,10 @@ On every prompt, classify the task and READ + FOLLOW the matched skill file(s) b
 
 ## Stack-specific
 
-- API under `apps/api/` → follow `stack-conventions.mdc`
-- Web under `apps/web/` → follow `stack-conventions.mdc` + React/TanStack patterns
+- API under `apps/api/` → follow `stack-conventions.mdc` including **SOLID & design patterns (all phases)**
+- Web under `apps/web/` → follow `stack-conventions.mdc` SOLID section + React/TanStack thin UI (page → hook → API client)
 - Schema / migrations → Drizzle + Postgres; never mutate stock without movements
+- Any Phase A–F feature work → layered modules; see `docs/architecture/coding-standards.md`
 
 ## Rules
 

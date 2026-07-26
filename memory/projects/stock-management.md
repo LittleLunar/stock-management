@@ -1,7 +1,8 @@
 # stock-management
 
-**Status:** Greenfield — docs/wiki/rules scaffolded; code not started  
-**Stack:** Fastify + Drizzle + Postgres + Vite/React + TanStack + Tailwind
+**Status:** Phase A in progress — SOLID standards documented; monorepo scaffolding  
+**Stack:** Fastify + Drizzle + Postgres + Vite/React + TanStack + Tailwind  
+**Coding:** SOLID — routes → services → repositories (all phases A–F)
 
 ## What It Is
 
@@ -12,6 +13,7 @@ Scalable stock management: multi-location inventory with lot/serial tracking, FI
 - FIFO cost layers primary
 - JSON API first-class for future POS
 - No Next.js / no HTMX-as-primary-UI
+- SOLID + design patterns mandatory for all phases
 - Phases A→F (see [[Feature Phases]] in wiki)
 
 ## Key People

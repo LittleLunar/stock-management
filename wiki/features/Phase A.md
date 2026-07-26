@@ -3,12 +3,16 @@ tags:
   - feature
   - phase-a
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 ---
 
 # Phase A
 
 Platform skeleton — multi-branch foundation, no stock yet.
+
+## Status
+
+In progress (2026-07-26): monorepo + schema + layered APIs + masters UI. Migration apply pending local Postgres.
 
 ## Features
 
@@ -18,7 +22,11 @@ Platform skeleton — multi-branch foundation, no stock yet.
 - Users & roles (branch-scoped memberships)
 - Products (SKU, UOM, barcodes, lot/serial/expiry flags)
 - Categories, suppliers (and customer stub)
-- App shell (auth, layout)
+- App shell (auth stub headers, layout)
+
+## Architecture
+
+Follows [[SOLID and Design Patterns]]: `routes → service → repository` under `apps/api/src/modules/`.
 
 ## Plan
 

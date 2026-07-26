@@ -38,3 +38,45 @@ alwaysApply: true
 - Versioned REST under `/api/v1`
 - Posting endpoints: `POST .../post`, `POST .../void`
 - Zod validation at boundaries; shared schemas in `packages/shared` when present
+
+## SOLID & design patterns (all phases A–F)
+
+Mandatory for every new function/module in `apps/` and `packages/shared`. Fat route handlers, god services, and Drizzle calls from HTTP handlers are rejected.
+
+### SOLID
+
+| Principle | Application |
+|-----------|-------------|
+| **S** Single Responsibility | Route = HTTP only; service = use-case rules; repository = Drizzle; Zod = I/O validation |
+| **O** Open/Closed | New domains = new Fastify plugins / use cases; do not grow catch-all services |
+| **L** Liskov Substitution | Ports safely replaceable with test doubles / alternate adapters |
+| **I** Interface Segregation | Small focused ports (`BranchRepository`, not mega `IInventoryStore`) |
+| **D** Dependency Inversion | Upper layers depend on ports; wire Drizzle/outbox at composition root |
+
+### Patterns
+
+| Pattern | Where | Phases |
+|---------|--------|--------|
+| Module / Plugin | `apps/api/src/modules/<domain>/` | A–F |
+| Repository | `*.repository.ts` — org scoping here | A–F |
+| Service / Use case | `*.service.ts` — no `request`/`reply` | A–F |
+| DTO + Schema | Zod in `packages/shared`; parse at boundary | A–F |
+| Composition root | Bootstrap injects deps; no cross-module internals | A–F |
+| Web: thin UI | Page → hook → API client | A–F |
+| Unit of Work | Document post in one DB transaction | B+ |
+| Outbox | Side effects in same transaction as domain write | B+ / D / E / F |
+| Strategy / Policy | Costing, approvals, channel adapters | C / E / F |
+| Idempotency | `external_system` + `external_id` before mutate | B / F |
+
+### Module shape
+
+```
+apps/api/src/modules/<domain>/
+  <domain>.routes.ts
+  <domain>.service.ts
+  <domain>.repository.ts
+```
+
+### Review gate
+
+Before marking any coding task done in any phase: new code sits in the correct layer and does not violate SRP/DIP. Docs: `docs/architecture/coding-standards.md`. Wiki: [[SOLID and Design Patterns]].

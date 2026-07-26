@@ -2,7 +2,7 @@
 tags:
   - wiki/index
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 ---
 
 # Wiki Index
@@ -24,6 +24,7 @@ updated: 2026-07-25
 ## Concepts
 
 - [[Tech Stack]] — Fastify, Drizzle, Postgres, Vite/React, TanStack, Tailwind
+- [[SOLID and Design Patterns]] — mandatory layered architecture for Phases A–F
 - [[Domain Model]] — core entities and relationships
 - [[Document-Driven Inventory]] — qty only via posted documents
 - [[Org Branch Location]] — hierarchy for multi-branch scale
