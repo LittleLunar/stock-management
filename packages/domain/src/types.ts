@@ -27,6 +27,8 @@ export type LotStatus = "active" | "depleted" | "quarantine";
 
 export type SerialStatus = "in_stock" | "issued" | "returned";
 
+export type ReservationStatus = "open" | "committed" | "released";
+
 export type MovementType =
   | "receipt"
   | "receipt_void"
@@ -39,4 +41,8 @@ export type MovementType =
   | "adjustment"
   | "adjustment_void"
   | "count_variance"
-  | "count_variance_void";
+  | "count_variance_void"
+  | "supplier_return"
+  | "supplier_return_void"
+  | "customer_return"
+  | "customer_return_void";

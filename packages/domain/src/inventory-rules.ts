@@ -1,4 +1,5 @@
 import type {
+  CustomerReturn,
   GoodsReceipt,
   Product,
   PurchaseOrder,
@@ -6,10 +7,17 @@ import type {
   StockAdjustment,
   StockCount,
   StockIssue,
+  StockReservation,
   StockTransfer,
+  SupplierReturn,
 } from "./entities.js";
-import type { DocumentStatus, MovementType } from "./types.js";
+import type {
+  DocumentStatus,
+  MovementType,
+  SerialStatus,
+} from "./types.js";
 import {
+  InsufficientAvailabilityError,
   InvalidStateError,
   OverReceiveError,
   TrackingRequiredError,
@@ -65,6 +73,18 @@ function assertDraftDocument(
 
 export function assertCanPostIssue(issue: Pick<StockIssue, "status">): void {
   assertDraftDocument(issue.status, "stock issue");
+}
+
+export function assertCanPostSupplierReturn(
+  doc: Pick<SupplierReturn, "status">,
+): void {
+  assertDraftDocument(doc.status, "supplier return");
+}
+
+export function assertCanPostCustomerReturn(
+  doc: Pick<CustomerReturn, "status">,
+): void {
+  assertDraftDocument(doc.status, "customer return");
 }
 
 export function assertCanPostAdjustment(
@@ -174,7 +194,9 @@ export function signedQtyForMovement(
     movementType === "receipt" ||
     movementType === "issue_void" ||
     movementType === "transfer_out_void" ||
-    movementType === "transfer_in"
+    movementType === "transfer_in" ||
+    movementType === "supplier_return_void" ||
+    movementType === "customer_return"
   ) {
     return formatQty(absoluteQty);
   }
@@ -183,7 +205,9 @@ export function signedQtyForMovement(
     movementType === "receipt_void" ||
     movementType === "issue" ||
     movementType === "transfer_out" ||
-    movementType === "transfer_in_void"
+    movementType === "transfer_in_void" ||
+    movementType === "supplier_return" ||
+    movementType === "customer_return_void"
   ) {
     return formatQty(-absoluteQty);
   }
@@ -193,4 +217,87 @@ export function signedQtyForMovement(
   }
 
   return formatQty(-parsedQty);
+}
+
+export type ReservationExpiryFields = Pick<StockReservation, "expiresAt">;
+
+export type ReservationAvailabilityFields = Pick<
+  StockReservation,
+  "status" | "qty" | "expiresAt"
+>;
+
+export function isReservationExpired(
+  reservation: ReservationExpiryFields,
+  now: Date,
+): boolean {
+  return reservation.expiresAt != null && reservation.expiresAt <= now;
+}
+
+export function availableQty(onHand: string, reserved: string): string {
+  return formatQty(Math.max(0, parseQty(onHand) - parseQty(reserved)));
+}
+
+export function effectiveReservedQty(
+  reservations: ReservationAvailabilityFields[],
+  now: Date,
+): string {
+  const total = reservations.reduce((sum, reservation) => {
+    if (reservation.status !== "open") {
+      return sum;
+    }
+    if (isReservationExpired(reservation, now)) {
+      return sum;
+    }
+    return sum + parseQty(reservation.qty);
+  }, 0);
+  return formatQty(total);
+}
+
+export function assertCanReserve(available: string, qty: string): void {
+  const reserveQty = parseQty(qty);
+  if (reserveQty <= 0) {
+    throw new InvalidStateError("Reserve quantity must be positive");
+  }
+  if (reserveQty > parseQty(available)) {
+    throw new InsufficientAvailabilityError(
+      `Reserve quantity ${qty} exceeds available ${available}`,
+    );
+  }
+}
+
+export function assertReservationOpen(
+  reservation: Pick<StockReservation, "status">,
+): void {
+  if (reservation.status !== "open") {
+    throw new InvalidStateError(
+      `Reservation must be open (status ${reservation.status})`,
+    );
+  }
+}
+
+export function assertCanCommitReservation(
+  reservation: Pick<StockReservation, "status" | "expiresAt">,
+  now: Date,
+): void {
+  assertReservationOpen(reservation);
+  if (isReservationExpired(reservation, now)) {
+    throw new InvalidStateError(
+      "Cannot commit an expired reservation; release it instead",
+    );
+  }
+}
+
+export function assertCanReleaseReservation(
+  reservation: Pick<StockReservation, "status">,
+  _now?: Date,
+): void {
+  assertReservationOpen(reservation);
+}
+
+export function serialStatusAfterSupplierReturn(): SerialStatus {
+  return "returned";
+}
+
+export function serialStatusAfterCustomerReturn(): SerialStatus {
+  return "in_stock";
 }

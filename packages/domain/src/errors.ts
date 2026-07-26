@@ -56,3 +56,10 @@ export class OverReceiveError extends DomainError {
     this.name = "OverReceiveError";
   }
 }
+
+export class InsufficientAvailabilityError extends DomainError {
+  constructor(message: string) {
+    super(message, "INSUFFICIENT_AVAILABILITY");
+    this.name = "InsufficientAvailabilityError";
+  }
+}

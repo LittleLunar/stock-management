@@ -8,6 +8,7 @@ import type {
   MembershipRole,
   MovementType,
   PoStatus,
+  ReservationStatus,
   SerialStatus,
   TransferStatus,
 } from "./types.js";
@@ -83,6 +84,16 @@ export type ProductBarcode = {
 };
 
 export type Supplier = {
+  id: string;
+  orgId: string;
+  code: string;
+  name: string;
+  status: MasterStatus;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Customer = {
   id: string;
   orgId: string;
   code: string;
@@ -313,4 +324,89 @@ export type StockCountLine = {
   expectedQty: string;
   countedQty: string | null;
   lineNumber: number;
+};
+
+export type StockReservation = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  productId: string;
+  locationId: string;
+  lotId: string | null;
+  qty: string;
+  status: ReservationStatus;
+  expiresAt: Date | null;
+  externalSystem: string | null;
+  externalId: string | null;
+  committedIssueId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type SupplierReturn = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  supplierId: string;
+  goodsReceiptId: string | null;
+  documentNumber: string | null;
+  status: DocumentStatus;
+  externalSystem: string | null;
+  externalId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  postedAt: Date | null;
+  voidedAt: Date | null;
+};
+
+export type SupplierReturnLine = {
+  id: string;
+  orgId: string;
+  supplierReturnId: string;
+  productId: string;
+  qty: string;
+  lotId: string | null;
+  goodsReceiptLineId: string | null;
+  lineNumber: number;
+};
+
+export type SupplierReturnSerial = {
+  id: string;
+  orgId: string;
+  supplierReturnLineId: string;
+  serialNumber: string;
+};
+
+export type CustomerReturn = {
+  id: string;
+  orgId: string;
+  branchId: string;
+  locationId: string;
+  customerId: string;
+  documentNumber: string | null;
+  status: DocumentStatus;
+  externalSystem: string | null;
+  externalId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  postedAt: Date | null;
+  voidedAt: Date | null;
+};
+
+export type CustomerReturnLine = {
+  id: string;
+  orgId: string;
+  customerReturnId: string;
+  productId: string;
+  qty: string;
+  lotId: string | null;
+  lineNumber: number;
+};
+
+export type CustomerReturnSerial = {
+  id: string;
+  orgId: string;
+  customerReturnLineId: string;
+  serialNumber: string;
 };
