@@ -282,3 +282,49 @@ export const StockTrackingQuerySchema = z.object({
   productId: UuidSchema.optional(),
 });
 export type StockTrackingQuery = z.infer<typeof StockTrackingQuerySchema>;
+
+export const CreateReservationSchema = z
+  .object({
+    branchId: UuidSchema,
+    productId: UuidSchema,
+    locationId: UuidSchema,
+    qty: PositiveQuantitySchema,
+    lotId: UuidSchema.nullable().optional(),
+    expiresAt: z.coerce.date().nullable().optional(),
+    externalSystem: z.string().trim().min(1).nullable().optional(),
+    externalId: z.string().trim().min(1).nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (Boolean(value.externalSystem) === Boolean(value.externalId)) return;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "externalSystem and externalId must be provided together",
+    });
+  });
+export type CreateReservation = z.infer<typeof CreateReservationSchema>;
+
+export const ReservationIdParamsSchema = z.object({
+  id: UuidSchema,
+});
+export type ReservationIdParams = z.infer<typeof ReservationIdParamsSchema>;
+
+export const ReservationsQuerySchema = z.object({
+  productId: UuidSchema.optional(),
+  locationId: UuidSchema.optional(),
+  branchId: UuidSchema.optional(),
+  status: z.enum(["open", "committed", "released"]).optional(),
+});
+export type ReservationsQuery = z.infer<typeof ReservationsQuerySchema>;
+
+export const AvailabilityQuerySchema = z.object({
+  productId: UuidSchema,
+  branchId: UuidSchema,
+});
+export type AvailabilityQuery = z.infer<typeof AvailabilityQuerySchema>;
+
+export const AvailabilityResponseSchema = z.object({
+  onHand: z.string(),
+  reserved: z.string(),
+  available: z.string(),
+});
+export type AvailabilityResponse = z.infer<typeof AvailabilityResponseSchema>;

@@ -1,7 +1,9 @@
 import {
+  AvailabilityUseCases,
   BranchUseCases,
   CategoryUseCases,
   CustomerUseCases,
+  CommitReservation,
   GoodsReceiptUseCases,
   LocationUseCases,
   OrganizationUseCases,
@@ -12,6 +14,8 @@ import {
   ProductUseCases,
   PurchaseOrderUseCases,
   ReceiveStockTransfer,
+  ReleaseReservation,
+  ReservationUseCases,
   ShipStockTransfer,
   StockAdjustmentUseCases,
   StockCountUseCases,
@@ -36,6 +40,7 @@ import { DrizzleLotRepository } from "../infrastructure/persistence/lot.reposito
 import { DrizzleOrganizationRepository } from "../infrastructure/persistence/organization.repository.js";
 import { DrizzleProductRepository } from "../infrastructure/persistence/product.repository.js";
 import { DrizzlePurchaseOrderRepository } from "../infrastructure/persistence/purchase-order.repository.js";
+import { DrizzleReservationRepository } from "../infrastructure/persistence/reservation.repository.js";
 import { DrizzleSerialRepository } from "../infrastructure/persistence/serial.repository.js";
 import { DrizzleStockAdjustmentRepository } from "../infrastructure/persistence/stock-adjustment.repository.js";
 import { DrizzleStockCountRepository } from "../infrastructure/persistence/stock-count.repository.js";
@@ -73,6 +78,10 @@ export type AppServices = {
   stockCounts: StockCountUseCases;
   postStockCount: PostStockCount;
   voidStockCount: VoidStockCount;
+  reservations: ReservationUseCases;
+  releaseReservation: ReleaseReservation;
+  commitReservation: CommitReservation;
+  availability: AvailabilityUseCases;
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
@@ -87,12 +96,14 @@ export function createAppServices(db: Db): AppServices {
   const stockAdjustments = new DrizzleStockAdjustmentRepository(db);
   const stockCounts = new DrizzleStockCountRepository(db);
   const customers = new DrizzleCustomerRepository(db);
+  const reservations = new DrizzleReservationRepository(db);
+  const locations = new DrizzleLocationRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
 
   return {
     org: new OrganizationUseCases(new DrizzleOrganizationRepository(db)),
     branches: new BranchUseCases(new DrizzleBranchRepository(db)),
-    locations: new LocationUseCases(new DrizzleLocationRepository(db)),
+    locations: new LocationUseCases(locations),
     categories: new CategoryUseCases(new DrizzleCategoryRepository(db)),
     products: new ProductUseCases(new DrizzleProductRepository(db)),
     suppliers: new SupplierUseCases(new DrizzleSupplierRepository(db)),
@@ -116,5 +127,9 @@ export function createAppServices(db: Db): AppServices {
     stockCounts: new StockCountUseCases(stockCounts, stock),
     postStockCount: new PostStockCount(unitOfWork),
     voidStockCount: new VoidStockCount(unitOfWork),
+    reservations: new ReservationUseCases(reservations, unitOfWork),
+    releaseReservation: new ReleaseReservation(unitOfWork),
+    commitReservation: new CommitReservation(unitOfWork),
+    availability: new AvailabilityUseCases(stock, reservations, locations),
   };
 }

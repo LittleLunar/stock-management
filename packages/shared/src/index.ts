@@ -83,6 +83,11 @@ export {
   StockBalancesQuerySchema,
   StockMovementsQuerySchema,
   StockTrackingQuerySchema,
+  CreateReservationSchema,
+  ReservationIdParamsSchema,
+  ReservationsQuerySchema,
+  AvailabilityQuerySchema,
+  AvailabilityResponseSchema,
   type PurchaseOrderLineInput,
   type CreatePurchaseOrder,
   type UpdatePurchaseOrder,
@@ -122,6 +127,11 @@ export {
   type StockBalancesQuery,
   type StockMovementsQuery,
   type StockTrackingQuery,
+  type CreateReservation,
+  type ReservationIdParams,
+  type ReservationsQuery,
+  type AvailabilityQuery,
+  type AvailabilityResponse,
 } from "./inventory.js";
 
 import {
