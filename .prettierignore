@@ -1,0 +1,7 @@
+dist
+node_modules
+coverage
+pnpm-lock.yaml
+*.tsbuildinfo
+apps/web/src/routeTree.gen.ts
+apps/api/drizzle/meta

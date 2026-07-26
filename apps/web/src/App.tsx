@@ -7,8 +7,20 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  CreateBranchSchema,
+  CreateOrganizationSchema,
+  CreateProductSchema,
+  CreateSupplierSchema,
+} from "@stock-management/shared";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Toaster, toast } from "sonner";
+import { z } from "zod";
 import { api } from "./api/client";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { formatApiError } from "./lib/errors";
 import {
   useBranches,
   useCreateBranch,
@@ -20,25 +32,48 @@ import {
   useSuppliers,
 } from "./hooks/masters";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+    mutations: {
+      onError: (error) => {
+        toast.error(formatApiError(error));
+      },
+    },
+  },
+});
+
+queryClient.getQueryCache().config.onError = (error) => {
+  toast.error(formatApiError(error));
+};
+
+const LocationFormSchema = z.object({
+  code: z.string().min(1).max(64),
+  name: z.string().min(1).max(256),
+});
 
 function Shell() {
   const orgId = localStorage.getItem("orgId") ?? "";
-  const [orgName, setOrgName] = useState("Demo Shop");
-  const [busy, setBusy] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(CreateOrganizationSchema),
+    defaultValues: { name: "Demo Shop" },
+  });
 
-  async function bootstrap() {
-    setBusy(true);
+  async function bootstrap(values: z.infer<typeof CreateOrganizationSchema>) {
     try {
       const userId = "00000000-0000-0000-0000-000000000001";
       localStorage.setItem("userId", userId);
-      const org = await api.createOrg(userId, orgName);
+      const org = await api.createOrg(userId, values);
       localStorage.setItem("orgId", org.id);
       window.location.reload();
     } catch (err) {
-      alert(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
+      toast.error(formatApiError(err));
     }
   }
 
@@ -69,22 +104,26 @@ function Shell() {
           {orgId ? (
             <p className="break-all">Org: {orgId}</p>
           ) : (
-            <div className="space-y-2">
+            <form
+              className="space-y-2"
+              onSubmit={handleSubmit(bootstrap)}
+            >
               <input
                 className="w-full rounded border border-slate-300 px-2 py-1"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
                 placeholder="Org name"
+                {...register("name")}
               />
+              {errors.name && (
+                <p className="text-red-700">{errors.name.message}</p>
+              )}
               <button
-                type="button"
-                disabled={busy}
-                onClick={bootstrap}
+                type="submit"
+                disabled={isSubmitting}
                 className="w-full rounded bg-teal-800 px-2 py-1 text-white disabled:opacity-50"
               >
                 Create org
               </button>
-            </div>
+            </form>
           )}
         </div>
       </aside>
@@ -109,36 +148,45 @@ function DashboardPage() {
 function BranchesPage() {
   const { data, isLoading, error } = useBranches();
   const create = useCreateBranch();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(CreateBranchSchema),
+    defaultValues: { code: "", name: "" },
+  });
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Branches</h1>
       <form
-        className="flex flex-wrap gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          create.mutate({ code, name }, { onSuccess: () => {
-            setCode("");
-            setName("");
-          }});
-        }}
+        className="flex flex-wrap items-start gap-2"
+        onSubmit={handleSubmit((values) => {
+          create.mutate(values, { onSuccess: () => reset() });
+        })}
       >
-        <input
-          className="rounded border border-slate-300 px-3 py-2"
-          placeholder="Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          required
-        />
-        <input
-          className="rounded border border-slate-300 px-3 py-2"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Code"
+            {...register("code")}
+          />
+          {errors.code && (
+            <p className="mt-1 text-xs text-red-700">{errors.code.message}</p>
+          )}
+        </div>
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Name"
+            {...register("name")}
+          />
+          {errors.name && (
+            <p className="mt-1 text-xs text-red-700">{errors.name.message}</p>
+          )}
+        </div>
         <button
           type="submit"
           className="rounded bg-teal-800 px-4 py-2 text-white"
@@ -148,7 +196,9 @@ function BranchesPage() {
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && <p className="text-red-700">{(error as Error).message}</p>}
+      {error && (
+        <p className="text-red-700">{formatApiError(error)}</p>
+      )}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((b) => (
           <li key={b.id} className="flex justify-between px-4 py-3 text-sm">
@@ -168,8 +218,15 @@ function LocationsPage() {
   const [branchId, setBranchId] = useState("");
   const { data, isLoading, error } = useLocations(branchId || undefined);
   const create = useCreateLocation();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(LocationFormSchema),
+    defaultValues: { code: "", name: "" },
+  });
 
   return (
     <div className="space-y-6">
@@ -187,49 +244,55 @@ function LocationsPage() {
         ))}
       </select>
       <form
-        className="flex flex-wrap gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
+        className="flex flex-wrap items-start gap-2"
+        onSubmit={handleSubmit((values) => {
           if (!branchId) {
-            alert("Select a branch");
+            toast.error("Select a branch");
             return;
           }
           create.mutate(
-            { branchId, code, name, type: "storage" },
-            {
-              onSuccess: () => {
-                setCode("");
-                setName("");
-              },
-            },
+            { branchId, ...values, type: "storage" },
+            { onSuccess: () => reset() },
           );
-        }}
+        })}
       >
-        <input
-          className="rounded border border-slate-300 px-3 py-2"
-          placeholder="Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          required
-        />
-        <input
-          className="rounded border border-slate-300 px-3 py-2"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <button type="submit" className="rounded bg-teal-800 px-4 py-2 text-white">
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Code"
+            {...register("code")}
+          />
+          {errors.code && (
+            <p className="mt-1 text-xs text-red-700">{errors.code.message}</p>
+          )}
+        </div>
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Name"
+            {...register("name")}
+          />
+          {errors.name && (
+            <p className="mt-1 text-xs text-red-700">{errors.name.message}</p>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="rounded bg-teal-800 px-4 py-2 text-white"
+        >
           Add
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && <p className="text-red-700">{(error as Error).message}</p>}
+      {error && (
+        <p className="text-red-700">{formatApiError(error)}</p>
+      )}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((loc) => (
           <li key={loc.id} className="flex justify-between px-4 py-3 text-sm">
             <span>
-              <span className="font-medium">{loc.code}</span> — {loc.name} ({loc.type})
+              <span className="font-medium">{loc.code}</span> — {loc.name} (
+              {loc.type})
             </span>
             <span className="text-slate-500">{loc.status}</span>
           </li>
@@ -242,81 +305,87 @@ function LocationsPage() {
 function ProductsPage() {
   const { data, isLoading, error } = useProducts();
   const create = useCreateProduct();
-  const [sku, setSku] = useState("");
-  const [name, setName] = useState("");
-  const [trackLot, setTrackLot] = useState(false);
-  const [trackSerial, setTrackSerial] = useState(false);
-  const [trackExpiry, setTrackExpiry] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(CreateProductSchema),
+    defaultValues: {
+      sku: "",
+      name: "",
+      trackLot: false,
+      trackSerial: false,
+      trackExpiry: false,
+    },
+  });
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Products</h1>
       <form
         className="flex flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          create.mutate(
-            { sku, name, trackLot, trackSerial, trackExpiry },
-            {
-              onSuccess: () => {
-                setSku("");
-                setName("");
-                setTrackLot(false);
-                setTrackSerial(false);
-                setTrackExpiry(false);
-              },
-            },
-          );
-        }}
+        onSubmit={handleSubmit((values) => {
+          create.mutate(values, {
+            onSuccess: () =>
+              reset({
+                sku: "",
+                name: "",
+                trackLot: false,
+                trackSerial: false,
+                trackExpiry: false,
+              }),
+          });
+        })}
       >
-        <div className="flex flex-wrap gap-2">
-          <input
-            className="rounded border border-slate-300 px-3 py-2"
-            placeholder="SKU"
-            value={sku}
-            onChange={(e) => setSku(e.target.value)}
-            required
-          />
-          <input
-            className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-          <button type="submit" className="rounded bg-teal-800 px-4 py-2 text-white">
+        <div className="flex flex-wrap items-start gap-2">
+          <div>
+            <input
+              className="rounded border border-slate-300 px-3 py-2"
+              placeholder="SKU"
+              {...register("sku")}
+            />
+            {errors.sku && (
+              <p className="mt-1 text-xs text-red-700">{errors.sku.message}</p>
+            )}
+          </div>
+          <div>
+            <input
+              className="rounded border border-slate-300 px-3 py-2"
+              placeholder="Name"
+              {...register("name")}
+            />
+            {errors.name && (
+              <p className="mt-1 text-xs text-red-700">{errors.name.message}</p>
+            )}
+          </div>
+          <button
+            type="submit"
+            className="rounded bg-teal-800 px-4 py-2 text-white"
+          >
             Add
           </button>
         </div>
         <div className="flex gap-4 text-sm">
           <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={trackLot}
-              onChange={(e) => setTrackLot(e.target.checked)}
-            />
+            <input type="checkbox" {...register("trackLot")} />
             Lot
           </label>
           <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={trackSerial}
-              onChange={(e) => setTrackSerial(e.target.checked)}
-            />
+            <input type="checkbox" {...register("trackSerial")} />
             Serial
           </label>
           <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={trackExpiry}
-              onChange={(e) => setTrackExpiry(e.target.checked)}
-            />
+            <input type="checkbox" {...register("trackExpiry")} />
             Expiry
           </label>
         </div>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && <p className="text-red-700">{(error as Error).message}</p>}
+      {error && (
+        <p className="text-red-700">{formatApiError(error)}</p>
+      )}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((p) => (
           <li key={p.id} className="flex justify-between px-4 py-3 text-sm">
@@ -324,7 +393,11 @@ function ProductsPage() {
               <span className="font-medium">{p.sku}</span> — {p.name}
             </span>
             <span className="text-slate-500">
-              {[p.trackLot && "lot", p.trackSerial && "serial", p.trackExpiry && "expiry"]
+              {[
+                p.trackLot && "lot",
+                p.trackSerial && "serial",
+                p.trackExpiry && "expiry",
+              ]
                 .filter(Boolean)
                 .join(", ") || "no tracking"}
             </span>
@@ -338,42 +411,56 @@ function ProductsPage() {
 function SuppliersPage() {
   const { data, isLoading, error } = useSuppliers();
   const create = useCreateSupplier();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(CreateSupplierSchema),
+    defaultValues: { code: "", name: "" },
+  });
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Suppliers</h1>
       <form
-        className="flex flex-wrap gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          create.mutate({ code, name }, { onSuccess: () => {
-            setCode("");
-            setName("");
-          }});
-        }}
+        className="flex flex-wrap items-start gap-2"
+        onSubmit={handleSubmit((values) => {
+          create.mutate(values, { onSuccess: () => reset() });
+        })}
       >
-        <input
-          className="rounded border border-slate-300 px-3 py-2"
-          placeholder="Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          required
-        />
-        <input
-          className="rounded border border-slate-300 px-3 py-2"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <button type="submit" className="rounded bg-teal-800 px-4 py-2 text-white">
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Code"
+            {...register("code")}
+          />
+          {errors.code && (
+            <p className="mt-1 text-xs text-red-700">{errors.code.message}</p>
+          )}
+        </div>
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Name"
+            {...register("name")}
+          />
+          {errors.name && (
+            <p className="mt-1 text-xs text-red-700">{errors.name.message}</p>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="rounded bg-teal-800 px-4 py-2 text-white"
+        >
           Add
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && <p className="text-red-700">{(error as Error).message}</p>}
+      {error && (
+        <p className="text-red-700">{formatApiError(error)}</p>
+      )}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((s) => (
           <li key={s.id} className="flex justify-between px-4 py-3 text-sm">
@@ -440,8 +527,11 @@ declare module "@tanstack/react-router" {
 
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Toaster position="top-right" richColors closeButton />
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
