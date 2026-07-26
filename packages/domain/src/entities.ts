@@ -1,12 +1,15 @@
 import type {
+  AccountType,
   CostingMethod,
   DocumentStatus,
   IssueType,
+  JournalEventType,
   LocationType,
   LotStatus,
   MasterStatus,
   MembershipRole,
   MovementType,
+  PeriodStatus,
   PoStatus,
   ReservationStatus,
   SerialStatus,
@@ -469,3 +472,62 @@ export type CustomerReturnSerial = {
   customerReturnLineId: string;
   serialNumber: string;
 };
+
+export type Account = {
+  id: string;
+  orgId: string;
+  code: string;
+  name: string;
+  type: AccountType;
+  active: boolean;
+  createdAt: Date;
+};
+
+export type AccountMapping = {
+  id: string;
+  orgId: string;
+  journalEventType: JournalEventType;
+  debitAccountId: string;
+  creditAccountId: string;
+};
+
+export type AccountingPeriod = {
+  id: string;
+  orgId: string;
+  year: number;
+  month: number;
+  startsOn: string;
+  endsOn: string;
+  status: PeriodStatus;
+};
+
+export type JournalEntry = {
+  id: string;
+  orgId: string;
+  periodId: string;
+  branchId: string | null;
+  sourceDocumentType: string;
+  sourceDocumentId: string;
+  outboxEventId: string | null;
+  reversesJournalId: string | null;
+  postedAt: Date;
+  createdAt: Date;
+};
+
+export type JournalLine = {
+  id: string;
+  orgId: string;
+  journalEntryId: string;
+  accountId: string;
+  debit: string;
+  credit: string;
+  lineNo: number;
+};
+
+export type JournalLineDraft = {
+  accountId: string;
+  debit: string;
+  credit: string;
+  lineNo: number;
+};
+

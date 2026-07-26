@@ -350,10 +350,10 @@ async function enqueueCountEvents(
     eventType: action === "posted" ? "document.posted" : "document.voided",
     aggregateType: "stock_count",
     aggregateId: countId,
-    payload: {
+      payload: {
       countId,
       userId,
-      ...(action === "posted" ? costingFieldsFromMovements(movements) : {}),
+      ...costingFieldsFromMovements(movements),
     },
   });
   if (movements.length > 0) {

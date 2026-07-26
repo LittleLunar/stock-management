@@ -242,7 +242,11 @@ export class VoidLandedCost {
         eventType: "document.voided",
         aggregateType: "landed_cost",
         aggregateId: doc.id,
-        payload: { landedCostId: doc.id, userId },
+        payload: {
+          landedCostId: doc.id,
+          userId,
+          ...costingOutboxFields({ landedAmount: doc.totalAmount }),
+        },
       });
       return { document: voided };
     });

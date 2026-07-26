@@ -1,4 +1,6 @@
 import {
+  AccountUseCases,
+  AccountingPeriodUseCases,
   AvailabilityUseCases,
   BranchUseCases,
   CategoryUseCases,
@@ -8,7 +10,9 @@ import {
   CustomerReturnUseCases,
   CustomerUseCases,
   CommitReservation,
+  EnsureDefaultChartOfAccounts,
   GoodsReceiptUseCases,
+  JournalUseCases,
   LandedCostUseCases,
   LocationUseCases,
   OrganizationUseCases,
@@ -20,6 +24,7 @@ import {
   PostStockCount,
   PostStockIssue,
   PostSupplierReturn,
+  ProcessOutboxForJournals,
   ProductUseCases,
   PurchaseOrderUseCases,
   ReceiveStockTransfer,
@@ -45,7 +50,9 @@ import {
   VoidStockTransfer,
   VoidSupplierReturn,
 } from "@stock-management/application";
+import { NotFoundError } from "@stock-management/domain";
 import type { Db } from "../infrastructure/db/client.js";
+import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleBranchRepository } from "../infrastructure/persistence/branch.repository.js";
 import { DrizzleCategoryRepository } from "../infrastructure/persistence/category.repository.js";
 import { DrizzleCogsMovementSource } from "../infrastructure/persistence/cogs-movement.repository.js";
@@ -119,6 +126,12 @@ export type AppServices = {
   valuationReport: ValuationReportUseCases;
   cogsReport: CogsReportUseCases;
   costing: DrizzleCostingRepository;
+  ensureDefaultChartOfAccounts: EnsureDefaultChartOfAccounts;
+  accountingPeriods: AccountingPeriodUseCases;
+  accounts: AccountUseCases;
+  journals: JournalUseCases;
+  processOutboxForJournals: ProcessOutboxForJournals;
+  accounting: DrizzleAccountingRepository;
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
@@ -140,10 +153,15 @@ export function createAppServices(db: Db): AppServices {
   const landedCosts = new DrizzleLandedCostRepository(db);
   const costRevaluations = new DrizzleCostRevaluationRepository(db);
   const costing = new DrizzleCostingRepository(db);
+  const accounting = new DrizzleAccountingRepository(db);
+  const orgRepo = new DrizzleOrganizationRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
+  const ensureDefaultChartOfAccounts = new EnsureDefaultChartOfAccounts(
+    accounting,
+  );
 
   return {
-    org: new OrganizationUseCases(new DrizzleOrganizationRepository(db)),
+    org: new OrganizationUseCases(orgRepo),
     branches: new BranchUseCases(new DrizzleBranchRepository(db)),
     locations: new LocationUseCases(locations),
     categories: new CategoryUseCases(new DrizzleCategoryRepository(db)),
@@ -189,5 +207,21 @@ export function createAppServices(db: Db): AppServices {
     valuationReport: new ValuationReportUseCases(costing, locations),
     cogsReport: new CogsReportUseCases(new DrizzleCogsMovementSource(db)),
     costing,
+    ensureDefaultChartOfAccounts,
+    accountingPeriods: new AccountingPeriodUseCases(
+      accounting,
+      async (orgId) => {
+        const org = await orgRepo.findById(orgId);
+        if (!org) throw new NotFoundError("Organization");
+        return org.fiscalYearStartMonth;
+      },
+    ),
+    accounts: new AccountUseCases(accounting),
+    journals: new JournalUseCases(accounting),
+    processOutboxForJournals: new ProcessOutboxForJournals(
+      accounting,
+      ensureDefaultChartOfAccounts,
+    ),
+    accounting,
   };
 }

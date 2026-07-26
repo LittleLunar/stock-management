@@ -228,12 +228,22 @@ export class VoidCostRevaluation {
         "void",
         voidedAt,
       );
+      const revaluationValueDelta = toReverse.reduce(
+        (sum, a) => sum + Number(a.amount),
+        0,
+      );
       await ctx.outbox.enqueue({
         orgId,
         eventType: "document.voided",
         aggregateType: "cost_revaluation",
         aggregateId: doc.id,
-        payload: { revaluationId: doc.id, userId },
+        payload: {
+          revaluationId: doc.id,
+          userId,
+          ...costingOutboxFields({
+            revaluationValueDelta: String(revaluationValueDelta),
+          }),
+        },
       });
       return { document: voided };
     });

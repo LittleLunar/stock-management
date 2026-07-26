@@ -98,3 +98,38 @@ export class AllocationMismatchError extends DomainError {
     this.name = "AllocationMismatchError";
   }
 }
+
+export class UnbalancedJournalError extends DomainError {
+  constructor(message = "Journal lines are not balanced") {
+    super(message, "UNBALANCED_JOURNAL");
+    this.name = "UnbalancedJournalError";
+  }
+}
+
+export class PeriodClosedError extends DomainError {
+  constructor(message = "Accounting period is closed") {
+    super(message, "PERIOD_CLOSED");
+    this.name = "PeriodClosedError";
+  }
+}
+
+export class AccountMappingMissingError extends DomainError {
+  constructor(journalEventType: string) {
+    super(
+      `Account mapping missing for ${journalEventType}`,
+      "ACCOUNT_MAPPING_MISSING",
+    );
+    this.name = "AccountMappingMissingError";
+  }
+}
+
+export class AccountingPeriodMissingError extends DomainError {
+  constructor(onDate: string) {
+    super(
+      `No accounting period covers date ${onDate}`,
+      "ACCOUNTING_PERIOD_MISSING",
+    );
+    this.name = "AccountingPeriodMissingError";
+  }
+}
+

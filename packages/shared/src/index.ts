@@ -296,3 +296,20 @@ export {
   type CreateCostRevaluation,
   type UpdateCostRevaluation,
 } from "./costing.js";
+
+export {
+  AccountTypeSchema,
+  AccountSchema,
+  CreateAccountBodySchema,
+  PatchAccountBodySchema,
+  UpsertMappingBodySchema,
+  GeneratePeriodsBodySchema,
+  JournalsQuerySchema,
+  JournalLineSchema,
+  JournalSchema,
+  type CreateAccountBody,
+  type PatchAccountBody,
+  type UpsertMappingBody,
+  type GeneratePeriodsBody,
+  type JournalsQuery,
+} from "./accounting.js";

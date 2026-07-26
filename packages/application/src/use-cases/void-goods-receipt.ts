@@ -6,6 +6,7 @@ import {
   signedQtyForMovement,
 } from "@stock-management/domain";
 import type { GoodsReceipt, StockMovement } from "@stock-management/domain";
+import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import { refreshCostSummary } from "../costing/refresh-cost-summary.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -119,7 +120,18 @@ export class VoidGoodsReceipt {
         eventType: "document.voided",
         aggregateType: "goods_receipt",
         aggregateId: receipt.id,
-        payload: { receiptId: receipt.id, userId },
+        payload: {
+          receiptId: receipt.id,
+          userId,
+          ...costingOutboxFields({
+            inventoryValueDelta: String(
+              movements.reduce(
+                (sum, m) => sum + Math.abs(Number(m.totalCost ?? 0)),
+                0,
+              ),
+            ),
+          }),
+        },
       });
       await ctx.outbox.enqueue({
         orgId,
