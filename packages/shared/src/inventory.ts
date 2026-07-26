@@ -283,6 +283,26 @@ export const StockTrackingQuerySchema = z.object({
 });
 export type StockTrackingQuery = z.infer<typeof StockTrackingQuerySchema>;
 
+export const CostLayersQuerySchema = z.object({
+  productId: UuidSchema.optional(),
+  locationId: UuidSchema.optional(),
+});
+export type CostLayersQuery = z.infer<typeof CostLayersQuerySchema>;
+
+export const CostLayerSchema = z.object({
+  id: UuidSchema,
+  productId: UuidSchema,
+  locationId: UuidSchema,
+  lotId: UuidSchema.nullable(),
+  receivedAt: z.string().datetime(),
+  unitCost: z.string(),
+  qtyOriginal: z.string(),
+  qtyRemaining: z.string(),
+  sourceDocumentType: z.string(),
+  sourceDocumentId: UuidSchema,
+});
+export type CostLayerResponse = z.infer<typeof CostLayerSchema>;
+
 export const CreateReservationSchema = z
   .object({
     branchId: UuidSchema,

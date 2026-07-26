@@ -87,7 +87,9 @@ await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
   prefix: "/api/v1",
 });
 await app.register(goodsReceiptsRoutes(services), { prefix: "/api/v1" });
-await app.register(stockRoutes(services.stockInquiry), { prefix: "/api/v1" });
+await app.register(stockRoutes(services.stockInquiry, services.costInquiry), {
+  prefix: "/api/v1",
+});
 await app.register(stockIssuesRoutes(services), { prefix: "/api/v1" });
 await app.register(stockTransfersRoutes(services), { prefix: "/api/v1" });
 await app.register(stockAdjustmentsRoutes(services), { prefix: "/api/v1" });

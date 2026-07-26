@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   ConflictError,
   DomainError,
+  LayerInUseError,
   NotFoundError,
   UnauthorizedError,
 } from "@stock-management/domain";
@@ -39,7 +40,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
         .send(envelope(request, error.code, error.message));
     }
 
-    if (error instanceof ConflictError) {
+    if (error instanceof ConflictError || error instanceof LayerInUseError) {
       return reply
         .status(409)
         .send(envelope(request, error.code, error.message));

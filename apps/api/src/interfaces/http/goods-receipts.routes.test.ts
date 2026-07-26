@@ -11,6 +11,7 @@ import {
   type UowContext,
 } from "@stock-management/application";
 import type {
+  CostLayer,
   GoodsReceipt,
   Product,
   PurchaseOrder,
@@ -77,6 +78,7 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
   const receipts = new Map<string, GoodsReceiptWithLines>();
   const balances = new Map<string, StockBalance>();
   const movements: StockMovement[] = [];
+  const layers = new Map<string, CostLayer>();
   const idempotency = new Map<string, IdempotencyRecord>();
   let movementSequence = 0;
 
@@ -258,6 +260,8 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
           ...input,
           id: `movement-${++movementSequence}`,
           createdAt: input.createdAt ?? now,
+          unitCost: input.unitCost ?? null,
+          totalCost: input.totalCost ?? null,
         };
         movements.push(movement);
         return movement;
@@ -291,6 +295,7 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
         return {
           id: randomUUID(),
           ...input,
+          locationId: input.locationId ?? null,
           status: "in_stock",
           createdAt: now,
           updatedAt: now,
@@ -298,6 +303,38 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
       },
       async list() {
         return [];
+      },
+    },
+    costing: {
+      async insertLayer(layer) {
+        const created: CostLayer = {
+          ...layer,
+          id: layer.id ?? randomUUID(),
+        };
+        layers.set(created.id, created);
+        return created;
+      },
+      async listOpenLayers(orgId, filter) {
+        return [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === orgId &&
+            Number(layer.qtyRemaining) > 0 &&
+            (!filter.productId || layer.productId === filter.productId) &&
+            (!filter.locationId || layer.locationId === filter.locationId),
+        );
+      },
+      async listLayersBySourceDocument(orgId, documentType, documentId) {
+        return [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === orgId &&
+            layer.sourceDocumentType === documentType &&
+            layer.sourceDocumentId === documentId,
+        );
+      },
+      async setQtyRemaining(orgId, layerId, qtyRemaining) {
+        const layer = layers.get(layerId);
+        if (!layer || layer.orgId !== orgId) return;
+        layers.set(layerId, { ...layer, qtyRemaining });
       },
     },
     outbox: {

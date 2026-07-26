@@ -5,6 +5,7 @@ import {
   CustomerReturnUseCases,
   CustomerUseCases,
   CommitReservation,
+  CostInquiryUseCases,
   GoodsReceiptUseCases,
   LocationUseCases,
   OrganizationUseCases,
@@ -73,6 +74,7 @@ export type AppServices = {
   postGoodsReceipt: PostGoodsReceipt;
   voidGoodsReceipt: VoidGoodsReceipt;
   stockInquiry: StockInquiryUseCases;
+  costInquiry: CostInquiryUseCases;
   stockIssues: StockIssueUseCases;
   postStockIssue: PostStockIssue;
   voidStockIssue: VoidStockIssue;
@@ -130,6 +132,7 @@ export function createAppServices(db: Db): AppServices {
     postGoodsReceipt: new PostGoodsReceipt(unitOfWork),
     voidGoodsReceipt: new VoidGoodsReceipt(unitOfWork),
     stockInquiry: new StockInquiryUseCases(stock, lots, serials),
+    costInquiry: new CostInquiryUseCases(unitOfWork),
     stockIssues: new StockIssueUseCases(stockIssues),
     postStockIssue: new PostStockIssue(unitOfWork),
     voidStockIssue: new VoidStockIssue(unitOfWork),
