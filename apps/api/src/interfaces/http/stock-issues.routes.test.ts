@@ -11,6 +11,8 @@ import {
   type UowContext,
 } from "@stock-management/application";
 import type {
+  CostConsumption,
+  CostLayer,
   Product,
   StockBalance,
   StockIssue,
@@ -28,7 +30,121 @@ const LOCATION_ID = "00000000-0000-4000-8000-000000000004";
 const PRODUCT_ID = "00000000-0000-4000-8000-000000000005";
 const now = new Date("2026-07-26T00:00:00.000Z");
 
-function makeHarness(onHand = "10") {
+function createInMemoryCosting() {
+  const layers: CostLayer[] = [];
+  const consumptions: CostConsumption[] = [];
+  let layerSeq = 0;
+  let consSeq = 0;
+
+  return {
+    layers,
+    consumptions,
+    async insertLayer(layer: Omit<CostLayer, "id"> & { id?: string }) {
+      const row: CostLayer = {
+        id: layer.id ?? `layer-${++layerSeq}`,
+        orgId: layer.orgId,
+        productId: layer.productId,
+        locationId: layer.locationId,
+        lotId: layer.lotId,
+        sourceDocumentType: layer.sourceDocumentType,
+        sourceDocumentId: layer.sourceDocumentId,
+        sourceDocumentLineId: layer.sourceDocumentLineId,
+        sourceMovementId: layer.sourceMovementId,
+        receivedAt: layer.receivedAt,
+        unitCost: layer.unitCost,
+        qtyOriginal: layer.qtyOriginal,
+        qtyRemaining: layer.qtyRemaining,
+      };
+      layers.push(row);
+      return row;
+    },
+    async getLayer(orgId: string, layerId: string) {
+      return layers.find((l) => l.orgId === orgId && l.id === layerId) ?? null;
+    },
+    async listOpenLayers(
+      orgId: string,
+      filter: { productId?: string; locationId?: string },
+    ) {
+      return layers.filter(
+        (l) =>
+          l.orgId === orgId &&
+          Number(l.qtyRemaining) > 0 &&
+          (!filter.productId || l.productId === filter.productId) &&
+          (!filter.locationId || l.locationId === filter.locationId),
+      );
+    },
+    async listLayersBySourceDocument(
+      orgId: string,
+      documentType: string,
+      documentId: string,
+    ) {
+      return layers.filter(
+        (l) =>
+          l.orgId === orgId &&
+          l.sourceDocumentType === documentType &&
+          l.sourceDocumentId === documentId,
+      );
+    },
+    async setQtyRemaining(orgId: string, layerId: string, qtyRemaining: string) {
+      const layer = layers.find((l) => l.orgId === orgId && l.id === layerId);
+      if (layer) layer.qtyRemaining = qtyRemaining;
+    },
+    async lockOpenLayersFifo(key: {
+      orgId: string;
+      productId: string;
+      locationId: string;
+      lotId: string | null;
+    }) {
+      return layers
+        .filter(
+          (l) =>
+            l.orgId === key.orgId &&
+            l.productId === key.productId &&
+            l.locationId === key.locationId &&
+            (l.lotId ?? null) === (key.lotId ?? null) &&
+            Number(l.qtyRemaining) > 0,
+        )
+        .sort(
+          (a, b) =>
+            a.receivedAt.getTime() - b.receivedAt.getTime() ||
+            a.id.localeCompare(b.id),
+        );
+    },
+    async listOpenLayersBySourceLine(orgId: string, sourceDocumentLineId: string) {
+      return layers.filter(
+        (l) =>
+          l.orgId === orgId &&
+          l.sourceDocumentLineId === sourceDocumentLineId &&
+          Number(l.qtyRemaining) > 0,
+      );
+    },
+    async insertConsumption(
+      input: Omit<CostConsumption, "id" | "createdAt"> & { id?: string },
+    ) {
+      const row: CostConsumption = {
+        id: input.id ?? `cons-${++consSeq}`,
+        orgId: input.orgId,
+        costLayerId: input.costLayerId,
+        movementId: input.movementId,
+        qty: input.qty,
+        unitCost: input.unitCost,
+        totalCost: input.totalCost,
+        isReversal: input.isReversal,
+        createdAt: now,
+      };
+      consumptions.push(row);
+      return row;
+    },
+    async listConsumptionsByMovementIds(orgId: string, movementIds: string[]) {
+      const set = new Set(movementIds);
+      return consumptions.filter(
+        (c) => c.orgId === orgId && set.has(c.movementId),
+      );
+    },
+  };
+}
+
+function makeHarness(onHand = "10", options?: { seedCostLayers?: boolean }) {
   const product: Product = {
     id: PRODUCT_ID,
     orgId: ORG_ID,
@@ -60,6 +176,24 @@ function makeHarness(onHand = "10") {
     updatedAt: now,
   };
   let movementSequence = 0;
+  const costing = createInMemoryCosting();
+
+  if (options?.seedCostLayers !== false) {
+    void costing.insertLayer({
+      orgId: ORG_ID,
+      productId: PRODUCT_ID,
+      locationId: LOCATION_ID,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-seed",
+      sourceDocumentLineId: "grl-seed",
+      sourceMovementId: "m-seed",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "10",
+      qtyOriginal: onHand,
+      qtyRemaining: onHand,
+    });
+  }
 
   const issueRepo: NonNullable<UowContext["issues"]> = {
     async list(orgId) {
@@ -169,8 +303,22 @@ function makeHarness(onHand = "10") {
           ...input,
           id: `movement-${++movementSequence}`,
           createdAt: input.createdAt ?? now,
+          unitCost: input.unitCost ?? null,
+          totalCost: input.totalCost ?? null,
         };
         movements.push(movement);
+        return movement;
+      },
+      async updateMovementCosts(
+        _orgId: string,
+        movementId: string,
+        unitCost: string,
+        totalCost: string,
+      ) {
+        const movement = movements.find((candidate) => candidate.id === movementId);
+        if (!movement) throw new Error("Movement not found");
+        movement.unitCost = unitCost;
+        movement.totalCost = totalCost;
         return movement;
       },
       async listBalances() {
@@ -197,17 +345,7 @@ function makeHarness(onHand = "10") {
         return [];
       },
     },
-    costing: {
-      async insertLayer() { throw new Error("costing not used"); },
-      async getLayer() { return null; },
-      async listOpenLayers() { return []; },
-      async listLayersBySourceDocument() { return []; },
-      async setQtyRemaining() {},
-      async lockOpenLayersFifo() { return []; },
-      async listOpenLayersBySourceLine() { return []; },
-      async insertConsumption() { throw new Error("costing not used"); },
-      async listConsumptionsByMovementIds() { return []; },
-    },
+    costing,
     outbox: { async enqueue() {} },
     idempotency: {
       async find(
@@ -248,6 +386,7 @@ function makeHarness(onHand = "10") {
 
   return {
     buildApp,
+    costing,
     getBalance: () => balance,
     getMovements: () => movements,
   };
@@ -270,8 +409,8 @@ describe("stock issue routes", () => {
     await Promise.all(apps.splice(0).map((app) => app.close()));
   });
 
-  async function setup(onHand = "10") {
-    const harness = makeHarness(onHand);
+  async function setup(onHand = "10", options?: { seedCostLayers?: boolean }) {
+    const harness = makeHarness(onHand, options);
     const app = await harness.buildApp();
     apps.push(app);
     return { app, harness };
@@ -355,6 +494,54 @@ describe("stock issue routes", () => {
     });
     expect(harness.getBalance().qtyOnHand).toBe("2");
     expect(harness.getMovements()).toHaveLength(0);
+  });
+
+  it("consumes FIFO cost layers and stamps movement costs on post", async () => {
+    const { app, harness } = await setup("10", { seedCostLayers: false });
+    await harness.costing.insertLayer({
+      orgId: ORG_ID,
+      productId: PRODUCT_ID,
+      locationId: LOCATION_ID,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-1",
+      sourceDocumentLineId: "grl-1",
+      sourceMovementId: "m-1",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "10",
+      qtyOriginal: "2",
+      qtyRemaining: "2",
+    });
+    await harness.costing.insertLayer({
+      orgId: ORG_ID,
+      productId: PRODUCT_ID,
+      locationId: LOCATION_ID,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-2",
+      sourceDocumentLineId: "grl-2",
+      sourceMovementId: "m-2",
+      receivedAt: new Date("2026-01-02"),
+      unitCost: "12",
+      qtyOriginal: "5",
+      qtyRemaining: "5",
+    });
+    const created = await createDraft(app, "3");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/stock-issues/${created.id}/post`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(harness.getMovements()[0]?.totalCost).toBe("32");
+    expect(
+      harness.costing.layers.find((layer) => layer.id === "layer-1")?.qtyRemaining,
+    ).toBe("0");
+    expect(
+      harness.costing.layers.find((layer) => layer.id === "layer-2")?.qtyRemaining,
+    ).toBe("4");
   });
 
   it("returns the same result when a post idempotency key is replayed", async () => {

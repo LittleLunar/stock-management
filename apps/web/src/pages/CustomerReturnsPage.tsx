@@ -17,6 +17,7 @@ import { formatApiError } from "../lib/errors";
 type ReturnLineDraft = {
   productId: string;
   qty: string;
+  unitCost: string;
   lotId: string;
   serialNumbers: string;
 };
@@ -24,6 +25,7 @@ type ReturnLineDraft = {
 const emptyLine = (): ReturnLineDraft => ({
   productId: "",
   qty: "1",
+  unitCost: "",
   lotId: "",
   serialNumbers: "",
 });
@@ -77,6 +79,7 @@ export function CustomerReturnsPage() {
         lines: lines.map((line, index) => ({
           productId: line.productId,
           qty: line.qty,
+          unitCost: line.unitCost.trim() || null,
           lotId: line.lotId || null,
           serialNumbers: line.serialNumbers
             .split(/[\n,]/)
@@ -170,7 +173,7 @@ export function CustomerReturnsPage() {
         <div className="space-y-2">
           {lines.map((line, index) => (
             <div key={index} className="space-y-2 rounded bg-slate-50 p-3">
-              <div className="grid gap-2 md:grid-cols-[minmax(12rem,1fr)_8rem_auto]">
+              <div className="grid gap-2 md:grid-cols-[minmax(12rem,1fr)_8rem_8rem_auto]">
                 <select
                   required
                   className="rounded border border-slate-300 px-3 py-2"
@@ -195,6 +198,17 @@ export function CustomerReturnsPage() {
                   value={line.qty}
                   onChange={(event) =>
                     updateLine(index, "qty", event.target.value)
+                  }
+                />
+                <input
+                  required
+                  inputMode="decimal"
+                  className="rounded border border-slate-300 px-3 py-2"
+                  aria-label={`Line ${index + 1} unit cost`}
+                  placeholder="Unit cost"
+                  value={line.unitCost}
+                  onChange={(event) =>
+                    updateLine(index, "unitCost", event.target.value)
                   }
                 />
                 <button
