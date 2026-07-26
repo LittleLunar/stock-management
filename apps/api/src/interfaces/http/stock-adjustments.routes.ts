@@ -72,6 +72,39 @@ export function stockAdjustmentsRoutes(
     );
 
     app.post<{ Params: { id: string } }>(
+      "/stock-adjustments/:id/submit",
+      async (request) => {
+        const { id } = StockAdjustmentIdParamsSchema.parse(request.params);
+        const doc = await useCases.stockAdjustments.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
+        return useCases.stockAdjustments.submitForApproval(
+          request.ctx.orgId,
+          id,
+        );
+      },
+    );
+
+    app.post<{ Params: { id: string } }>(
+      "/stock-adjustments/:id/approve",
+      async (request) => {
+        const { id } = StockAdjustmentIdParamsSchema.parse(request.params);
+        const doc = await useCases.stockAdjustments.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "document.approve",
+          doc.branchId,
+          "Role cannot approve documents",
+        );
+        return useCases.stockAdjustments.approve(request.ctx.orgId, id);
+      },
+    );
+
+    app.post<{ Params: { id: string } }>(
       "/stock-adjustments/:id/post",
       async (request) => {
         const { id } = StockAdjustmentIdParamsSchema.parse(request.params);

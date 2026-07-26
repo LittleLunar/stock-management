@@ -72,6 +72,21 @@ export function purchaseOrdersRoutes(
     );
 
     app.post<{ Params: { id: string } }>(
+      "/purchase-orders/:id/approve",
+      async (request) => {
+        const { id } = PurchaseOrderIdParamsSchema.parse(request.params);
+        const po = await useCases.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "document.approve",
+          po.branchId,
+          "Role cannot approve documents",
+        );
+        return useCases.approve(request.ctx.orgId, id);
+      },
+    );
+
+    app.post<{ Params: { id: string } }>(
       "/purchase-orders/:id/cancel",
       async (request) => {
         const { id } = PurchaseOrderIdParamsSchema.parse(request.params);

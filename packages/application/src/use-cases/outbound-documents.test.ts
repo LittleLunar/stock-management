@@ -18,6 +18,7 @@ import type {
   StockTransferWithLines,
 } from "../ports/inventory.js";
 import type { UnitOfWork, UowContext } from "../ports/unit-of-work.js";
+import { createPermissiveApprovalPolicies } from "./approval-policy.harness.js";
 import {
   PostStockAdjustment,
   VoidStockAdjustment,
@@ -877,7 +878,7 @@ describe("stock adjustment use cases", () => {
     async ({ adjustmentQty, expectedBalance }) => {
       const fake = makeFake({ adjustmentQty });
 
-      await new PostStockAdjustment(fake.uow).execute(
+      await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
         orgId,
         userId,
         "adjustment-1",
@@ -893,7 +894,7 @@ describe("stock adjustment use cases", () => {
     const fake = makeFake({ adjustmentQty: "-11" });
 
     await expect(
-      new PostStockAdjustment(fake.uow).execute(orgId, userId, "adjustment-1"),
+      new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(orgId, userId, "adjustment-1"),
     ).rejects.toBeInstanceOf(InsufficientStockError);
     expect(fake.getBalance(fromLocationId)).toBe("10");
     expect(fake.getMovements()).toHaveLength(0);
@@ -901,7 +902,7 @@ describe("stock adjustment use cases", () => {
 
   it("voids an adjustment with an opposite signed movement", async () => {
     const fake = makeFake({ adjustmentQty: "-3" });
-    await new PostStockAdjustment(fake.uow).execute(
+    await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -928,7 +929,7 @@ describe("stock adjustment use cases", () => {
     });
 
     await expect(
-      new PostStockAdjustment(fake.uow).execute(orgId, userId, "adjustment-1"),
+      new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(orgId, userId, "adjustment-1"),
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(fake.getMovements()).toHaveLength(0);
   });
@@ -939,7 +940,7 @@ describe("stock adjustment use cases", () => {
       adjustmentSerialNumbers: ["SN-1"],
     });
 
-    await new PostStockAdjustment(fake.uow).execute(
+    await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -956,7 +957,7 @@ describe("stock adjustment use cases", () => {
       seedSerials: false,
     });
 
-    await new PostStockAdjustment(fake.uow).execute(
+    await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -970,7 +971,7 @@ describe("stock adjustment use cases", () => {
 
   it("creates a cost layer on positive adjustment and consumes on negative", async () => {
     const fake = makeFake({ adjustmentQty: "2", adjustmentUnitCost: "15" });
-    const posted = await new PostStockAdjustment(fake.uow).execute(
+    const posted = await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -981,7 +982,7 @@ describe("stock adjustment use cases", () => {
     ).toHaveLength(1);
 
     const fakeDown = makeFake({ adjustmentQty: "-3", onHand: "10" });
-    const down = await new PostStockAdjustment(fakeDown.uow).execute(
+    const down = await new PostStockAdjustment(fakeDown.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -996,7 +997,7 @@ describe("stock adjustment use cases", () => {
       adjustmentUnitCost: null,
     });
     await expect(
-      new PostStockAdjustment(fake.uow).execute(orgId, userId, "adjustment-1"),
+      new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(orgId, userId, "adjustment-1"),
     ).rejects.toMatchObject({ code: "MISSING_UNIT_COST" });
   });
 });

@@ -7,6 +7,8 @@ export {
   CostingMethodSchema,
   PoStatusSchema,
   DocumentStatusSchema,
+  ApprovalDocumentTypeSchema,
+  UpsertApprovalPolicySchema,
   TransferPurposeSchema,
   UuidSchema,
   type MasterStatus,
@@ -15,6 +17,8 @@ export {
   type CostingMethod,
   type PoStatus,
   type DocumentStatus,
+  type ApprovalDocumentType,
+  type UpsertApprovalPolicy,
   type TransferPurpose,
 } from "./enums.js";
 

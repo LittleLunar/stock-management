@@ -3,7 +3,9 @@ import {
   InsufficientStockError,
   InvalidStateError,
   NotFoundError,
+  assertCanApproveAdjustment,
   assertCanPostAdjustment,
+  assertCanSubmitAdjustment,
   assertLayersFullyOpen,
   assertLotSerialRules,
   assertSerialAvailableForOutbound,
@@ -25,6 +27,7 @@ import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import type { BranchListFilter } from "../access/list-scope.js";
 import type { StockAdjustmentPort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
+import type { ApprovalPolicyUseCases } from "./approval-policy.js";
 
 export type StockAdjustmentResult = {
   adjustment: StockAdjustment;
@@ -61,12 +64,27 @@ export class StockAdjustmentUseCases {
     if (!updated) throw new NotFoundError("Stock adjustment");
     return updated;
   }
+
+  async submitForApproval(orgId: string, id: string) {
+    const adj = await this.get(orgId, id);
+    assertCanSubmitAdjustment(adj);
+    return this.repo.updateStatus(orgId, id, "pending_approval", new Date());
+  }
+
+  async approve(orgId: string, id: string) {
+    const adj = await this.get(orgId, id);
+    assertCanApproveAdjustment(adj);
+    return this.repo.updateStatus(orgId, id, "approved", new Date());
+  }
 }
 
 const POST_OPERATION = "post-stock-adjustment";
 
 export class PostStockAdjustment {
-  constructor(private readonly uow: UnitOfWork) {}
+  constructor(
+    private readonly uow: UnitOfWork,
+    private readonly approvalPolicies: ApprovalPolicyUseCases,
+  ) {}
 
   execute(
     orgId: string,
@@ -90,7 +108,11 @@ export class PostStockAdjustment {
 
       const adjustment = await adjustments.findById(orgId, adjustmentId);
       if (!adjustment) throw new NotFoundError("Stock adjustment");
-      assertCanPostAdjustment(adjustment, { required: false });
+      const required = await this.approvalPolicies.getRequired(
+        orgId,
+        "stock_adjustment",
+      );
+      assertCanPostAdjustment(adjustment, { required });
 
       const serialTrackedProductIds = new Set<string>();
       for (const line of adjustment.lines) {

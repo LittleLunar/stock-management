@@ -26,6 +26,7 @@ export * from "./use-cases/product.js";
 export * from "./use-cases/supplier.js";
 export * from "./use-cases/users.js";
 export * from "./use-cases/purchase-order.js";
+export * from "./use-cases/approval-policy.js";
 export * from "./use-cases/goods-receipt.js";
 export * from "./use-cases/post-goods-receipt.js";
 export * from "./use-cases/void-goods-receipt.js";

@@ -178,4 +178,54 @@ describe("purchase order routes", () => {
       status: "submitted",
     });
   });
+
+  it("approves a submitted purchase order", async () => {
+    const app = Fastify();
+    apps.push(app);
+    registerErrorHandler(app);
+    await app.register(requestIdPlugin);
+    await app.register(createTestContextPlugin());
+    const repo = new InMemoryPurchaseOrderRepository();
+    await app.register(
+      purchaseOrdersRoutes(new PurchaseOrderUseCases(repo)),
+      { prefix: "/api/v1" },
+    );
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/purchase-orders",
+      headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+      payload: {
+        supplierId: SUPPLIER_ID,
+        branchId: BRANCH_ID,
+        documentNumber: "PO-2001",
+        lines: [
+          {
+            productId: PRODUCT_ID,
+            orderedQty: "2.0000",
+            unitCost: "10.0000",
+            lineNumber: 1,
+          },
+        ],
+      },
+    });
+    const created = createResponse.json<PurchaseOrderWithLines>();
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/purchase-orders/${created.id}/submit`,
+      headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+    });
+
+    const approveResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/purchase-orders/${created.id}/approve`,
+      headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+    });
+
+    expect(approveResponse.statusCode).toBe(200);
+    expect(approveResponse.json()).toMatchObject({
+      id: created.id,
+      status: "approved",
+    });
+  });
 });

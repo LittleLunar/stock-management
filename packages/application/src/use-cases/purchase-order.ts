@@ -1,6 +1,7 @@
 import {
   InvalidStateError,
   NotFoundError,
+  assertCanApprovePo,
   assertCanSubmitPo,
 } from "@stock-management/domain";
 import type {
@@ -43,9 +44,15 @@ export class PurchaseOrderUseCases {
     return this.repo.updateStatus(orgId, id, "submitted");
   }
 
+  async approve(orgId: string, id: string) {
+    const purchaseOrder = await this.get(orgId, id);
+    assertCanApprovePo(purchaseOrder);
+    return this.repo.updateStatus(orgId, id, "approved");
+  }
+
   async cancel(orgId: string, id: string) {
     const purchaseOrder = await this.get(orgId, id);
-    if (!["draft", "submitted"].includes(purchaseOrder.status)) {
+    if (!["draft", "submitted", "approved"].includes(purchaseOrder.status)) {
       throw new InvalidStateError(
         `Cannot cancel purchase order in status ${purchaseOrder.status}`,
       );
@@ -55,7 +62,11 @@ export class PurchaseOrderUseCases {
 
   async close(orgId: string, id: string) {
     const purchaseOrder = await this.get(orgId, id);
-    if (!["submitted", "partially_received", "received"].includes(purchaseOrder.status)) {
+    if (
+      !["submitted", "approved", "partially_received", "received"].includes(
+        purchaseOrder.status,
+      )
+    ) {
       throw new InvalidStateError(
         `Cannot close purchase order in status ${purchaseOrder.status}`,
       );

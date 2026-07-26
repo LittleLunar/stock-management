@@ -2,16 +2,20 @@ import Fastify from "fastify";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  ApprovalPolicyUseCases,
   PostStockAdjustment,
   StockAdjustmentUseCases,
   VoidStockAdjustment,
   createFakeCosting,
+  type ApprovalPolicyPort,
   type IdempotencyRecord,
   type StockAdjustmentWithLines,
   type UnitOfWork,
   type UowContext,
 } from "@stock-management/application";
 import type {
+  ApprovalDocumentType,
+  ApprovalPolicy,
   Product,
   StockAdjustment,
   StockBalance,
@@ -28,6 +32,48 @@ const BRANCH_ID = "00000000-0000-4000-8000-000000000003";
 const LOCATION_ID = "00000000-0000-4000-8000-000000000004";
 const PRODUCT_ID = "00000000-0000-4000-8000-000000000005";
 const now = new Date("2026-07-26T00:00:00.000Z");
+
+function createPermissiveApprovalPolicies(): ApprovalPolicyUseCases {
+  const rows = new Map<string, ApprovalPolicy>();
+  const key = (orgId: string, documentType: ApprovalDocumentType) =>
+    `${orgId}:${documentType}`;
+  for (const documentType of [
+    "purchase_order",
+    "stock_adjustment",
+  ] as const) {
+    rows.set(key(ORG_ID, documentType), {
+      id: `pol-${documentType}`,
+      orgId: ORG_ID,
+      documentType,
+      required: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  const port: ApprovalPolicyPort = {
+    async list(orgId) {
+      return [...rows.values()].filter((r) => r.orgId === orgId);
+    },
+    async findByDocumentType(orgId, documentType) {
+      return rows.get(key(orgId, documentType)) ?? null;
+    },
+    async upsert(orgId, documentType, required) {
+      const id = key(orgId, documentType);
+      const existing = rows.get(id);
+      const row: ApprovalPolicy = {
+        id: existing?.id ?? `pol-${documentType}`,
+        orgId,
+        documentType,
+        required,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      };
+      rows.set(id, row);
+      return row;
+    },
+  };
+  return new ApprovalPolicyUseCases(port);
+}
 
 function createInMemoryCosting() {
   return createFakeCosting();
@@ -262,7 +308,10 @@ function makeHarness(onHand = "10") {
   const uow: UnitOfWork = { run: (fn) => fn(ctx) };
   const useCases = {
     stockAdjustments: new StockAdjustmentUseCases(adjustmentRepo),
-    postStockAdjustment: new PostStockAdjustment(uow),
+    postStockAdjustment: new PostStockAdjustment(
+      uow,
+      createPermissiveApprovalPolicies(),
+    ),
     voidStockAdjustment: new VoidStockAdjustment(uow),
   };
 
@@ -403,5 +452,26 @@ describe("stock adjustment routes", () => {
     });
     expect(harness.getBalance().qtyOnHand).toBe("2");
     expect(harness.getMovements()).toHaveLength(0);
+  });
+
+  it("supports submit and approve before post", async () => {
+    const { app } = await setup();
+    const created = await createDraft(app);
+
+    const submit = await app.inject({
+      method: "POST",
+      url: `/api/v1/stock-adjustments/${created.id}/submit`,
+      headers,
+    });
+    expect(submit.statusCode).toBe(200);
+    expect(submit.json()).toMatchObject({ status: "pending_approval" });
+
+    const approve = await app.inject({
+      method: "POST",
+      url: `/api/v1/stock-adjustments/${created.id}/approve`,
+      headers,
+    });
+    expect(approve.statusCode).toBe(200);
+    expect(approve.json()).toMatchObject({ status: "approved" });
   });
 });

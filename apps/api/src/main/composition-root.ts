@@ -59,6 +59,7 @@ import {
   PeriodCloseChecklistUseCase,
   PnlReportUseCase,
   TrialBalanceUseCase,
+  ApprovalPolicyUseCases,
 } from "@stock-management/application";
 import { NotFoundError } from "@stock-management/domain";
 import type { Db } from "../infrastructure/db/client.js";
@@ -155,7 +156,7 @@ export type AppServices = {
   pnlReport: PnlReportUseCase;
   balanceSheet: BalanceSheetUseCase;
   periodCloseChecklist: PeriodCloseChecklistUseCase;
-  approvalPolicies: DrizzleApprovalPolicyRepository;
+  approvalPolicies: ApprovalPolicyUseCases;
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
@@ -183,6 +184,8 @@ export function createAppServices(db: Db): AppServices {
   const orgRepo = new DrizzleOrganizationRepository(db);
   const usersRepo = new DrizzleUsersRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
+  const approvalPolicyRepo = new DrizzleApprovalPolicyRepository(db);
+  const approvalPolicies = new ApprovalPolicyUseCases(approvalPolicyRepo);
   const ensureDefaultChartOfAccounts = new EnsureDefaultChartOfAccounts(
     accounting,
   );
@@ -199,7 +202,7 @@ export function createAppServices(db: Db): AppServices {
     membershipAccess: usersRepo,
     purchaseOrders: new PurchaseOrderUseCases(purchaseOrders),
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),
-    postGoodsReceipt: new PostGoodsReceipt(unitOfWork),
+    postGoodsReceipt: new PostGoodsReceipt(unitOfWork, approvalPolicies),
     voidGoodsReceipt: new VoidGoodsReceipt(unitOfWork),
     stockInquiry: new StockInquiryUseCases(stock, lots, serials),
     costInquiry: new CostInquiryUseCases(unitOfWork),
@@ -211,7 +214,7 @@ export function createAppServices(db: Db): AppServices {
     receiveStockTransfer: new ReceiveStockTransfer(unitOfWork),
     voidStockTransfer: new VoidStockTransfer(unitOfWork),
     stockAdjustments: new StockAdjustmentUseCases(stockAdjustments),
-    postStockAdjustment: new PostStockAdjustment(unitOfWork),
+    postStockAdjustment: new PostStockAdjustment(unitOfWork, approvalPolicies),
     voidStockAdjustment: new VoidStockAdjustment(unitOfWork),
     stockCounts: new StockCountUseCases(stockCounts, stock),
     postStockCount: new PostStockCount(unitOfWork),
@@ -269,6 +272,6 @@ export function createAppServices(db: Db): AppServices {
       accounting,
       closeChecklist,
     ),
-    approvalPolicies: new DrizzleApprovalPolicyRepository(db),
+    approvalPolicies,
   };
 }
