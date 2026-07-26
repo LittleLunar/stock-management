@@ -123,6 +123,7 @@ export type Membership = {
   userId: string;
   role: MembershipRole;
   status: MasterStatus;
+  branchIds: string[]; // empty = HQ / all branches
   createdAt: Date;
   updatedAt: Date;
 };

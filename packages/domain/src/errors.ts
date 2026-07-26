@@ -22,6 +22,13 @@ export class UnauthorizedError extends DomainError {
   }
 }
 
+export class ForbiddenError extends DomainError {
+  constructor(message = "Forbidden") {
+    super(message, "FORBIDDEN");
+    this.name = "ForbiddenError";
+  }
+}
+
 export class ConflictError extends DomainError {
   constructor(message: string) {
     super(message, "CONFLICT");
