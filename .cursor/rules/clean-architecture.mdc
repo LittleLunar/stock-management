@@ -1,0 +1,39 @@
+---
+description: Mandatory Full Clean Architecture for all phases A–F.
+alwaysApply: true
+---
+
+# Clean Architecture (mandatory)
+
+Every change in `apps/` and `packages/` must follow Full Clean Architecture. Spec: `docs/superpowers/specs/2026-07-26-clean-architecture-design.md`. Docs: `docs/architecture/coding-standards.md`. Wiki: [[Clean Architecture]].
+
+## Layers
+
+| Layer | Path | May depend on | Must NOT depend on |
+|-------|------|---------------|-------------------|
+| Domain | `packages/domain` | nothing | Zod, Drizzle, Fastify, React, shared |
+| Application | `packages/application` | domain | Drizzle, Fastify, React, HTTP types |
+| Shared | `packages/shared` | Zod | domain, application, apps |
+| Infrastructure | `apps/api/src/infrastructure` | application ports, domain, shared, Drizzle | React |
+| HTTP | `apps/api/src/interfaces/http` | use cases, shared | business rules / SQL |
+| Composition root | `apps/api/src/main` | everything (wiring only) | — |
+| Web | `apps/web` | shared + HTTP | domain, application, Drizzle |
+
+## Do not create
+
+- `apps/api/src/modules/<x>/*.service.ts` / `*.repository.ts` / `*.routes.ts` (legacy shape)
+- Fat Fastify handlers with Drizzle
+- Domain or application imports of Fastify / Drizzle / React
+- Web imports of `@stock-management/domain` or `@stock-management/application`
+
+## Required shape for new API features
+
+1. Domain entity / errors in `packages/domain`
+2. Port + use case in `packages/application`
+3. Drizzle adapter in `apps/api/src/infrastructure/persistence`
+4. HTTP route in `apps/api/src/interfaces/http`
+5. Wire in `apps/api/src/main` composition root
+
+## Web
+
+Page → TanStack Query hook → API client only.

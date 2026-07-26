@@ -1,8 +1,8 @@
 # stock-management
 
-**Status:** Phase A in progress — SOLID standards documented; monorepo scaffolding  
+**Status:** Phase A — Full Clean Architecture in place; polish remaining  
 **Stack:** Fastify + Drizzle + Postgres + Vite/React + TanStack + Tailwind  
-**Coding:** SOLID — routes → services → repositories (all phases A–F)
+**Coding:** Full Clean Architecture — `packages/domain` + `packages/application` + API adapters (all phases A–F)
 
 ## What It Is
 
@@ -13,7 +13,8 @@ Scalable stock management: multi-location inventory with lot/serial tracking, FI
 - FIFO cost layers primary
 - JSON API first-class for future POS
 - No Next.js / no HTMX-as-primary-UI
-- SOLID + design patterns mandatory for all phases
+- Full Clean Architecture mandatory for all phases (packages-first)
+- Modular monolith now; packages enable later service extract
 - Phases A→F (see [[Feature Phases]] in wiki)
 
 ## Key People

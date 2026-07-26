@@ -14,32 +14,13 @@ Root agent entry: also see repository `AGENTS.md`.
 
 ## Scope
 
-This vault documents the stock-management product: domain, architecture, phases, and patterns. Application code will live under `apps/` once scaffolded.
-
-## Page Conventions
-
-- Every page uses YAML frontmatter with `tags`, `created`, and `updated`.
-- Every entity or concept page also carries `source_count`.
-- Use `[[wikilinks]]` for all internal cross-references.
-- Keep entity and concept pages factual and structured.
-- End every entity or concept page with a `## Sources` section.
-
-## Index Format
-
-- Use category headings.
-- Format each entry as `- [[PageName]] — one-line summary`.
-- Update [[index]] whenever any page is created or renamed.
-
-## Log Format
-
-- Append only.
-- Headers: `## [YYYY-MM-DD] <operation> | <title>`
-- Operations: `ingest`, `query`, `lint`, `update`
+This vault documents the stock-management product: domain, architecture, phases, and patterns. Application code lives under `apps/` and `packages/` (Full [[Clean Architecture]]).
 
 ## Canonical Pages
 
 - Product: [[Stock Management System]], [[overview]]
 - Stack: [[Tech Stack]]
+- Architecture: [[Clean Architecture]], [[SOLID and Design Patterns]]
 - Domain: [[Domain Model]], [[Document-Driven Inventory]]
 - Costing / accounting: [[FIFO Costing]], [[Inventory Accounting]]
 - Structure: [[Org Branch Location]]

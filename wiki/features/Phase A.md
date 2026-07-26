@@ -12,7 +12,7 @@ Platform skeleton — multi-branch foundation, no stock yet.
 
 ## Status
 
-In progress (2026-07-26): monorepo + schema + layered APIs + masters UI. Migration apply pending local Postgres.
+Migrating to [[Clean Architecture]] complete (2026-07-26): packages-first (`domain` / `application`), API adapters under `infrastructure` + `interfaces/http`. Masters UI remains thin HTTP client.
 
 ## Features
 
@@ -26,12 +26,13 @@ In progress (2026-07-26): monorepo + schema + layered APIs + masters UI. Migrati
 
 ## Architecture
 
-Follows [[SOLID and Design Patterns]]: `routes → service → repository` under `apps/api/src/modules/`.
+Follows [[Clean Architecture]]: use cases in `packages/application`, entities in `packages/domain`, Drizzle adapters in `apps/api/src/infrastructure`, HTTP in `apps/api/src/interfaces/http`.
 
-## Plan
+## Plans
 
-`docs/superpowers/plans/2026-07-25-phase-a-platform-skeleton.md`
+- CA migration: `docs/superpowers/plans/2026-07-26-clean-architecture-migration.md`
+- Original scaffold (historical): `docs/superpowers/plans/2026-07-25-phase-a-platform-skeleton.md`
 
 ## Related
 
-[[Org Branch Location]] · [[Tech Stack]] · [[Feature Phases]]
+[[Org Branch Location]] · [[Tech Stack]] · [[Feature Phases]] · [[Clean Architecture]]
