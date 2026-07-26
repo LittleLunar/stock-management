@@ -309,6 +309,9 @@ function makeFake(options: FakeOptions = {}) {
       async upsert() {
         throw new Error("lots unused");
       },
+      async findById() {
+        return null;
+      },
       async list() {
         return [];
       },

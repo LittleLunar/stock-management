@@ -25,6 +25,7 @@ import {
 } from "../costing/apply-document-costing.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import type { BranchListFilter } from "../access/list-scope.js";
+import { assertOutboundSellable } from "../fefo/assert-outbound-sellable.js";
 import type { StockAdjustmentPort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 import type { ApprovalPolicyUseCases } from "./approval-policy.js";
@@ -124,6 +125,14 @@ export class PostStockAdjustment {
           lotId: line.lotId,
           serialNumbers: line.serialNumbers,
         });
+        if (Number(line.qty) < 0) {
+          await assertOutboundSellable(ctx, {
+            orgId,
+            locationId: adjustment.locationId,
+            lotId: line.lotId,
+            operation: "adjustment",
+          });
+        }
         if (
           serialTrackedProductIds.has(line.productId) &&
           Number(line.qty) < 0

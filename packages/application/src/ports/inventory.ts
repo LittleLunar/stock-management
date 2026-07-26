@@ -362,6 +362,7 @@ export type UpsertLotInput = {
 
 export interface LotPort {
   upsert(input: UpsertLotInput): Promise<Lot>;
+  findById(orgId: string, id: string): Promise<Lot | null>;
   list(orgId: string, filters?: { productId?: string }): Promise<Lot[]>;
 }
 

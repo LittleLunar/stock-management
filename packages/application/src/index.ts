@@ -17,6 +17,7 @@ export * from "./costing/apply-document-costing.js";
 export * from "./costing/fake-costing.js";
 export * from "./costing/outbox-cost-fields.js";
 export * from "./costing/refresh-cost-summary.js";
+export * from "./fefo/assert-outbound-sellable.js";
 export * from "./accounting/default-chart.js";
 export * from "./accounting/journal-event-mapper.js";
 export * from "./accounting/fake-accounting.js";

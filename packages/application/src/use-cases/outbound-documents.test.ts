@@ -1,4 +1,5 @@
 import type {
+  Lot,
   Product,
   Serial,
   StockAdjustment,
@@ -8,7 +9,7 @@ import type {
   StockMovement,
   StockTransfer,
 } from "@stock-management/domain";
-import { InsufficientStockError } from "@stock-management/domain";
+import { InsufficientStockError, LotExpiredError } from "@stock-management/domain";
 import { describe, expect, it } from "vitest";
 import { createFakeCosting } from "../costing/fake-costing.js";
 import type {
@@ -61,11 +62,13 @@ type FakeOptions = {
   serialLocationId?: string | null;
   seedSerials?: boolean;
   seedCostLayers?: boolean;
+  lot?: Pick<Lot, "id" | "expiryDate" | "status">;
 };
 
 function makeFake(options: FakeOptions = {}) {
   const serialNumbers = options.serialNumbers ?? [];
   const adjustmentSerialNumbers = options.adjustmentSerialNumbers ?? [];
+  const lotId = options.lot?.id ?? null;
   const product: Product = {
     id: productId,
     orgId,
@@ -73,9 +76,9 @@ function makeFake(options: FakeOptions = {}) {
     name: "Widget",
     uom: "each",
     categoryId: null,
-    trackLot: false,
+    trackLot: options.lot != null,
     trackSerial: serialNumbers.length > 0 || adjustmentSerialNumbers.length > 0,
-    trackExpiry: false,
+    trackExpiry: options.lot != null,
     costingMethod: "fifo",
     reorderMin: null,
     reorderMax: null,
@@ -103,7 +106,7 @@ function makeFake(options: FakeOptions = {}) {
         stockIssueId: "issue-1",
         productId,
         qty: options.issueQty ?? "3",
-        lotId: null,
+        lotId,
         lineNumber: 1,
         serialNumbers,
       },
@@ -207,16 +210,16 @@ function makeFake(options: FakeOptions = {}) {
   const serialsByNumber = new Map<string, Serial>();
   const costing = createFakeCosting();
   let movementSequence = 0;
-  const key = (locationId: string, lotId: string | null = null) =>
-    `${productId}:${locationId}:${lotId ?? ""}`;
+  const key = (locationId: string, balanceLotId: string | null = null) =>
+    `${productId}:${locationId}:${balanceLotId ?? ""}`;
 
   const seedBalance = (locationId: string, qtyOnHand: string) => {
-    balances.set(key(locationId), {
+    balances.set(key(locationId, lotId), {
       id: `balance-${locationId}`,
       orgId,
       productId,
       locationId,
-      lotId: null,
+      lotId,
       qtyOnHand,
       qtyReserved: "0",
       updatedAt: now,
@@ -231,7 +234,7 @@ function makeFake(options: FakeOptions = {}) {
       orgId,
       productId,
       locationId: fromLocationId,
-      lotId: null,
+      lotId,
       sourceDocumentType: "goods_receipt",
       sourceDocumentId: "gr-seed",
       sourceDocumentLineId: "grl-seed",
@@ -510,6 +513,19 @@ function makeFake(options: FakeOptions = {}) {
       async upsert() {
         throw new Error("Unexpected lot upsert");
       },
+      async findById(_orgId: string, id: string) {
+        if (!options.lot || options.lot.id !== id) return null;
+        return {
+          id: options.lot.id,
+          orgId,
+          productId,
+          lotCode: "LOT-1",
+          expiryDate: options.lot.expiryDate,
+          status: options.lot.status,
+          createdAt: now,
+          updatedAt: now,
+        };
+      },
       async list() {
         return [];
       },
@@ -590,7 +606,7 @@ function makeFake(options: FakeOptions = {}) {
     uow,
     ctx,
     getBalance: (locationId: string) =>
-      balances.get(key(locationId))?.qtyOnHand ?? "0",
+      balances.get(key(locationId, lotId))?.qtyOnHand ?? "0",
     getIssue: () => issue,
     getTransfer: () => transfer,
     getAdjustment: () => adjustment,
@@ -651,6 +667,24 @@ describe("stock issue use cases", () => {
       new PostStockIssue(fake.uow).execute(orgId, userId, "issue-1"),
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(fake.getMovements()).toHaveLength(0);
+  });
+
+  it("rejects posting an issue for an expired lot even with on-hand balance", async () => {
+    const fake = makeFake({
+      issueQty: "1",
+      onHand: "5",
+      lot: {
+        id: "lot-expired",
+        expiryDate: new Date("2026-07-01T00:00:00.000Z"),
+        status: "active",
+      },
+    });
+
+    await expect(
+      new PostStockIssue(fake.uow).execute(orgId, userId, "issue-1"),
+    ).rejects.toBeInstanceOf(LotExpiredError);
+    expect(fake.getMovements()).toHaveLength(0);
+    expect(fake.getBalance(fromLocationId)).toBe("5");
   });
 
   it("consumes FIFO layers on post and stamps movement costs", async () => {

@@ -180,6 +180,10 @@ class InMemoryLotRepository implements LotPort {
     throw new Error("Not implemented for inquiry tests");
   }
 
+  async findById(orgId: string, id: string): Promise<Lot | null> {
+    return lots.find((lot) => lot.orgId === orgId && lot.id === id) ?? null;
+  }
+
   async list(orgId: string, filters?: { productId?: string }): Promise<Lot[]> {
     return lots.filter(
       (lot) =>

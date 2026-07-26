@@ -30,6 +30,7 @@ import {
   moveLayersForTransferHop,
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
+import { assertOutboundSellable } from "../fefo/assert-outbound-sellable.js";
 import type {
   LocationLookupPort,
   StockTransferPort,
@@ -164,6 +165,7 @@ export class ShipStockTransfer {
         ctx,
         orgId,
         transfer.fromLocationId,
+        transfer.toLocationId,
         transfer.lines,
       );
 
@@ -345,7 +347,8 @@ type TransferLines = StockTransferWithLines["lines"];
 async function validateTransferLines(
   ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
   orgId: string,
-  locationId: string,
+  fromLocationId: string,
+  toLocationId: string,
   lines: TransferLines,
 ): Promise<void> {
   for (const line of lines) {
@@ -355,16 +358,23 @@ async function validateTransferLines(
       lotId: line.lotId,
       serialNumbers: line.serialNumbers,
     });
+    await assertOutboundSellable(ctx, {
+      orgId,
+      locationId: fromLocationId,
+      lotId: line.lotId,
+      operation: "transfer_ship",
+      toLocationId,
+    });
     await assertTransferSerialsAvailable(
       ctx,
       orgId,
       line.productId,
       line.lotId,
       line.serialNumbers,
-      locationId,
+      fromLocationId,
     );
   }
-  await validateAvailableStock(ctx, orgId, locationId, lines);
+  await validateAvailableStock(ctx, orgId, fromLocationId, lines);
 }
 
 async function assertTransferSerialsAvailable(

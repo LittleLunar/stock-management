@@ -20,6 +20,7 @@ import {
 } from "../costing/apply-document-costing.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import type { BranchListFilter } from "../access/list-scope.js";
+import { assertOutboundSellable } from "../fefo/assert-outbound-sellable.js";
 import type { StockIssuePort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -88,6 +89,12 @@ export async function postStockIssueInCtx(
     assertLotSerialRules(product, {
       lotId: line.lotId,
       serialNumbers: line.serialNumbers,
+    });
+    await assertOutboundSellable(ctx, {
+      orgId,
+      locationId: issue.locationId,
+      lotId: line.lotId,
+      operation: "issue",
     });
     await assertSerialsAvailable(
       ctx.serials,

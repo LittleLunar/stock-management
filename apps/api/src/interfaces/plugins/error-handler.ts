@@ -12,6 +12,9 @@ import {
   InvoiceNotDraftError,
   InvoiceNotPostedError,
   LayerInUseError,
+  LocationQuarantinedError,
+  LotExpiredError,
+  LotQuarantinedError,
   MissingUnitCostError,
   NotFoundError,
   PeriodClosedError,
@@ -66,7 +69,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
       error instanceof PeriodClosedError ||
       error instanceof InvoiceNotDraftError ||
       error instanceof InvoiceNotPostedError ||
-      error instanceof InvoiceAlreadyVoidedError
+      error instanceof InvoiceAlreadyVoidedError ||
+      error instanceof LotExpiredError ||
+      error instanceof LotQuarantinedError ||
+      error instanceof LocationQuarantinedError
     ) {
       return reply
         .status(409)

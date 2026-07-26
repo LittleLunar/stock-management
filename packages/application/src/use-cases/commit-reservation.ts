@@ -3,6 +3,7 @@ import {
   assertCanCommitReservation,
 } from "@stock-management/domain";
 import type { StockMovement, StockReservation } from "@stock-management/domain";
+import { assertOutboundSellable } from "../fefo/assert-outbound-sellable.js";
 import type { StockIssueWithLines } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 import { postStockIssueInCtx } from "./stock-issue.js";
@@ -31,6 +32,14 @@ export class CommitReservation {
       const reservation = await reservations.findById(orgId, reservationId);
       if (!reservation) throw new NotFoundError("Reservation");
       assertCanCommitReservation(reservation, now);
+
+      await assertOutboundSellable(ctx, {
+        orgId,
+        locationId: reservation.locationId,
+        lotId: reservation.lotId,
+        operation: "reservation_commit",
+        today: now,
+      });
 
       const draftIssue = await issues.create(orgId, {
         branchId: reservation.branchId,

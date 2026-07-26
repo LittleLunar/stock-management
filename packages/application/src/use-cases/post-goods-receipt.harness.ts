@@ -385,6 +385,9 @@ export function makeFake(options: FakeOptions | string = {}) {
       async upsert() {
         throw new Error("lot upsert should not be called for untracked product");
       },
+      async findById() {
+        return null;
+      },
       async list() {
         return [];
       },

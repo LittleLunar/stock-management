@@ -332,6 +332,9 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
           updatedAt: now,
         };
       },
+      async findById() {
+        return null;
+      },
       async list() {
         return [];
       },
