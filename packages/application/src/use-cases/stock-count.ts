@@ -3,6 +3,7 @@ import {
   InvalidStateError,
   NotFoundError,
   assertCanPostCount,
+  assertLayersFullyOpen,
   countVariance,
   signedQtyForMovement,
 } from "@stock-management/domain";
@@ -12,6 +13,11 @@ import type {
   IdempotencyInput,
   UpdateStockCountInput,
 } from "../dto/inputs.js";
+import {
+  consumeFifoForMovement,
+  createLayerForMovement,
+  restoreConsumptionsForVoidedMovements,
+} from "../costing/apply-document-costing.js";
 import type { StockCountPort, StockPort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -146,15 +152,46 @@ export class PostStockCount {
           lotId: line.lotId,
         };
         const balance = await ctx.stock.findBalance(balanceKey);
+        const movement = await ctx.stock.insertMovement({
+          ...balanceKey,
+          documentType: "stock_count",
+          documentId: count.id,
+          documentLineId: line.id,
+          movementType: "count_variance",
+          qty,
+        });
+        const absQty = String(Math.abs(Number(qty)));
+        const costs =
+          Number(qty) > 0
+            ? await createLayerForMovement(ctx, {
+                orgId,
+                productId: line.productId,
+                locationId: count.locationId,
+                lotId: line.lotId,
+                qty: absQty,
+                unitCost: line.unitCost ?? "",
+                movementId: movement.id,
+                sourceDocumentType: "stock_count",
+                sourceDocumentId: count.id,
+                sourceDocumentLineId: line.id,
+              })
+            : await consumeFifoForMovement(ctx, {
+                orgId,
+                productId: line.productId,
+                locationId: count.locationId,
+                lotId: line.lotId,
+                qty: absQty,
+                movementId: movement.id,
+              });
         movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "stock_count",
-            documentId: count.id,
-            documentLineId: line.id,
-            movementType: "count_variance",
-            qty,
-          }),
+          await ctx.stock.updateMovementCosts(
+            orgId,
+            movement.id,
+            costs.unitCost,
+            Number(qty) < 0
+              ? String(-Math.abs(Number(costs.totalCost)))
+              : costs.totalCost,
+          ),
         );
         await ctx.stock.setBalance(
           balanceKey,
@@ -230,7 +267,16 @@ export class VoidStockCount {
         }
       }
 
+      const inboundLayers = await ctx.costing.listLayersBySourceDocument(
+        orgId,
+        "stock_count",
+        count.id,
+      );
+      assertLayersFullyOpen(inboundLayers);
+
       const movements: StockMovement[] = [];
+      const voidMovementIdByForwardId = new Map<string, string>();
+      const consumeForwardIds: string[] = [];
       for (const posted of postedMovements) {
         const qty = signedQtyForMovement("count_variance_void", posted.qty);
         const balanceKey = {
@@ -240,20 +286,35 @@ export class VoidStockCount {
           lotId: posted.lotId,
         };
         const balance = await ctx.stock.findBalance(balanceKey);
-        movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "stock_count",
-            documentId: count.id,
-            documentLineId: posted.documentLineId,
-            movementType: "count_variance_void",
-            qty,
-          }),
-        );
+        const voidMovement = await ctx.stock.insertMovement({
+          ...balanceKey,
+          documentType: "stock_count",
+          documentId: count.id,
+          documentLineId: posted.documentLineId,
+          movementType: "count_variance_void",
+          qty,
+          unitCost: posted.unitCost,
+          totalCost: posted.totalCost
+            ? String(-Number(posted.totalCost))
+            : null,
+        });
+        movements.push(voidMovement);
+        if (Number(posted.qty) < 0) {
+          voidMovementIdByForwardId.set(posted.id, voidMovement.id);
+          consumeForwardIds.push(posted.id);
+        }
         await ctx.stock.setBalance(
           balanceKey,
           String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
         );
+      }
+      await restoreConsumptionsForVoidedMovements(ctx, {
+        orgId,
+        forwardMovementIds: consumeForwardIds,
+        voidMovementIdByForwardId,
+      });
+      for (const layer of inboundLayers) {
+        await ctx.costing.setQtyRemaining(orgId, layer.id, "0");
       }
 
       const voided = await counts.updateStatus(

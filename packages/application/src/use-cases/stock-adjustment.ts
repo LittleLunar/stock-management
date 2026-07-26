@@ -4,6 +4,7 @@ import {
   InvalidStateError,
   NotFoundError,
   assertCanPostAdjustment,
+  assertLayersFullyOpen,
   assertLotSerialRules,
   assertSerialAvailableForOutbound,
   assertSignedAdjustmentQty,
@@ -15,6 +16,11 @@ import type {
   IdempotencyInput,
   UpdateStockAdjustmentInput,
 } from "../dto/inputs.js";
+import {
+  consumeFifoForMovement,
+  createLayerForMovement,
+  restoreConsumptionsForVoidedMovements,
+} from "../costing/apply-document-costing.js";
 import type { StockAdjustmentPort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -130,15 +136,46 @@ export class PostStockAdjustment {
           lotId: line.lotId,
         };
         const balance = await ctx.stock.findBalance(balanceKey);
+        const movement = await ctx.stock.insertMovement({
+          ...balanceKey,
+          documentType: "stock_adjustment",
+          documentId: adjustment.id,
+          documentLineId: line.id,
+          movementType: "adjustment",
+          qty,
+        });
+        const absQty = String(Math.abs(Number(line.qty)));
+        const costs =
+          Number(line.qty) > 0
+            ? await createLayerForMovement(ctx, {
+                orgId,
+                productId: line.productId,
+                locationId: adjustment.locationId,
+                lotId: line.lotId,
+                qty: absQty,
+                unitCost: line.unitCost ?? "",
+                movementId: movement.id,
+                sourceDocumentType: "stock_adjustment",
+                sourceDocumentId: adjustment.id,
+                sourceDocumentLineId: line.id,
+              })
+            : await consumeFifoForMovement(ctx, {
+                orgId,
+                productId: line.productId,
+                locationId: adjustment.locationId,
+                lotId: line.lotId,
+                qty: absQty,
+                movementId: movement.id,
+              });
         movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "stock_adjustment",
-            documentId: adjustment.id,
-            documentLineId: line.id,
-            movementType: "adjustment",
-            qty,
-          }),
+          await ctx.stock.updateMovementCosts(
+            orgId,
+            movement.id,
+            costs.unitCost,
+            Number(line.qty) < 0
+              ? String(-Math.abs(Number(costs.totalCost)))
+              : costs.totalCost,
+          ),
         );
         await ctx.stock.setBalance(
           balanceKey,
@@ -237,7 +274,16 @@ export class VoidStockAdjustment {
         }
       }
 
+      const inboundLayers = await ctx.costing.listLayersBySourceDocument(
+        orgId,
+        "stock_adjustment",
+        adjustment.id,
+      );
+      assertLayersFullyOpen(inboundLayers);
+
       const movements: StockMovement[] = [];
+      const voidMovementIdByForwardId = new Map<string, string>();
+      const consumeForwardIds: string[] = [];
       for (const postedMovement of postedMovements) {
         const qty = signedQtyForMovement("adjustment_void", postedMovement.qty);
         const balanceKey = {
@@ -247,20 +293,35 @@ export class VoidStockAdjustment {
           lotId: postedMovement.lotId,
         };
         const balance = await ctx.stock.findBalance(balanceKey);
-        movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "stock_adjustment",
-            documentId: adjustment.id,
-            documentLineId: postedMovement.documentLineId,
-            movementType: "adjustment_void",
-            qty,
-          }),
-        );
+        const voidMovement = await ctx.stock.insertMovement({
+          ...balanceKey,
+          documentType: "stock_adjustment",
+          documentId: adjustment.id,
+          documentLineId: postedMovement.documentLineId,
+          movementType: "adjustment_void",
+          qty,
+          unitCost: postedMovement.unitCost,
+          totalCost: postedMovement.totalCost
+            ? String(-Number(postedMovement.totalCost))
+            : null,
+        });
+        movements.push(voidMovement);
+        if (Number(postedMovement.qty) < 0) {
+          voidMovementIdByForwardId.set(postedMovement.id, voidMovement.id);
+          consumeForwardIds.push(postedMovement.id);
+        }
         await ctx.stock.setBalance(
           balanceKey,
           String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
         );
+      }
+      await restoreConsumptionsForVoidedMovements(ctx, {
+        orgId,
+        forwardMovementIds: consumeForwardIds,
+        voidMovementIdByForwardId,
+      });
+      for (const layer of inboundLayers) {
+        await ctx.costing.setQtyRemaining(orgId, layer.id, "0");
       }
 
       const voided = await adjustments.updateStatus(

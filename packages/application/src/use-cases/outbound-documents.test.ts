@@ -50,8 +50,10 @@ const toLocationId = "location-to";
 type FakeOptions = {
   issueQty?: string;
   adjustmentQty?: string;
+  adjustmentUnitCost?: string | null;
   adjustmentSerialNumbers?: string[];
   countedQty?: string;
+  countUnitCost?: string | null;
   onHand?: string;
   serialNumbers?: string[];
   serialStatus?: Serial["status"];
@@ -153,7 +155,12 @@ function makeFake(options: FakeOptions = {}) {
         productId,
         qty: options.adjustmentQty ?? "2",
         lotId: null,
-        unitCost: null,
+        unitCost:
+          options.adjustmentUnitCost !== undefined
+            ? options.adjustmentUnitCost
+            : Number(options.adjustmentQty ?? "2") > 0
+              ? "10"
+              : null,
         lineNumber: 1,
         serialNumbers: adjustmentSerialNumbers,
       },
@@ -179,7 +186,13 @@ function makeFake(options: FakeOptions = {}) {
         lotId: null,
         expectedQty: options.onHand ?? "10",
         countedQty: options.countedQty ?? "7",
-        unitCost: null,
+        unitCost:
+          options.countUnitCost !== undefined
+            ? options.countUnitCost
+            : Number(options.countedQty ?? "7") >
+                Number(options.onHand ?? "10")
+              ? "10"
+              : null,
         lineNumber: 1,
       },
     ],
@@ -752,6 +765,32 @@ describe("stock transfer use cases", () => {
     expect(fake.getMovements().at(-1)?.movementType).toBe("transfer_out_void");
   });
 
+  it("moves FIFO layer value through transit and restores on void ship", async () => {
+    const fake = makeFake();
+    const costing = fake.getCosting();
+
+    await new ShipStockTransfer(fake.uow).execute(orgId, userId, "transfer-1");
+
+    expect(costing.layers.find((l) => l.id === "default-layer")?.qtyRemaining).toBe(
+      "6",
+    );
+    const transitLayer = costing.layers.find(
+      (l) => l.locationId === transitLocationId,
+    );
+    expect(transitLayer?.unitCost).toBe("10");
+    expect(transitLayer?.qtyRemaining).toBe("4");
+    expect(transitLayer?.receivedAt).toEqual(new Date("2026-01-01"));
+
+    await new VoidStockTransfer(fake.uow).execute(orgId, userId, "transfer-1");
+
+    expect(costing.layers.find((l) => l.id === "default-layer")?.qtyRemaining).toBe(
+      "10",
+    );
+    expect(
+      costing.layers.find((l) => l.locationId === transitLocationId)?.qtyRemaining,
+    ).toBe("0");
+  });
+
   it("supports draft list, get, create, and update operations", async () => {
     const fake = makeFake();
     const drafts = new StockTransferUseCases(fake.ctx.transfers);
@@ -912,6 +951,38 @@ describe("stock adjustment use cases", () => {
       locationId: fromLocationId,
     });
   });
+
+  it("creates a cost layer on positive adjustment and consumes on negative", async () => {
+    const fake = makeFake({ adjustmentQty: "2", adjustmentUnitCost: "15" });
+    const posted = await new PostStockAdjustment(fake.uow).execute(
+      orgId,
+      userId,
+      "adjustment-1",
+    );
+    expect(posted.movements[0]?.totalCost).toBe("30");
+    expect(
+      fake.getCosting().layers.filter((l) => l.sourceDocumentType === "stock_adjustment"),
+    ).toHaveLength(1);
+
+    const fakeDown = makeFake({ adjustmentQty: "-3", onHand: "10" });
+    const down = await new PostStockAdjustment(fakeDown.uow).execute(
+      orgId,
+      userId,
+      "adjustment-1",
+    );
+    expect(down.movements[0]?.totalCost).toBe("-30");
+    expect(fakeDown.getCosting().layers[0]?.qtyRemaining).toBe("7");
+  });
+
+  it("rejects positive adjustment without unitCost", async () => {
+    const fake = makeFake({
+      adjustmentQty: "2",
+      adjustmentUnitCost: null,
+    });
+    await expect(
+      new PostStockAdjustment(fake.uow).execute(orgId, userId, "adjustment-1"),
+    ).rejects.toMatchObject({ code: "MISSING_UNIT_COST" });
+  });
 });
 
 describe("stock count use cases", () => {
@@ -969,5 +1040,24 @@ describe("stock count use cases", () => {
     });
 
     expect(created.lines[0]?.expectedQty).toBe("12");
+  });
+
+  it("creates a cost layer when count variance is positive", async () => {
+    const fake = makeFake({
+      countedQty: "12",
+      countUnitCost: "8",
+      onHand: "10",
+    });
+    const posted = await new PostStockCount(fake.uow).execute(
+      orgId,
+      userId,
+      "count-1",
+    );
+    expect(posted.movements[0]?.totalCost).toBe("16");
+    expect(
+      fake
+        .getCosting()
+        .layers.filter((l) => l.sourceDocumentType === "stock_count"),
+    ).toHaveLength(1);
   });
 });
