@@ -1,3 +1,5 @@
+import type { AccountingPort } from "./accounting.js";
+import type { ApPort } from "./ap.js";
 import type { CostingPort } from "./costing.js";
 import type {
   CustomerReturnPort,
@@ -40,6 +42,8 @@ export interface UowContext {
   costing: CostingPort;
   landedCosts?: LandedCostPort;
   revaluations?: CostRevaluationPort;
+  accounting?: AccountingPort;
+  ap?: ApPort;
   outbox: OutboxPort;
   idempotency: IdempotencyPort;
 }

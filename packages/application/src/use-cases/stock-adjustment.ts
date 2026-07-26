@@ -404,10 +404,10 @@ async function enqueueAdjustmentEvents(
     eventType: action === "posted" ? "document.posted" : "document.voided",
     aggregateType: "stock_adjustment",
     aggregateId: adjustmentId,
-    payload: {
+      payload: {
       adjustmentId,
       userId,
-      ...(action === "posted" ? costingFieldsFromMovements(movements) : {}),
+      ...costingFieldsFromMovements(movements),
     },
   });
   await ctx.outbox.enqueue({

@@ -48,6 +48,15 @@ import { StockIssuesPage } from "./pages/StockIssuesPage";
 import { StockPage } from "./pages/StockPage";
 import { StockTransfersPage } from "./pages/StockTransfersPage";
 import { SupplierReturnsPage } from "./pages/SupplierReturnsPage";
+import { AccountsPage } from "./pages/AccountsPage";
+import { AccountingPeriodsPage } from "./pages/AccountingPeriodsPage";
+import { ApAgingPage } from "./pages/ApAgingPage";
+import { BalanceSheetPage } from "./pages/BalanceSheetPage";
+import { JournalsPage } from "./pages/JournalsPage";
+import { PnlReportPage } from "./pages/PnlReportPage";
+import { SupplierInvoiceDetailPage } from "./pages/SupplierInvoiceDetailPage";
+import { SupplierInvoicesPage } from "./pages/SupplierInvoicesPage";
+import { TrialBalancePage } from "./pages/TrialBalancePage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -163,6 +172,45 @@ function Shell() {
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
             Revaluations
+          </Link>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Accounting
+          </p>
+          <Link to="/accounts" className="rounded px-2 py-1 hover:bg-slate-100">
+            Accounts
+          </Link>
+          <Link
+            to="/accounting-periods"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Periods
+          </Link>
+          <Link to="/journals" className="rounded px-2 py-1 hover:bg-slate-100">
+            Journals
+          </Link>
+          <Link
+            to="/supplier-invoices"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Supplier invoices
+          </Link>
+          <Link to="/ap-aging" className="rounded px-2 py-1 hover:bg-slate-100">
+            AP aging
+          </Link>
+          <Link
+            to="/reports/trial-balance"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Trial balance
+          </Link>
+          <Link to="/reports/pnl" className="rounded px-2 py-1 hover:bg-slate-100">
+            P&amp;L
+          </Link>
+          <Link
+            to="/reports/balance-sheet"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Balance sheet
           </Link>
           <Link
             to="/reservations"
@@ -765,6 +813,60 @@ const customerReturnsRoute = createRoute({
   component: CustomerReturnsPage,
 });
 
+const accountsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accounts",
+  component: AccountsPage,
+});
+
+const accountingPeriodsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accounting-periods",
+  component: AccountingPeriodsPage,
+});
+
+const journalsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/journals",
+  component: JournalsPage,
+});
+
+const supplierInvoicesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/supplier-invoices",
+  component: SupplierInvoicesPage,
+});
+
+const supplierInvoiceDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/supplier-invoices/$invoiceId",
+  component: SupplierInvoiceDetailPage,
+});
+
+const apAgingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ap-aging",
+  component: ApAgingPage,
+});
+
+const trialBalanceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reports/trial-balance",
+  component: TrialBalancePage,
+});
+
+const pnlRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reports/pnl",
+  component: PnlReportPage,
+});
+
+const balanceSheetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reports/balance-sheet",
+  component: BalanceSheetPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   branchesRoute,
@@ -786,6 +888,15 @@ const routeTree = rootRoute.addChildren([
   stockCountsRoute,
   supplierReturnsRoute,
   customerReturnsRoute,
+  accountsRoute,
+  accountingPeriodsRoute,
+  journalsRoute,
+  supplierInvoicesRoute,
+  supplierInvoiceDetailRoute,
+  apAgingRoute,
+  trialBalanceRoute,
+  pnlRoute,
+  balanceSheetRoute,
 ]);
 
 const router = createRouter({ routeTree });

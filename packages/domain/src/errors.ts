@@ -98,3 +98,65 @@ export class AllocationMismatchError extends DomainError {
     this.name = "AllocationMismatchError";
   }
 }
+
+export class UnbalancedJournalError extends DomainError {
+  constructor(message = "Journal lines are not balanced") {
+    super(message, "UNBALANCED_JOURNAL");
+    this.name = "UnbalancedJournalError";
+  }
+}
+
+export class PeriodClosedError extends DomainError {
+  constructor(message = "Accounting period is closed") {
+    super(message, "PERIOD_CLOSED");
+    this.name = "PeriodClosedError";
+  }
+}
+
+export class AccountMappingMissingError extends DomainError {
+  constructor(journalEventType: string) {
+    super(
+      `Account mapping missing for ${journalEventType}`,
+      "ACCOUNT_MAPPING_MISSING",
+    );
+    this.name = "AccountMappingMissingError";
+  }
+}
+
+export class AccountingPeriodMissingError extends DomainError {
+  constructor(onDate: string) {
+    super(
+      `No accounting period covers date ${onDate}`,
+      "ACCOUNTING_PERIOD_MISSING",
+    );
+    this.name = "AccountingPeriodMissingError";
+  }
+}
+
+export class ThreeWayMatchError extends DomainError {
+  constructor(message: string) {
+    super(message, "THREE_WAY_MATCH");
+    this.name = "ThreeWayMatchError";
+  }
+}
+
+export class InvoiceNotDraftError extends DomainError {
+  constructor(message = "Invoice is not in draft status") {
+    super(message, "INVALID_STATE");
+    this.name = "InvoiceNotDraftError";
+  }
+}
+
+export class InvoiceNotPostedError extends DomainError {
+  constructor(message = "Invoice is not posted") {
+    super(message, "INVALID_STATE");
+    this.name = "InvoiceNotPostedError";
+  }
+}
+
+export class InvoiceAlreadyVoidedError extends DomainError {
+  constructor(message = "Invoice is already voided") {
+    super(message, "INVALID_STATE");
+    this.name = "InvoiceAlreadyVoidedError";
+  }
+}

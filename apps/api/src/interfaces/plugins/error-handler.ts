@@ -1,15 +1,23 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  AccountMappingMissingError,
+  AccountingPeriodMissingError,
+  AllocationMismatchError,
   ConflictError,
   DomainError,
   InsufficientCostError,
   InsufficientStockError,
+  InvoiceAlreadyVoidedError,
+  InvoiceNotDraftError,
+  InvoiceNotPostedError,
   LayerInUseError,
   MissingUnitCostError,
   NotFoundError,
+  PeriodClosedError,
+  ThreeWayMatchError,
   UnauthorizedError,
+  UnbalancedJournalError,
   UnsupportedCostingMethodError,
-  AllocationMismatchError,
 } from "@stock-management/domain";
 import type { ErrorEnvelope } from "@stock-management/shared";
 import { ZodError } from "zod";
@@ -45,7 +53,14 @@ export function registerErrorHandler(app: FastifyInstance): void {
         .send(envelope(request, error.code, error.message));
     }
 
-    if (error instanceof ConflictError || error instanceof LayerInUseError) {
+    if (
+      error instanceof ConflictError ||
+      error instanceof LayerInUseError ||
+      error instanceof PeriodClosedError ||
+      error instanceof InvoiceNotDraftError ||
+      error instanceof InvoiceNotPostedError ||
+      error instanceof InvoiceAlreadyVoidedError
+    ) {
       return reply
         .status(409)
         .send(envelope(request, error.code, error.message));
@@ -56,10 +71,19 @@ export function registerErrorHandler(app: FastifyInstance): void {
       error instanceof InsufficientCostError ||
       error instanceof MissingUnitCostError ||
       error instanceof UnsupportedCostingMethodError ||
-      error instanceof AllocationMismatchError
+      error instanceof AllocationMismatchError ||
+      error instanceof AccountMappingMissingError ||
+      error instanceof AccountingPeriodMissingError ||
+      error instanceof ThreeWayMatchError
     ) {
       return reply
         .status(400)
+        .send(envelope(request, error.code, error.message));
+    }
+
+    if (error instanceof UnbalancedJournalError) {
+      return reply
+        .status(500)
         .send(envelope(request, error.code, error.message));
     }
 

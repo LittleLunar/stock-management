@@ -313,16 +313,17 @@ async function enqueueReturnEvents(
     eventType: action === "posted" ? "document.posted" : "document.voided",
     aggregateType,
     aggregateId: returnId,
-    payload: {
+      payload: {
       returnId,
       userId,
-      ...(action === "posted"
-        ? costingOutboxFields({
-            inventoryValueDelta: String(
-              movements.reduce((sum, m) => sum + Number(m.totalCost ?? 0), 0),
-            ),
-          })
-        : {}),
+      ...costingOutboxFields({
+        inventoryValueDelta: String(
+          movements.reduce(
+            (sum, m) => sum + Math.abs(Number(m.totalCost ?? 0)),
+            0,
+          ),
+        ),
+      }),
     },
   });
   await ctx.outbox.enqueue({

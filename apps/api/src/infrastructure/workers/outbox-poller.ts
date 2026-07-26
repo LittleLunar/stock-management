@@ -18,9 +18,14 @@ export type OutboxPollerLog = {
   error: (obj: Record<string, unknown>, msg: string) => void;
 };
 
+export type ProcessOutboxBatchDeps = {
+  store: OutboxPollerStore;
+  processJournal: (event: PendingOutboxEvent) => Promise<void>;
+};
+
 export type ProcessOutboxBatchOptions = {
   runInTransaction: <T>(
-    fn: (store: OutboxPollerStore) => Promise<T>,
+    fn: (deps: ProcessOutboxBatchDeps) => Promise<T>,
   ) => Promise<T>;
   log: OutboxPollerLog;
   batchSize?: number;
@@ -28,18 +33,19 @@ export type ProcessOutboxBatchOptions = {
 
 /**
  * Claim a batch of pending outbox events (caller supplies SKIP LOCKED store),
- * log each payload, and mark processed — or failed if processing throws.
- * No HTTP webhooks in Phase B3.
+ * create journals when applicable, log each payload, and mark processed —
+ * or failed if processing throws.
  */
 export async function processOutboxBatch(
   options: ProcessOutboxBatchOptions,
 ): Promise<number> {
   const batchSize = options.batchSize ?? 50;
 
-  return options.runInTransaction(async (store) => {
-    const rows = await store.claimPending(batchSize);
+  return options.runInTransaction(async (deps) => {
+    const rows = await deps.store.claimPending(batchSize);
     for (const row of rows) {
       try {
+        await deps.processJournal(row);
         options.log.info(
           {
             eventId: row.id,
@@ -51,14 +57,14 @@ export async function processOutboxBatch(
           },
           "outbox event processed",
         );
-        await store.markProcessed(row.id);
+        await deps.store.markProcessed(row.id);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         options.log.error(
           { eventId: row.id, err: message },
           "outbox event failed",
         );
-        await store.markFailed(row.id, message);
+        await deps.store.markFailed(row.id, message);
       }
     }
     return rows.length;

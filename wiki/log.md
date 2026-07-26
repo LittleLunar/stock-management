@@ -7,6 +7,14 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase D complete (D1–D3)
+
+Shipped D1 (CoA, periods, outbox→journals, journal browser), D2 (supplier
+invoices, exact 3-way match, GRNI→AP journals, AP aging), and D3 (TB/P&L/BS,
+period-close checklist, thin accountant web). Marked [[Phase D]] complete;
+[[Feature Phases]], [[Inventory Accounting]], [[index]], `TASKS.md` updated.
+Phase E unblocked.
+
 ## [2026-07-26] update | Phase D accounting plans
 
 Planning complete for [[Phase D]]: design spec

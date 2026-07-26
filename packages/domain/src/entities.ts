@@ -1,15 +1,19 @@
 import type {
+  AccountType,
   CostingMethod,
   DocumentStatus,
   IssueType,
+  JournalEventType,
   LocationType,
   LotStatus,
   MasterStatus,
   MembershipRole,
   MovementType,
+  PeriodStatus,
   PoStatus,
   ReservationStatus,
   SerialStatus,
+  SupplierInvoiceStatus,
   TransferStatus,
 } from "./types.js";
 
@@ -468,4 +472,102 @@ export type CustomerReturnSerial = {
   orgId: string;
   customerReturnLineId: string;
   serialNumber: string;
+};
+
+export type Account = {
+  id: string;
+  orgId: string;
+  code: string;
+  name: string;
+  type: AccountType;
+  active: boolean;
+  createdAt: Date;
+};
+
+export type AccountMapping = {
+  id: string;
+  orgId: string;
+  journalEventType: JournalEventType;
+  debitAccountId: string;
+  creditAccountId: string;
+};
+
+export type AccountingPeriod = {
+  id: string;
+  orgId: string;
+  year: number;
+  month: number;
+  startsOn: string;
+  endsOn: string;
+  status: PeriodStatus;
+};
+
+export type JournalEntry = {
+  id: string;
+  orgId: string;
+  periodId: string;
+  branchId: string | null;
+  sourceDocumentType: string;
+  sourceDocumentId: string;
+  outboxEventId: string | null;
+  reversesJournalId: string | null;
+  postedAt: Date;
+  createdAt: Date;
+};
+
+export type JournalLine = {
+  id: string;
+  orgId: string;
+  journalEntryId: string;
+  accountId: string;
+  debit: string;
+  credit: string;
+  lineNo: number;
+};
+
+export type JournalLineDraft = {
+  accountId: string;
+  debit: string;
+  credit: string;
+  lineNo: number;
+};
+
+export type SupplierInvoice = {
+  id: string;
+  orgId: string;
+  supplierId: string;
+  branchId: string | null;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string | null;
+  status: SupplierInvoiceStatus;
+  externalSystem: string | null;
+  externalId: string | null;
+  postedAt: Date | null;
+  voidedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type SupplierInvoiceLine = {
+  id: string;
+  orgId: string;
+  supplierInvoiceId: string;
+  productId: string | null;
+  lineNumber: number;
+  qty: string;
+  unitCost: string;
+  amount: string;
+  purchaseOrderLineId: string;
+  goodsReceiptLineId: string;
+};
+
+export type InvoiceMatch = {
+  id: string;
+  orgId: string;
+  supplierInvoiceLineId: string;
+  purchaseOrderLineId: string;
+  goodsReceiptLineId: string;
+  matchedQty: string;
+  matchedAmount: string;
 };

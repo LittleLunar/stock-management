@@ -13,6 +13,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 export const masterStatusEnum = pgEnum("master_status", ["active", "inactive"]);
@@ -1363,3 +1364,220 @@ export const idempotencyKeys = pgTable(
     ),
   ],
 );
+
+export const accountTypeEnum = pgEnum("account_type", [
+  "asset",
+  "liability",
+  "equity",
+  "income",
+  "expense",
+]);
+
+export const periodStatusEnum = pgEnum("period_status", ["open", "closed"]);
+
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    type: accountTypeEnum("type").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("accounts_org_code_uidx").on(t.orgId, t.code)],
+);
+
+export const accountMappings = pgTable(
+  "account_mappings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    journalEventType: text("journal_event_type").notNull(),
+    debitAccountId: uuid("debit_account_id")
+      .notNull()
+      .references(() => accounts.id),
+    creditAccountId: uuid("credit_account_id")
+      .notNull()
+      .references(() => accounts.id),
+  },
+  (t) => [
+    uniqueIndex("account_mappings_org_event_uidx").on(
+      t.orgId,
+      t.journalEventType,
+    ),
+  ],
+);
+
+export const accountingPeriods = pgTable(
+  "accounting_periods",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    year: integer("year").notNull(),
+    month: integer("month").notNull(),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on").notNull(),
+    status: periodStatusEnum("status").notNull().default("open"),
+  },
+  (t) => [
+    uniqueIndex("accounting_periods_org_year_month_uidx").on(
+      t.orgId,
+      t.year,
+      t.month,
+    ),
+  ],
+);
+
+export const journalEntries = pgTable(
+  "journal_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    periodId: uuid("period_id")
+      .notNull()
+      .references(() => accountingPeriods.id),
+    branchId: uuid("branch_id").references(() => branches.id),
+    sourceDocumentType: text("source_document_type").notNull(),
+    sourceDocumentId: uuid("source_document_id").notNull(),
+    outboxEventId: uuid("outbox_event_id"),
+    reversesJournalId: uuid("reverses_journal_id").references(
+      (): AnyPgColumn => journalEntries.id,
+    ),
+    postedAt: timestamp("posted_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("journal_entries_org_outbox_uidx")
+      .on(t.orgId, t.outboxEventId)
+      .where(sql`${t.outboxEventId} is not null`),
+    index("journal_entries_source_idx").on(
+      t.orgId,
+      t.sourceDocumentType,
+      t.sourceDocumentId,
+    ),
+  ],
+);
+
+export const journalLines = pgTable("journal_lines", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  journalEntryId: uuid("journal_entry_id")
+    .notNull()
+    .references(() => journalEntries.id),
+  accountId: uuid("account_id")
+    .notNull()
+    .references(() => accounts.id),
+  debit: numeric("debit", { precision: 18, scale: 4 }).notNull().default("0"),
+  credit: numeric("credit", { precision: 18, scale: 4 }).notNull().default("0"),
+  lineNo: integer("line_no").notNull(),
+});
+
+export const supplierInvoiceStatusEnum = pgEnum("supplier_invoice_status", [
+  "draft",
+  "posted",
+  "voided",
+]);
+
+export const supplierInvoices = pgTable(
+  "supplier_invoices",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    branchId: uuid("branch_id").references(() => branches.id),
+    invoiceNumber: text("invoice_number").notNull(),
+    invoiceDate: date("invoice_date", { mode: "string" }).notNull(),
+    dueDate: date("due_date", { mode: "string" }),
+    status: supplierInvoiceStatusEnum("status").notNull().default("draft"),
+    externalSystem: text("external_system"),
+    externalId: text("external_id"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("supplier_invoices_org_number_uidx").on(
+      t.orgId,
+      t.invoiceNumber,
+    ),
+    uniqueIndex("supplier_invoices_org_external_uidx").on(
+      t.orgId,
+      t.externalSystem,
+      t.externalId,
+    ),
+  ],
+);
+
+export const supplierInvoiceLines = pgTable(
+  "supplier_invoice_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    supplierInvoiceId: uuid("supplier_invoice_id")
+      .notNull()
+      .references(() => supplierInvoices.id),
+    productId: uuid("product_id").references(() => products.id),
+    lineNumber: integer("line_number").notNull(),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }).notNull(),
+    amount: numeric("amount", { precision: 18, scale: 4 }).notNull(),
+    purchaseOrderLineId: uuid("purchase_order_line_id")
+      .notNull()
+      .references(() => purchaseOrderLines.id),
+    goodsReceiptLineId: uuid("goods_receipt_line_id")
+      .notNull()
+      .references(() => goodsReceiptLines.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("supplier_invoice_lines_org_doc_line_uidx").on(
+      t.orgId,
+      t.supplierInvoiceId,
+      t.lineNumber,
+    ),
+  ],
+);
+
+export const invoiceMatches = pgTable("invoice_matches", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  supplierInvoiceLineId: uuid("supplier_invoice_line_id")
+    .notNull()
+    .references(() => supplierInvoiceLines.id),
+  purchaseOrderLineId: uuid("purchase_order_line_id")
+    .notNull()
+    .references(() => purchaseOrderLines.id),
+  goodsReceiptLineId: uuid("goods_receipt_line_id")
+    .notNull()
+    .references(() => goodsReceiptLines.id),
+  matchedQty: numeric("matched_qty", { precision: 18, scale: 4 }).notNull(),
+  matchedAmount: numeric("matched_amount", {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  ...timestamps,
+});

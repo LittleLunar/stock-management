@@ -333,16 +333,17 @@ async function enqueueIssueEvents(
     eventType: action === "posted" ? "document.posted" : "document.voided",
     aggregateType: "stock_issue",
     aggregateId: issueId,
-    payload: {
+      payload: {
       issueId,
       userId,
-      ...(action === "posted"
-        ? costingOutboxFields({
-            cogsTotal: String(
-              movements.reduce((sum, m) => sum + Number(m.totalCost ?? 0), 0),
-            ),
-          })
-        : {}),
+      ...costingOutboxFields({
+        cogsTotal: String(
+          movements.reduce(
+            (sum, m) => sum + Math.abs(Number(m.totalCost ?? 0)),
+            0,
+          ),
+        ),
+      }),
     },
   });
   await ctx.outbox.enqueue({

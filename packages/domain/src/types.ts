@@ -46,3 +46,32 @@ export type MovementType =
   | "supplier_return_void"
   | "customer_return"
   | "customer_return_void";
+
+export type AccountType = "asset" | "liability" | "equity" | "income" | "expense";
+
+export type PeriodStatus = "open" | "closed";
+
+export const JOURNAL_EVENT_TYPES = [
+  "goods_receipt.posted",
+  "goods_receipt.voided",
+  "stock_issue.posted",
+  "stock_issue.voided",
+  "supplier_return.posted",
+  "supplier_return.voided",
+  "inventory_decrease.posted",
+  "inventory_decrease.voided",
+  "inventory_increase.posted",
+  "inventory_increase.voided",
+  "landed_cost.posted",
+  "landed_cost.voided",
+  "cost_revaluation.increase",
+  "cost_revaluation.increase.voided",
+  "cost_revaluation.decrease",
+  "cost_revaluation.decrease.voided",
+  "supplier_invoice.posted",
+  "supplier_invoice.voided",
+] as const;
+
+export type JournalEventType = (typeof JOURNAL_EVENT_TYPES)[number];
+
+export type SupplierInvoiceStatus = "draft" | "posted" | "voided";

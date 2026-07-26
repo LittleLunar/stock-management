@@ -37,6 +37,12 @@ function makeFake(options: FakeOptions | string = {}) {
     typeof options === "string" ? { receivingQty: options } : options;
   const receivingQty = opts.receivingQty ?? "3";
   const withPo = opts.withPo ?? true;
+  const outboxEvents: Array<{
+    eventType: string;
+    aggregateType: string;
+    aggregateId: string;
+    payload: Record<string, unknown>;
+  }> = [];
 
   const po: PurchaseOrder = {
     id: "po-1",
@@ -389,7 +395,14 @@ function makeFake(options: FakeOptions | string = {}) {
       },
     },
     outbox: {
-      async enqueue() {},
+      async enqueue(event) {
+        outboxEvents.push({
+          eventType: event.eventType,
+          aggregateType: event.aggregateType,
+          aggregateId: event.aggregateId,
+          payload: event.payload,
+        });
+      },
     },
     idempotency: {
       async find(orgId, operation, externalSystem, externalId) {
@@ -415,6 +428,7 @@ function makeFake(options: FakeOptions | string = {}) {
 
   return {
     uow,
+    outbox: outboxEvents,
     getBalance: () =>
       balances.get(balanceKey(product.id, receipt.locationId, null)) ?? null,
     getReceipt: () => currentReceipt,
@@ -527,6 +541,17 @@ describe("VoidGoodsReceipt", () => {
       ctx.costing.listOpenLayers("org-1", { productId: "product-1" }),
     );
     expect(open).toHaveLength(0);
+  });
+
+  it("enriches GR void outbox with inventoryValueDelta", async () => {
+    const { uow, outbox } = makeFake("3");
+    await new PostGoodsReceipt(uow).execute("org-1", "user-1", "gr-1");
+    await new VoidGoodsReceipt(uow).execute("org-1", "user-1", "gr-1");
+    const voidEvt = outbox.find(
+      (e) =>
+        e.eventType === "document.voided" && e.aggregateType === "goods_receipt",
+    );
+    expect(voidEvt?.payload.inventoryValueDelta).toBe("30");
   });
 
   it("void rejects when layer partially consumed", async () => {

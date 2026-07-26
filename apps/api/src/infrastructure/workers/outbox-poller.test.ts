@@ -53,7 +53,8 @@ describe("processOutboxBatch", () => {
     const info = vi.fn();
 
     const count = await processOutboxBatch({
-      runInTransaction: async (fn) => fn(store),
+      runInTransaction: async (fn) =>
+        fn({ store, processJournal: async () => {} }),
       log: { info, error: vi.fn() },
       batchSize: 10,
     });
@@ -71,26 +72,51 @@ describe("processOutboxBatch", () => {
     );
   });
 
+  it("invokes processJournal before markProcessed", async () => {
+    const store = createFakeStore([makeEvent()]);
+    const order: string[] = [];
+    const originalMark = store.markProcessed.bind(store);
+    store.markProcessed = async (id: string) => {
+      order.push(`processed:${id}`);
+      await originalMark(id);
+    };
+
+    await processOutboxBatch({
+      runInTransaction: async (fn) =>
+        fn({
+          store,
+          processJournal: async (e) => {
+            order.push(`journal:${e.id}`);
+          },
+        }),
+      log: { info: vi.fn(), error: vi.fn() },
+    });
+
+    expect(order[0]).toBe("journal:evt-1");
+    expect(order[1]).toBe("processed:evt-1");
+  });
+
   it("marks event failed when processing throws", async () => {
     const store = createFakeStore([makeEvent({ id: "evt-bad" })]);
     const error = vi.fn();
 
     const count = await processOutboxBatch({
-      runInTransaction: async (fn) => fn(store),
-      log: {
-        info: () => {
-          throw new Error("log boom");
-        },
-        error,
-      },
+      runInTransaction: async (fn) =>
+        fn({
+          store,
+          processJournal: async () => {
+            throw new Error("journal boom");
+          },
+        }),
+      log: { info: vi.fn(), error },
       batchSize: 10,
     });
 
     expect(count).toBe(1);
     expect(store.processed).toEqual([]);
-    expect(store.failed).toEqual([{ id: "evt-bad", error: "log boom" }]);
+    expect(store.failed).toEqual([{ id: "evt-bad", error: "journal boom" }]);
     expect(error).toHaveBeenCalledWith(
-      expect.objectContaining({ eventId: "evt-bad", err: "log boom" }),
+      expect.objectContaining({ eventId: "evt-bad", err: "journal boom" }),
       "outbox event failed",
     );
   });

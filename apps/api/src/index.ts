@@ -32,6 +32,17 @@ import { customerReturnsRoutes } from "./interfaces/http/customer-returns.routes
 import { landedCostsRoutes } from "./interfaces/http/landed-costs.routes.js";
 import { costRevaluationsRoutes } from "./interfaces/http/cost-revaluations.routes.js";
 import { costReportsRoutes } from "./interfaces/http/cost-reports.routes.js";
+import { accountingRoutes } from "./interfaces/http/accounting.routes.js";
+import { financialReportsRoutes } from "./interfaces/http/financial-reports.routes.js";
+import {
+  apReportsRoutes,
+  supplierInvoicesRoutes,
+} from "./interfaces/http/supplier-invoices.routes.js";
+import { DrizzleAccountingRepository } from "./infrastructure/persistence/accounting.repository.js";
+import {
+  EnsureDefaultChartOfAccounts,
+  ProcessOutboxForJournals,
+} from "@stock-management/application";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
@@ -65,7 +76,7 @@ app.addHook("onRequest", async (request, reply) => {
     "Access-Control-Allow-Headers",
     "Content-Type, X-Org-Id, X-User-Id, X-Request-Id",
   );
-  reply.header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
+  reply.header("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,OPTIONS");
   if (request.method === "OPTIONS") {
     return reply.status(204).send();
   }
@@ -106,13 +117,34 @@ await app.register(customerReturnsRoutes(services), { prefix: "/api/v1" });
 await app.register(landedCostsRoutes(services), { prefix: "/api/v1" });
 await app.register(costRevaluationsRoutes(services), { prefix: "/api/v1" });
 await app.register(costReportsRoutes(services), { prefix: "/api/v1" });
+await app.register(accountingRoutes(services), { prefix: "/api/v1" });
+await app.register(financialReportsRoutes({
+  trialBalance: services.trialBalance,
+  pnl: services.pnlReport,
+  balanceSheet: services.balanceSheet,
+}), { prefix: "/api/v1" });
+await app.register(supplierInvoicesRoutes(services), { prefix: "/api/v1" });
+await app.register(apReportsRoutes(services.apAging), { prefix: "/api/v1" });
 
 const outboxPoller = env.OUTBOX_POLLER_ENABLED
   ? new OutboxPoller({
       intervalMs: env.OUTBOX_POLLER_INTERVAL_MS,
       log: app.log,
       runInTransaction: (fn) =>
-        db.transaction(async (tx) => fn(new DrizzleOutboxRepository(tx))),
+        db.transaction(async (tx) => {
+          const store = new DrizzleOutboxRepository(tx);
+          const accounting = new DrizzleAccountingRepository(tx);
+          const processor = new ProcessOutboxForJournals(
+            accounting,
+            new EnsureDefaultChartOfAccounts(accounting),
+          );
+          return fn({
+            store,
+            processJournal: async (event) => {
+              await processor.execute(event);
+            },
+          });
+        }),
     })
   : null;
 

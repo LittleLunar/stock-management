@@ -50,6 +50,20 @@
       "when": 1785073537536,
       "tag": "0006_phase_c3_landed_reval_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785080000000,
+      "tag": "0007_phase_d1_gl",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785083600000,
+      "tag": "0008_phase_d2_ap",
+      "breakpoints": true
     }
   ]
 }
