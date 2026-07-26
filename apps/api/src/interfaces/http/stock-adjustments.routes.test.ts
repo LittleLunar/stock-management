@@ -52,6 +52,7 @@ function createInMemoryCosting() {
         sourceMovementId: layer.sourceMovementId,
         receivedAt: layer.receivedAt,
         unitCost: layer.unitCost,
+        originalUnitCost: layer.originalUnitCost ?? layer.unitCost,
         qtyOriginal: layer.qtyOriginal,
         qtyRemaining: layer.qtyRemaining,
       };

@@ -115,6 +115,7 @@ export async function createLayerForMovement(
     sourceMovementId: args.movementId,
     receivedAt: args.receivedAt ?? new Date(),
     unitCost: planned.unitCost,
+    originalUnitCost: planned.unitCost,
     qtyOriginal: planned.qtyOriginal,
     qtyRemaining: planned.qtyRemaining,
   });
@@ -180,6 +181,7 @@ export async function moveLayersForTransferHop(
       sourceMovementId: args.inMovementId,
       receivedAt: slice.receivedAt,
       unitCost: slice.unitCost,
+      originalUnitCost: slice.unitCost,
       qtyOriginal: slice.qty,
       qtyRemaining: slice.qty,
     });

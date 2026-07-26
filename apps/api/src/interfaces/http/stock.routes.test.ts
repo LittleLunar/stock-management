@@ -126,6 +126,7 @@ const costLayers: CostLayer[] = [
     sourceMovementId: "movement-1",
     receivedAt: now,
     unitCost: "10",
+    originalUnitCost: "10",
     qtyOriginal: "2",
     qtyRemaining: "2",
   },

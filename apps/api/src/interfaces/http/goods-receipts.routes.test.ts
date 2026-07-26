@@ -309,6 +309,7 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
       async insertLayer(layer) {
         const created: CostLayer = {
           ...layer,
+          originalUnitCost: layer.originalUnitCost ?? layer.unitCost,
           id: layer.id ?? randomUUID(),
         };
         layers.set(created.id, created);

@@ -130,6 +130,7 @@ export class PostGoodsReceipt {
           sourceMovementId: movement.id,
           receivedAt,
           unitCost,
+          originalUnitCost: unitCost,
           qtyOriginal: line.qty,
           qtyRemaining: line.qty,
         });

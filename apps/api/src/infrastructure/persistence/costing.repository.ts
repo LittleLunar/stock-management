@@ -24,6 +24,7 @@ export class DrizzleCostingRepository implements CostingPort {
         sourceMovementId: layer.sourceMovementId,
         receivedAt: layer.receivedAt,
         unitCost: layer.unitCost,
+        originalUnitCost: layer.originalUnitCost,
         qtyOriginal: layer.qtyOriginal,
         qtyRemaining: layer.qtyRemaining,
       })

@@ -236,6 +236,7 @@ function makeFake(options: FakeOptions | string = {}) {
       async insertLayer(layer) {
         const created: CostLayer = {
           ...layer,
+          originalUnitCost: layer.originalUnitCost ?? layer.unitCost,
           id: layer.id ?? `layer-${++sequence}`,
         };
         layers.set(created.id, created);
