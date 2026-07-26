@@ -16,7 +16,7 @@ import type {
   StockMovement,
 } from "@stock-management/domain";
 import { stockRoutes } from "./stock.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -218,7 +218,7 @@ describe("stock inquiry routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     const uow: UnitOfWork = {
       run(fn) {
         return fn({

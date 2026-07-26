@@ -7,7 +7,7 @@ import {
 } from "@stock-management/application";
 import type { Customer } from "@stock-management/domain";
 import { customersRoutes } from "./customers.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -45,7 +45,7 @@ async function buildApp(repo: CustomerRepository) {
   const app = Fastify();
   registerErrorHandler(app);
   await app.register(requestIdPlugin);
-  await app.register(contextPlugin);
+  await app.register(createTestContextPlugin());
   await app.register(customersRoutes(new CustomerUseCases(repo)), {
     prefix: "/api/v1",
   });

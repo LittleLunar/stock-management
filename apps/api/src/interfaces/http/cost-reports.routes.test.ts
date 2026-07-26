@@ -11,7 +11,7 @@ import {
 import type { Location } from "@stock-management/domain";
 import { costReportsRoutes } from "./cost-reports.routes.js";
 import { landedCostsRoutes } from "./landed-costs.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -81,7 +81,7 @@ describe("cost reports and landed cost routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(
       costReportsRoutes({
         valuationReport: new ValuationReportUseCases(costing, locations),

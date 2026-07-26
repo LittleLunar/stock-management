@@ -10,6 +10,7 @@ import {
   CustomerReturnUseCases,
   CustomerUseCases,
   CommitReservation,
+  type MembershipAccessPort,
   EnsureDefaultChartOfAccounts,
   GoodsReceiptUseCases,
   JournalUseCases,
@@ -98,6 +99,7 @@ export type AppServices = {
   suppliers: SupplierUseCases;
   customers: CustomerUseCases;
   users: UsersUseCases;
+  membershipAccess: MembershipAccessPort;
   purchaseOrders: PurchaseOrderUseCases;
   goodsReceipts: GoodsReceiptUseCases;
   postGoodsReceipt: PostGoodsReceipt;
@@ -175,6 +177,7 @@ export function createAppServices(db: Db): AppServices {
   const ap = new DrizzleApRepository(db);
   const closeChecklist = new DrizzleCloseChecklistRepository(db);
   const orgRepo = new DrizzleOrganizationRepository(db);
+  const usersRepo = new DrizzleUsersRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
   const ensureDefaultChartOfAccounts = new EnsureDefaultChartOfAccounts(
     accounting,
@@ -188,7 +191,8 @@ export function createAppServices(db: Db): AppServices {
     products: new ProductUseCases(new DrizzleProductRepository(db)),
     suppliers: new SupplierUseCases(new DrizzleSupplierRepository(db)),
     customers: new CustomerUseCases(customers),
-    users: new UsersUseCases(new DrizzleUsersRepository(db)),
+    users: new UsersUseCases(usersRepo),
+    membershipAccess: usersRepo,
     purchaseOrders: new PurchaseOrderUseCases(purchaseOrders),
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),
     postGoodsReceipt: new PostGoodsReceipt(unitOfWork),

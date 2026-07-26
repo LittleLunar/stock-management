@@ -18,7 +18,7 @@ import type {
   StockMovement,
 } from "@stock-management/domain";
 import { stockAdjustmentsRoutes } from "./stock-adjustments.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -270,7 +270,7 @@ function makeHarness(onHand = "10") {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(stockAdjustmentsRoutes(useCases), { prefix: "/api/v1" });
     return app;
   }

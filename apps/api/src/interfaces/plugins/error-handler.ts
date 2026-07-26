@@ -5,6 +5,7 @@ import {
   AllocationMismatchError,
   ConflictError,
   DomainError,
+  ForbiddenError,
   InsufficientCostError,
   InsufficientStockError,
   InvoiceAlreadyVoidedError,
@@ -50,6 +51,12 @@ export function registerErrorHandler(app: FastifyInstance): void {
     if (error instanceof UnauthorizedError) {
       return reply
         .status(401)
+        .send(envelope(request, error.code, error.message));
+    }
+
+    if (error instanceof ForbiddenError) {
+      return reply
+        .status(403)
         .send(envelope(request, error.code, error.message));
     }
 

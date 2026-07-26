@@ -20,7 +20,7 @@ import type {
   StockMovement,
 } from "@stock-management/domain";
 import { goodsReceiptsRoutes } from "./goods-receipts.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -450,7 +450,7 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(goodsReceiptsRoutes(useCases), { prefix: "/api/v1" });
     return app;
   }

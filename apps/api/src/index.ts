@@ -8,7 +8,7 @@ import { DrizzleOutboxRepository } from "./infrastructure/persistence/outbox.rep
 import { OutboxPoller } from "./infrastructure/workers/outbox-poller.js";
 import { createAppServices } from "./main/composition-root.js";
 import { registerErrorHandler } from "./interfaces/plugins/error-handler.js";
-import { contextPlugin } from "./interfaces/plugins/context.js";
+import { createContextPlugin } from "./interfaces/plugins/context.js";
 import { requestIdPlugin } from "./interfaces/plugins/request-id.js";
 import { orgRoutes } from "./interfaces/http/org.routes.js";
 import { branchesRoutes } from "./interfaces/http/branches.routes.js";
@@ -74,7 +74,7 @@ app.addHook("onRequest", async (request, reply) => {
   reply.header("Access-Control-Allow-Origin", "*");
   reply.header(
     "Access-Control-Allow-Headers",
-    "Content-Type, X-Org-Id, X-User-Id, X-Request-Id",
+    "Content-Type, X-Org-Id, X-User-Id, X-Branch-Id, X-Request-Id",
   );
   reply.header("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,OPTIONS");
   if (request.method === "OPTIONS") {
@@ -86,7 +86,7 @@ app.get("/health", async () => {
   return HealthResponseSchema.parse({ ok: true as const });
 });
 
-await app.register(contextPlugin);
+await app.register(createContextPlugin(services.membershipAccess));
 await app.register(orgRoutes(services.org), { prefix: "/api/v1" });
 await app.register(branchesRoutes(services.branches), { prefix: "/api/v1" });
 await app.register(locationsRoutes(services.locations), { prefix: "/api/v1" });

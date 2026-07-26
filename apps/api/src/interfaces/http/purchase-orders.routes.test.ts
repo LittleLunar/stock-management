@@ -13,7 +13,7 @@ import type {
   PurchaseOrderLine,
 } from "@stock-management/domain";
 import { purchaseOrdersRoutes } from "./purchase-orders.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -129,7 +129,7 @@ describe("purchase order routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(
       purchaseOrdersRoutes(
         new PurchaseOrderUseCases(new InMemoryPurchaseOrderRepository()),

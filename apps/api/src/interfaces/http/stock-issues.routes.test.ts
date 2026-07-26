@@ -18,7 +18,7 @@ import type {
   StockMovement,
 } from "@stock-management/domain";
 import { stockIssuesRoutes } from "./stock-issues.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -268,7 +268,7 @@ function makeHarness(onHand = "10", options?: { seedCostLayers?: boolean }) {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(stockIssuesRoutes(useCases), { prefix: "/api/v1" });
     return app;
   }

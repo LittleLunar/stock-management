@@ -11,7 +11,7 @@ import {
 } from "@stock-management/application";
 import { CloseChecklistResponseSchema } from "@stock-management/shared";
 import { accountingRoutes } from "./accounting.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -54,7 +54,7 @@ describe("accounting routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(accountingRoutes(services), { prefix: "/api/v1" });
     return app;
   }

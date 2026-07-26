@@ -1,5 +1,6 @@
 export * from "./dto/inputs.js";
 export * from "./ports/repositories.js";
+export * from "./ports/membership-access.js";
 export * from "./ports/inventory.js";
 export * from "./ports/costing.js";
 export * from "./ports/landed-cost.js";
