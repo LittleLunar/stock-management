@@ -2,7 +2,7 @@
 
 ## Active
 
-- [ ] **Phase C3 — landed, reval, reports, web** - plan ready: `docs/superpowers/plans/2026-07-26-phase-c3-landed-reval-reports.md` (after C2)
+- [ ] **Phase D accounting** - unblocked after Phase C; journals / AP / periods
 
 ## Waiting On
 
@@ -10,12 +10,12 @@
 
 ## Someday
 
-- [ ] **Phase D accounting** - after Phase C implementation
 - [ ] **Phase E multi-branch hardening**
 - [ ] **Phase F POS integration** - plug into ipos or built-in POS
 
 ## Done
 
+- [x] ~~Phase C3 — landed, reval, reports, web~~ (2026-07-26)
 - [x] ~~Phase C2 — FIFO consumption on all inventory docs~~ (2026-07-26)
 - [x] ~~Phase C1 — cost layers on goods receipt~~ (2026-07-26)
 - [x] ~~Phase C Pass 3 plan (deep C3)~~ (2026-07-26)

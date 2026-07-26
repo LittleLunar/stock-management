@@ -12,29 +12,28 @@ Costing — every stock change valued.
 
 ## Status
 
-**C1 + C2 shipped (2026-07-26).** All inventory document posts/voids
-create or consume location-scoped cost layers in the same UoW and stamp
-movement costs. Implement **C3** next. Phase D unblocks when C3 completes.
+**Phase C complete (2026-07-26).** C1–C3 shipped. Phase D is unblocked.
 
 | Slice | Focus | Status / Plan |
 |-------|--------|----------------|
 | C1 | Cost layers on GR post/void; movement costs; cost-layer inquiry | **Complete** — `docs/superpowers/plans/2026-07-26-phase-c1-cost-layers-receipt.md` |
 | C2 | FIFO consume/create on issue, transfer, adjust, count, returns | **Complete** — `docs/superpowers/plans/2026-07-26-phase-c2-fifo-consumption.md` |
-| C3 | Landed cost, revaluation, valuation (as-of), COGS, cache, thin web | **Plan ready** — `docs/superpowers/plans/2026-07-26-phase-c3-landed-reval-reports.md` |
+| C3 | Landed cost, revaluation, valuation (as-of), COGS, cache, thin web | **Complete** — `docs/superpowers/plans/2026-07-26-phase-c3-landed-reval-reports.md` |
 
 Master: `docs/superpowers/plans/2026-07-26-phase-c-fifo-costing.md`  
 Design: `docs/superpowers/specs/2026-07-26-phase-c-costing-design.md`
 
 ## Features
 
-- FIFO cost layers + consumptions (location-scoped) — **C1 + C2 shipped**
-- Cost on movements (unit/total) — **C1 + C2 shipped**
-- Landed cost allocation (C3)
-- Inventory valuation report incl. as-of (C3)
-- Product cost inquiry (C1) — shipped
-- COGS by period (C3)
-- Revaluation / write-down (C3)
-- Cost summary cache (C3)
+- FIFO cost layers + consumptions (location-scoped) — **shipped**
+- Cost on movements (unit/total) — **shipped**
+- Landed cost allocation — **shipped** (`/api/v1/landed-costs`)
+- Inventory valuation report incl. as-of — **shipped** (`/api/v1/cost-reports/valuation`)
+- Product cost inquiry — **shipped** (`/api/v1/stock/cost-layers`, cost summaries)
+- COGS by period — **shipped** (`/api/v1/cost-reports/cogs`)
+- Revaluation / write-down — **shipped** (`/api/v1/cost-revaluations`)
+- Cost summary cache — **shipped** (`product_cost_summaries`)
+- Outbox cost fields (`inventoryValueDelta`, `cogsTotal`, `landedAmount`, `revaluationValueDelta`) — **shipped** (no journals; Phase D)
 
 ## Architecture
 
@@ -44,4 +43,4 @@ Strategy: FIFO only in C (`avg` rejects). See [[FIFO Costing]].
 
 ## Related
 
-[[FIFO Costing]] · [[Feature Phases]] · [[Phase B]] · [[Document Posting]]
+[[FIFO Costing]] · [[Feature Phases]] · [[Phase B]] · [[Phase D]] · [[Document Posting]]

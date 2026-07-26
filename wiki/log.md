@@ -7,6 +7,13 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase C complete
+
+Shipped C3: landed cost + revaluation docs, value adjustments, as-of valuation,
+COGS report, product cost summaries, outbox cost fields, thin web. Marked Phase
+C done in `TASKS.md`; Phase D unblocked. Updated [[Phase C]], [[FIFO Costing]],
+[[Document Posting]], [[Feature Phases]], [[Inventory Accounting]], [[index]].
+
 ## [2026-07-26] update | Phase C2 complete
 
 Shipped C2: FIFO consume/create on issue, transfer, adjust, count, supplier

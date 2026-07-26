@@ -19,17 +19,18 @@ draft ──post──► posted ──void──► void
                   ├── Stock Movements (immutable)
                   ├── Balance updates (same Unit of Work)
                   ├── Outbox enqueue ([[Phase B]])
-                  ├── Cost layers / consumptions ([[Phase C]] — C1+C2 shipped; C3 next)
+                  ├── Cost layers / consumptions ([[Phase C]] — complete)
                   └── Outbox → Journal ([[Phase D]])
 ```
 
 > [!note]
-> **C1 + C2 shipped:** Every inventory post/void updates cost layers and stamps
-> movement costs in the same UoW. GR creates/closes layers; outbound docs
-> consume FIFO; positive adjust/count/customer return create layers (`unitCost`
-> required); transfers move layers via transit preserving `received_at` /
-> `unit_cost`. Inquiry: `GET /api/v1/stock/cost-layers`. C3 covers landed,
-> reval, reports. Design: `docs/superpowers/specs/2026-07-26-phase-c-costing-design.md`.
+> **Phase C complete:** Every inventory post/void updates cost layers and stamps
+> movement costs in the same UoW. Landed cost and revaluation adjust open-layer
+> `unit_cost` via `cost_layer_value_adjustments` (no qty). Reports:
+> `GET /api/v1/cost-reports/valuation`, `GET /api/v1/cost-reports/cogs`.
+> Outbox payloads may include `inventoryValueDelta` / `cogsTotal` /
+> `landedAmount` / `revaluationValueDelta` for Phase D journals (not posted in C).
+> Design: `docs/superpowers/specs/2026-07-26-phase-c-costing-design.md`.
 
 ## Transfer ship/receive (B2)
 
