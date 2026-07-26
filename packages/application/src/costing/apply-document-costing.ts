@@ -7,6 +7,7 @@ import {
   planPreferSourceLineThenFifo,
 } from "@stock-management/domain";
 import type { UowContext } from "../ports/unit-of-work.js";
+import { refreshCostSummary } from "./refresh-cost-summary.js";
 
 export async function consumeFifoForMovement(
   ctx: Pick<UowContext, "costing" | "products">,
@@ -53,7 +54,6 @@ export async function consumeFifoForMovement(
   const remainingById = new Map(
     fifoLayers.map((l) => [l.id, Number(l.qtyRemaining)]),
   );
-  // preferred layers may not be in fifoLayers map if somehow missing — seed from plan
   for (const slice of plan.slices) {
     if (!remainingById.has(slice.layerId)) {
       const layer = await ctx.costing.getLayer(args.orgId, slice.layerId);
@@ -75,6 +75,13 @@ export async function consumeFifoForMovement(
       isReversal: false,
     });
   }
+
+  await refreshCostSummary(ctx.costing, {
+    orgId: args.orgId,
+    productId: args.productId,
+    locationId: args.locationId,
+    lotId: args.lotId,
+  });
 
   return { unitCost: plan.unitCost, totalCost: plan.totalCost };
 }
@@ -120,6 +127,13 @@ export async function createLayerForMovement(
     qtyRemaining: planned.qtyRemaining,
   });
 
+  await refreshCostSummary(ctx.costing, {
+    orgId: args.orgId,
+    productId: args.productId,
+    locationId: args.locationId,
+    lotId: args.lotId,
+  });
+
   return {
     unitCost: planned.unitCost,
     totalCost: planned.totalCost,
@@ -153,11 +167,13 @@ export async function moveLayersForTransferHop(
     lotId: args.lotId,
   });
   const plan = planFifoConsume(fifoLayers, args.qty);
+  const layerById = new Map(fifoLayers.map((l) => [l.id, l]));
 
   const remainingById = new Map(
     fifoLayers.map((l) => [l.id, Number(l.qtyRemaining)]),
   );
   for (const slice of plan.slices) {
+    const sourceLayer = layerById.get(slice.layerId);
     const next = (remainingById.get(slice.layerId) ?? 0) - Number(slice.qty);
     remainingById.set(slice.layerId, next);
     await ctx.costing.setQtyRemaining(args.orgId, slice.layerId, String(next));
@@ -181,11 +197,24 @@ export async function moveLayersForTransferHop(
       sourceMovementId: args.inMovementId,
       receivedAt: slice.receivedAt,
       unitCost: slice.unitCost,
-      originalUnitCost: slice.unitCost,
+      originalUnitCost: sourceLayer?.originalUnitCost ?? slice.unitCost,
       qtyOriginal: slice.qty,
       qtyRemaining: slice.qty,
     });
   }
+
+  await refreshCostSummary(ctx.costing, {
+    orgId: args.orgId,
+    productId: args.productId,
+    locationId: args.fromLocationId,
+    lotId: args.lotId,
+  });
+  await refreshCostSummary(ctx.costing, {
+    orgId: args.orgId,
+    productId: args.productId,
+    locationId: args.toLocationId,
+    lotId: args.lotId,
+  });
 
   return { unitCost: plan.unitCost, totalCost: plan.totalCost };
 }
@@ -204,6 +233,13 @@ export async function restoreConsumptionsForVoidedMovements(
     args.orgId,
     args.forwardMovementIds,
   );
+
+  const refreshedKeys = new Map<string, {
+    orgId: string;
+    productId: string;
+    locationId: string;
+    lotId: string | null;
+  }>();
 
   for (const consumption of consumptions.filter((c) => !c.isReversal)) {
     const voidMovementId = args.voidMovementIdByForwardId.get(
@@ -230,5 +266,20 @@ export async function restoreConsumptionsForVoidedMovements(
       totalCost: consumption.totalCost,
       isReversal: true,
     });
+    if (layer) {
+      refreshedKeys.set(
+        `${layer.orgId}:${layer.productId}:${layer.locationId}:${layer.lotId ?? ""}`,
+        {
+          orgId: layer.orgId,
+          productId: layer.productId,
+          locationId: layer.locationId,
+          lotId: layer.lotId,
+        },
+      );
+    }
+  }
+
+  for (const key of refreshedKeys.values()) {
+    await refreshCostSummary(ctx.costing, key);
   }
 }

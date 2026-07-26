@@ -18,6 +18,7 @@ import {
   createLayerForMovement,
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
+import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import type { StockCountPort, StockPort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -349,7 +350,11 @@ async function enqueueCountEvents(
     eventType: action === "posted" ? "document.posted" : "document.voided",
     aggregateType: "stock_count",
     aggregateId: countId,
-    payload: { countId, userId },
+    payload: {
+      countId,
+      userId,
+      ...(action === "posted" ? costingFieldsFromMovements(movements) : {}),
+    },
   });
   if (movements.length > 0) {
     await ctx.outbox.enqueue({
@@ -360,4 +365,22 @@ async function enqueueCountEvents(
       payload: { countId, movementIds: movements.map(({ id }) => id) },
     });
   }
+}
+
+function costingFieldsFromMovements(
+  movements: StockMovement[],
+): Record<string, string> {
+  let inventoryValueDelta = 0;
+  let cogsTotal = 0;
+  for (const m of movements) {
+    const cost = Number(m.totalCost ?? 0);
+    if (Number(m.qty) > 0) inventoryValueDelta += Math.abs(cost);
+    else if (Number(m.qty) < 0) cogsTotal += Math.abs(cost);
+  }
+  return costingOutboxFields({
+    ...(inventoryValueDelta !== 0
+      ? { inventoryValueDelta: String(inventoryValueDelta) }
+      : {}),
+    ...(cogsTotal !== 0 ? { cogsTotal: String(cogsTotal) } : {}),
+  });
 }

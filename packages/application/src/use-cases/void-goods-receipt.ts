@@ -6,6 +6,7 @@ import {
   signedQtyForMovement,
 } from "@stock-management/domain";
 import type { GoodsReceipt, StockMovement } from "@stock-management/domain";
+import { refreshCostSummary } from "../costing/refresh-cost-summary.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
 export type VoidGoodsReceiptResult = {
@@ -87,6 +88,12 @@ export class VoidGoodsReceipt {
 
       for (const layer of layers) {
         await ctx.costing.setQtyRemaining(orgId, layer.id, "0");
+        await refreshCostSummary(ctx.costing, {
+          orgId: layer.orgId,
+          productId: layer.productId,
+          locationId: layer.locationId,
+          lotId: layer.lotId,
+        });
       }
 
       for (const line of receipt.lines) {

@@ -15,6 +15,8 @@ import type {
   PurchaseOrderLine,
   StockMovement,
 } from "@stock-management/domain";
+import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
+import { refreshCostSummary } from "../costing/refresh-cost-summary.js";
 import type { IdempotencyInput } from "../dto/inputs.js";
 import type { GoodsReceiptLineDetails } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
@@ -134,6 +136,12 @@ export class PostGoodsReceipt {
           qtyOriginal: line.qty,
           qtyRemaining: line.qty,
         });
+        await refreshCostSummary(ctx.costing, {
+          orgId,
+          productId: line.productId,
+          locationId: receipt.locationId,
+          lotId,
+        });
 
         const balanceKey = {
           orgId,
@@ -167,12 +175,19 @@ export class PostGoodsReceipt {
       );
       const result = { receipt: postedReceipt, movements };
 
+      const inventoryValueDelta = String(
+        movements.reduce((sum, m) => sum + Number(m.totalCost ?? 0), 0),
+      );
       await ctx.outbox.enqueue({
         orgId,
         eventType: "document.posted",
         aggregateType: "goods_receipt",
         aggregateId: receipt.id,
-        payload: { receiptId: receipt.id, userId },
+        payload: {
+          receiptId: receipt.id,
+          userId,
+          ...costingOutboxFields({ inventoryValueDelta }),
+        },
       });
       await ctx.outbox.enqueue({
         orgId,

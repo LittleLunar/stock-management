@@ -202,6 +202,31 @@ export type CostConsumption = {
   createdAt: Date;
 };
 
+export type CostLayerValueAdjustment = {
+  id: string;
+  orgId: string;
+  costLayerId: string;
+  effectiveAt: Date;
+  oldUnitCost: string;
+  newUnitCost: string;
+  amount: string;
+  sourceDocumentType: string;
+  sourceDocumentId: string;
+  sourceDocumentLineId: string | null;
+  createdAt: Date;
+};
+
+export type ProductCostSummary = {
+  id: string;
+  orgId: string;
+  productId: string;
+  locationId: string;
+  lotId: string | null;
+  qtyRemainingSum: string;
+  onHandValue: string;
+  updatedAt: Date;
+};
+
 export type PurchaseOrder = {
   id: string;
   orgId: string;

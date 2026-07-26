@@ -17,6 +17,8 @@ import type {
   StockTransferPort,
   SupplierReturnPort,
 } from "./inventory.js";
+import type { LandedCostPort } from "./landed-cost.js";
+import type { CostRevaluationPort } from "./revaluation.js";
 import type { CustomerRepository } from "./repositories.js";
 
 export interface UowContext {
@@ -36,6 +38,8 @@ export interface UowContext {
   lots: LotPort;
   serials: SerialPort;
   costing: CostingPort;
+  landedCosts?: LandedCostPort;
+  revaluations?: CostRevaluationPort;
   outbox: OutboxPort;
   idempotency: IdempotencyPort;
 }

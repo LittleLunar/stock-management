@@ -353,6 +353,69 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
       async listConsumptionsByMovementIds() {
         return [];
       },
+      async listLayersForValuation(orgId, filter) {
+        return [...layers.values()].filter((layer) => {
+          if (layer.orgId !== orgId) return false;
+          if (filter.productId && layer.productId !== filter.productId) return false;
+          if (filter.locationId && layer.locationId !== filter.locationId) return false;
+          return true;
+        });
+      },
+      async updateLayerUnitCost(orgId, layerId, unitCost) {
+        const layer = layers.get(layerId);
+        if (!layer || layer.orgId !== orgId) return;
+        layers.set(layerId, { ...layer, unitCost });
+      },
+      async listConsumptionsForLayers() {
+        return [];
+      },
+      async insertValueAdjustment() {
+        throw new Error("unused");
+      },
+      async listAdjustmentsForLayers() {
+        return [];
+      },
+      async upsertProductCostSummary(row) {
+        return {
+          id: row.id ?? randomUUID(),
+          orgId: row.orgId,
+          productId: row.productId,
+          locationId: row.locationId,
+          lotId: row.lotId,
+          qtyRemainingSum: row.qtyRemainingSum,
+          onHandValue: row.onHandValue,
+          updatedAt: row.updatedAt ?? now,
+        };
+      },
+      async recomputeProductCostSummary(key) {
+        const open = [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === key.orgId &&
+            layer.productId === key.productId &&
+            layer.locationId === key.locationId &&
+            (layer.lotId ?? null) === (key.lotId ?? null) &&
+            Number(layer.qtyRemaining) > 0,
+        );
+        let qty = 0;
+        let value = 0;
+        for (const layer of open) {
+          qty += Number(layer.qtyRemaining);
+          value += Number(layer.qtyRemaining) * Number(layer.unitCost);
+        }
+        return {
+          id: randomUUID(),
+          orgId: key.orgId,
+          productId: key.productId,
+          locationId: key.locationId,
+          lotId: key.lotId,
+          qtyRemainingSum: String(qty),
+          onHandValue: String(value),
+          updatedAt: now,
+        };
+      },
+      async listProductCostSummaries() {
+        return [];
+      },
     },
     outbox: {
       async enqueue() {},

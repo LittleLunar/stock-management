@@ -18,6 +18,7 @@ import {
   consumeFifoForMovement,
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
+import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import type { StockIssuePort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -332,7 +333,17 @@ async function enqueueIssueEvents(
     eventType: action === "posted" ? "document.posted" : "document.voided",
     aggregateType: "stock_issue",
     aggregateId: issueId,
-    payload: { issueId, userId },
+    payload: {
+      issueId,
+      userId,
+      ...(action === "posted"
+        ? costingOutboxFields({
+            cogsTotal: String(
+              movements.reduce((sum, m) => sum + Number(m.totalCost ?? 0), 0),
+            ),
+          })
+        : {}),
+    },
   });
   await ctx.outbox.enqueue({
     orgId,
