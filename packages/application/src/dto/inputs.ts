@@ -92,3 +92,60 @@ export type CreateMembershipInput = {
   branchIds?: string[];
   status?: MasterStatus;
 };
+
+export type PurchaseOrderLineInput = {
+  id?: string;
+  productId: string;
+  orderedQty: string;
+  unitCost?: string | null;
+  lineNumber: number;
+};
+
+export type CreatePurchaseOrderInput = {
+  supplierId: string;
+  branchId: string;
+  documentNumber?: string | null;
+  expectedDate?: Date | null;
+  lines: PurchaseOrderLineInput[];
+};
+
+export type UpdatePurchaseOrderInput = Partial<
+  Pick<CreatePurchaseOrderInput, "supplierId" | "branchId" | "documentNumber" | "expectedDate">
+> & {
+  lines?: PurchaseOrderLineInput[];
+};
+
+export type GoodsReceiptLineInput = {
+  id?: string;
+  productId: string;
+  purchaseOrderLineId?: string | null;
+  qty: string;
+  unitCost?: string | null;
+  lotId?: string | null;
+  lotCode?: string | null;
+  expiryDate?: Date | null;
+  serialNumbers?: string[];
+  lineNumber: number;
+};
+
+export type CreateGoodsReceiptInput = {
+  purchaseOrderId?: string | null;
+  supplierId?: string | null;
+  branchId: string;
+  locationId: string;
+  lines: GoodsReceiptLineInput[];
+};
+
+export type UpdateGoodsReceiptInput = Partial<
+  Pick<
+    CreateGoodsReceiptInput,
+    "purchaseOrderId" | "supplierId" | "branchId" | "locationId"
+  >
+> & {
+  lines?: GoodsReceiptLineInput[];
+};
+
+export type IdempotencyInput = {
+  externalSystem: string;
+  externalId: string;
+};
