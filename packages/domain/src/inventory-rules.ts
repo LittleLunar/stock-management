@@ -15,6 +15,7 @@ import type {
   DocumentStatus,
   MovementType,
   SerialStatus,
+  TransferPurpose,
 } from "./types.js";
 import {
   InsufficientAvailabilityError,
@@ -22,6 +23,22 @@ import {
   OverReceiveError,
   TrackingRequiredError,
 } from "./errors.js";
+
+/**
+ * replenishment requires distinct branches.
+ * standard: always ok (same or cross branch).
+ */
+export function assertTransferPurpose(
+  purpose: TransferPurpose,
+  fromBranchId: string,
+  toBranchId: string,
+): void {
+  if (purpose === "replenishment" && fromBranchId === toBranchId) {
+    throw new InvalidStateError(
+      "Replenishment transfers require distinct from and to branches",
+    );
+  }
+}
 
 export type ReceiptLineTracking = {
   lotId?: string | null;

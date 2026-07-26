@@ -23,6 +23,8 @@ export type IssueType = (typeof ISSUE_TYPES)[number];
 
 export type TransferStatus = "draft" | "in_transit" | "received" | "void";
 
+export type TransferPurpose = "standard" | "replenishment";
+
 export type LotStatus = "active" | "depleted" | "quarantine";
 
 export type SerialStatus = "in_stock" | "issued" | "returned";

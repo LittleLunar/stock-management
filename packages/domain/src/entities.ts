@@ -14,6 +14,7 @@ import type {
   ReservationStatus,
   SerialStatus,
   SupplierInvoiceStatus,
+  TransferPurpose,
   TransferStatus,
 } from "./types.js";
 
@@ -321,6 +322,7 @@ export type StockTransfer = {
   transitLocationId: string;
   fromBranchId: string;
   toBranchId: string;
+  purpose: TransferPurpose;
   documentNumber: string | null;
   status: TransferStatus;
   createdAt: Date;
