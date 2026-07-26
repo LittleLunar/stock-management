@@ -1,7 +1,7 @@
 # Phase D Design — Accounting
 
 **Date:** 2026-07-26  
-**Status:** Design locked — deep D1, D2, and D3 plans next. Implement D1 → D2 → D3.  
+**Status:** Planning complete (2026-07-26). Deep D1–D3 plans ready. Implement D1 → D2 → D3.  
 **Features:** `docs/FEATURES.md` § Phase D  
 **Wiki:** [[Phase D]], [[Inventory Accounting]], [[Feature Phases]]
 
@@ -46,9 +46,9 @@ flowchart LR
 | Event → account | `AccountMapping` keyed by `orgId + journalEventType` → debitAccountId + creditAccountId |
 | Money | Same as B/C: string decimals via `Number()`; org currency only |
 | Branch on journals | Optional `branchId` on journal header from source document when present; reports filterable |
-| 3-way match | Line-level: invoice line links `purchaseOrderLineId` + optional `goodsReceiptLineId`; qty/amount must not exceed unmatched remaining; **exact** qty and unit-cost match (no % tolerance) |
+| 3-way match | Line-level: inventory invoice lines **require** `purchaseOrderLineId` + `goodsReceiptLineId`; qty/amount must not exceed unmatched remaining; **exact** qty and unit-cost match (no % tolerance) |
 | Invoice lifecycle | `draft` → `posted` (creates AP + match journals) → `voided` (reversing journals); no `paid` state |
-| AP aging | Buckets 0–30 / 31–60 / 61–90 / 90+ by invoice date vs as-of; open = posted unmatched-to-payment (entire posted balance; no payments) |
+| AP aging | Buckets 0–30 / 31–60 / 61–90 / 90+ by invoice date vs as-of; open = entire posted balance (no payments) |
 | Payments / bank | **Out of scope** (Phase D and not on A–F roadmap until later) |
 | Void cost fields | D1 enriches `document.voided` payloads with reverse money deltas (mirror C3 field names) so reverse journals need no recompute from ledger |
 | Manual journals | **No manual journals in D** (read-only journal browser only) |

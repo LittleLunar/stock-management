@@ -1,6 +1,6 @@
 # Phase D — Accounting (Master Plan)
 
-> **For agentic workers:** Do **not** start coding until the user explicitly starts a slice. Execute **D1 → D2 → D3** using `superpowers:subagent-driven-development` or `superpowers:executing-plans` against each deep slice plan. Master indexes D1–D3; deep plans are written in subsequent planning tasks — implement only after those deep plans exist and the user starts a slice.
+> **For agentic workers:** Do **not** start coding until the user explicitly starts a slice. Execute **D1 → D2 → D3** using `superpowers:subagent-driven-development` or `superpowers:executing-plans` against each deep slice plan. Master indexes D1–D3; deep plans are ready — implement only after the user starts a slice.
 
 **Goal:** Complete Phase D accounting across three vertical slices, each producing working, testable software: GL/journals from outbox, AP with exact 3-way match and aging, then reports/close checklist/thin web.
 
