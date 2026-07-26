@@ -1620,3 +1620,53 @@ export const invoiceMatches = pgTable("invoice_matches", {
   }).notNull(),
   ...timestamps,
 });
+
+export const webhookDeliveryStatusEnum = pgEnum("webhook_delivery_status", [
+  "pending",
+  "succeeded",
+  "failed",
+]);
+
+export const webhookSubscriptions = pgTable(
+  "webhook_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    url: text("url").notNull(),
+    secret: text("secret").notNull(),
+    eventTypes: text("event_types").array().notNull(),
+    branchId: uuid("branch_id").references(() => branches.id),
+    active: boolean("active").notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [index("webhook_subscriptions_org_idx").on(t.orgId)],
+);
+
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => webhookSubscriptions.id),
+    outboxEventId: uuid("outbox_event_id")
+      .notNull()
+      .references(() => outboxEvents.id),
+    status: webhookDeliveryStatusEnum("status").notNull().default("pending"),
+    httpStatus: integer("http_status"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("webhook_deliveries_sub_event_uidx").on(
+      t.subscriptionId,
+      t.outboxEventId,
+    ),
+    index("webhook_deliveries_org_idx").on(t.orgId),
+  ],
+);

@@ -3,6 +3,7 @@ export * from "./access/list-scope.js";
 export * from "./ports/repositories.js";
 export * from "./ports/membership-access.js";
 export * from "./ports/approval-policy.js";
+export * from "./ports/webhook.js";
 export * from "./ports/inventory.js";
 export * from "./ports/costing.js";
 export * from "./ports/landed-cost.js";

@@ -78,6 +78,13 @@
       "when": 1785160800000,
       "tag": "0010_phase_e2_ops_approvals",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785168000000,
+      "tag": "0011_phase_e3_webhooks",
+      "breakpoints": true
     }
   ]
 }
