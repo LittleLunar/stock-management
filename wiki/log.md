@@ -7,6 +7,14 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B2/B3 deep plans approved
+
+Deepened B2 (outbound docs) and B3 (returns, reservations, availability, outbox poller) to B1-level implementation plans. Spec decisions appended in `docs/superpowers/specs/2026-07-26-phase-b-design.md`. Updated [[Phase B]].
+
+## [2026-07-26] update | Phase B plans (B1–B3)
+
+Saved Phase B design + implementation plans before coding: master `docs/superpowers/plans/2026-07-26-phase-b-inventory-loop.md`, slices B1 PO→GR, B2 outbound docs, B3 returns/reservations/outbox. Spec: `docs/superpowers/specs/2026-07-26-phase-b-design.md`. Updated [[Phase B]], [[Feature Phases]].
+
 ## [2026-07-26] update | DX foundation tooling
 
 Added shared error envelope + request IDs, Zod env validation, Pino config, typed web `ApiError` / RHF+Zod forms / Sonner / error boundary, Vitest, Prettier+ESLint, GitHub Actions CI. Spec: `docs/superpowers/specs/2026-07-26-dx-foundation-design.md`. Plan: `docs/superpowers/plans/2026-07-26-dx-foundation-tooling.md`. Updated [[Tech Stack]], [[Getting Started]].

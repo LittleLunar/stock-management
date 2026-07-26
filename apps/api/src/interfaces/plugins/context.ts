@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync, FastifyRequest } from "fastify";
+import fp from "fastify-plugin";
 import { UnauthorizedError } from "@stock-management/domain";
 
 export type RequestContext = {
@@ -20,7 +21,7 @@ function requireHeader(request: FastifyRequest, name: string): string {
   return value.trim();
 }
 
-export const contextPlugin: FastifyPluginAsync = async (app) => {
+const plugin: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", async (request) => {
     const path = request.url.split("?")[0] ?? request.url;
     if (path === "/health") {
@@ -39,3 +40,5 @@ export const contextPlugin: FastifyPluginAsync = async (app) => {
     };
   });
 };
+
+export const contextPlugin = fp(plugin, { name: "context" });

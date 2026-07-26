@@ -2,11 +2,13 @@
 
 ## Active
 
-- [ ] **Phase A polish** - categories UI optional; seed script
+- [ ] **Phase B1 — PO → goods receipt** - executing: `docs/superpowers/plans/2026-07-26-phase-b1-po-goods-receipt.md`
 
 ## Waiting On
 
-- [ ] **Phase B inventory loop** - CA migration green; ready when Phase A polish done
+- [ ] **Phase A polish** - categories UI optional; seed script
+- [ ] **Phase B2 — outbound documents** - plan ready: `docs/superpowers/plans/2026-07-26-phase-b2-outbound-documents.md` (after B1)
+- [ ] **Phase B3 — returns, reservations, outbox** - plan ready: `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md` (after B2)
 
 ## Someday
 
@@ -14,10 +16,11 @@
 - [ ] **Phase D accounting** - after Phase C
 - [ ] **Phase E multi-branch hardening**
 - [ ] **Phase F POS integration** - plug into ipos or built-in POS
-- [ ] Write detailed plan files for Phases B–F under `docs/superpowers/plans/`
+- [ ] Write detailed plan files for Phases C–F under `docs/superpowers/plans/`
 
 ## Done
 
+- [x] ~~Phase B plans (B1–B3) written~~ (2026-07-26)
 - [x] ~~Product vision + stack decision~~ (2026-07-25)
 - [x] ~~Docs, wiki, rules, plans, memory scaffold~~ (2026-07-25)
 - [x] ~~SOLID coding standards (all phases) in rules/docs/wiki~~ (2026-07-26)

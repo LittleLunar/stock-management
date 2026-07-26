@@ -32,3 +32,5 @@ F  POS / external channels on same APIs
 ```
 
 **MVP cut:** A + B (+ light C on receipt) usable; C + D finance-grade; E + F retail scale.
+
+**Phase B plans:** sliced B1 → B2 → B3 — see [[Phase B]] and `docs/superpowers/plans/2026-07-26-phase-b-inventory-loop.md`.

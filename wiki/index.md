@@ -7,6 +7,7 @@ updated: 2026-07-26
 
 # Wiki Index
 
+
 ## Onboarding
 
 - [[Getting Started]] — how to orient in this repo and wiki
@@ -37,7 +38,7 @@ updated: 2026-07-26
 
 - [[Feature Phases]] — Phase A–F roadmap summary
 - [[Phase A]] — platform skeleton
-- [[Phase B]] — internal inventory loop
+- [[Phase B]] — internal inventory loop (plans B1–B3 ready)
 - [[Phase C]] — costing
 - [[Phase D]] — accounting
 - [[Phase E]] — multi-branch hardening
