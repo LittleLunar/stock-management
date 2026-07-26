@@ -37,7 +37,7 @@
 | GR ↔ PO consistency | GR line’s `purchaseOrderLineId` must equal the invoice line’s `purchaseOrderLineId`; GR header must be `posted` |
 | Match tolerance | **Exact** qty and unit-cost match; **no** % tolerance |
 | Unit-cost equality | `Number(invoiceLine.unitCost) === Number(poLine.unitCost)` and `Number(invoiceLine.unitCost) === Number(grLine.unitCost)`; missing PO/GR unit cost → reject |
-| Remaining capacity | `matchedQty/Amount ≤ remaining unmatched` on **both** PO line and GR line; remaining = capacity − sum of matches from **posted** invoices (voided invoice matches do not count) |
+| Remaining capacity | `matchedQty/Amount ≤ remaining unmatched` on **both** PO line and GR line. Remaining = capacity − (posted matches + **planned matches earlier in this invoice**). Voided invoice matches do not count. **Also reject** duplicate `purchaseOrderLineId` or `goodsReceiptLineId` within one invoice. |
 | PO capacity qty | `purchaseOrderLine.orderedQty` |
 | GR capacity qty | `goodsReceiptLine.qty` |
 | Amount capacity | PO: `orderedQty * unitCost`; GR: `qty * unitCost`; invoice line `amount` must equal `qty * unitCost` (string via `Number()`) |
@@ -49,7 +49,7 @@
 | Void reverse | `listJournalsBySourceDocument` → pick forward (`reversesJournalId == null`); insert reverse with swapped lines + `reversesJournalId`; mark invoice `voided` |
 | Idempotency | Post/void accept `external_system` + `external_id` via existing `IdempotencyPort` (`post-supplier-invoice` / `void-supplier-invoice`); optional columns on invoice header |
 | AP aging open | Entire **posted** invoice balance (sum of line amounts); voided excluded; **no** payments |
-| Aging buckets | `0-30` / `31-60` / `61-90` / `90+` by calendar days between `invoiceDate` and `asOf` (inclusive day count: `floor((asOf - invoiceDate) / 1d)`) |
+| Aging buckets | `0-30` / `31-60` / `61-90` / `90+`. Age-in-days = whole UTC calendar days from `invoiceDate` to `asOf`: `floor((Date.UTC(asOf) − Date.UTC(invoiceDate)) / 86400000)`. Same calendar day → `0`; if `asOf` &lt; `invoiceDate`, clamp to `0` before bucketing. |
 | Branch | Optional `branchId` on invoice header; copied to journal when set |
 | UI | No web screens in D2 (API only) |
 
@@ -124,7 +124,7 @@ sequenceDiagram
 - Domain helpers: `assertPeriodOpen`, `assertJournalBalanced`, `moneyAbs`, `JournalLineDraft`
 - `UowContext.accounting`
 
-Reuse: `IdempotencyPort`, composition root, auth stub, `PostIdempotencySchema` / headers from shared inventory patterns, `ctx.po.findLineById`, `ctx.gr.findById`.
+Reuse: `IdempotencyPort`, composition root, auth stub, `PostIdempotencySchema` / headers from shared inventory patterns, `ctx.po.findLineById`, `ctx.gr.findById`, and **new** `ctx.gr.findLineById` (Task 5 lock).
 
 ---
 
@@ -243,7 +243,13 @@ export function planInvoiceLineMatch(
   ctx: MatchLineContext,
 ): PlannedInvoiceMatch;
 
-/** Validate all lines; returns plans in lineNumber order */
+/**
+ * Validate all lines; returns plans in lineNumber order.
+ * 1. Reject duplicate purchaseOrderLineId or goodsReceiptLineId within `lines`.
+ * 2. For each line (sorted by lineNumber): resolveContext → add intra-invoice
+ *    planned totals for that PO/GR id into matchedOnPo / matchedOnGr → planInvoiceLineMatch
+ *    → accumulate this plan into running maps for subsequent lines.
+ */
 export function planThreeWayMatches(
   lines: MatchLineInput[],
   resolveContext: (line: MatchLineInput) => MatchLineContext,
@@ -251,11 +257,12 @@ export function planThreeWayMatches(
 
 export type AgingBucketKey = "0-30" | "31-60" | "61-90" | "90+";
 
+/** Whole UTC calendar days from invoiceDate → asOf; negative → 0 */
 export function daysBetween(invoiceDate: string, asOf: string): number;
-// UTC date-only: Math.floor((Date.parse(asOf) - Date.parse(invoiceDate)) / 86400000)
+// parse YYYY-MM-DD as UTC midnight; Math.max(0, Math.floor((asOfMs - invMs) / 86400000))
 
 export function agingBucket(daysOutstanding: number): AgingBucketKey;
-// <0 → treat as 0-30; 0..30 → 0-30; 31..60 → 31-60; 61..90 → 61-90; else 90+
+// 0..30 → 0-30; 31..60 → 31-60; 61..90 → 61-90; else 90+
 
 export type ApAgingInvoiceRow = {
   invoiceId: string;
@@ -300,6 +307,7 @@ import {
   buildApAgingReport,
   daysBetween,
   planInvoiceLineMatch,
+  planThreeWayMatches,
   ThreeWayMatchError,
 } from "./ap-match.js";
 
@@ -416,8 +424,115 @@ describe("planInvoiceLineMatch", () => {
   });
 });
 
+describe("planThreeWayMatches", () => {
+  const resolveOk = (line: {
+    purchaseOrderLineId: string;
+    goodsReceiptLineId: string;
+  }) => ({
+    poLine: {
+      id: line.purchaseOrderLineId,
+      orderedQty: "10",
+      unitCost: "5",
+      productId: "p1",
+      purchaseOrderId: "po-1",
+    },
+    grLine: {
+      id: line.goodsReceiptLineId,
+      qty: "8",
+      unitCost: "5",
+      productId: "p1",
+      purchaseOrderLineId: line.purchaseOrderLineId,
+      goodsReceiptId: "gr-1",
+    },
+    gr: { id: "gr-1", status: "posted" as const, supplierId: "sup-1" },
+    matchedOnPo: { qty: "0", amount: "0" },
+    matchedOnGr: { qty: "0", amount: "0" },
+  });
+
+  it("rejects duplicate purchaseOrderLineId within one invoice", () => {
+    expect(() =>
+      planThreeWayMatches(
+        [
+          {
+            lineNumber: 1,
+            qty: "1",
+            unitCost: "5",
+            amount: "5",
+            purchaseOrderLineId: "pol-1",
+            goodsReceiptLineId: "grl-1",
+          },
+          {
+            lineNumber: 2,
+            qty: "1",
+            unitCost: "5",
+            amount: "5",
+            purchaseOrderLineId: "pol-1",
+            goodsReceiptLineId: "grl-2",
+          },
+        ],
+        resolveOk,
+      ),
+    ).toThrow(ThreeWayMatchError);
+  });
+
+  it("rejects duplicate goodsReceiptLineId within one invoice", () => {
+    expect(() =>
+      planThreeWayMatches(
+        [
+          {
+            lineNumber: 1,
+            qty: "1",
+            unitCost: "5",
+            amount: "5",
+            purchaseOrderLineId: "pol-1",
+            goodsReceiptLineId: "grl-1",
+          },
+          {
+            lineNumber: 2,
+            qty: "1",
+            unitCost: "5",
+            amount: "5",
+            purchaseOrderLineId: "pol-2",
+            goodsReceiptLineId: "grl-1",
+          },
+        ],
+        resolveOk,
+      ),
+    ).toThrow(ThreeWayMatchError);
+  });
+
+  it("rejects two lines reusing the same PO+GR line ids", () => {
+    expect(() =>
+      planThreeWayMatches(
+        [
+          {
+            lineNumber: 1,
+            qty: "2",
+            unitCost: "5",
+            amount: "10",
+            purchaseOrderLineId: "pol-shared",
+            goodsReceiptLineId: "grl-shared",
+          },
+          {
+            lineNumber: 2,
+            qty: "2",
+            unitCost: "5",
+            amount: "10",
+            purchaseOrderLineId: "pol-shared",
+            goodsReceiptLineId: "grl-shared",
+          },
+        ],
+        resolveOk,
+      ),
+    ).toThrow(ThreeWayMatchError);
+  });
+});
+
 describe("aging", () => {
-  it("buckets by days", () => {
+  it("buckets by age-in-days", () => {
+    expect(daysBetween("2026-07-15", "2026-07-15")).toBe(0);
+    expect(daysBetween("2026-07-01", "2026-07-31")).toBe(30);
+    expect(daysBetween("2026-07-20", "2026-07-01")).toBe(0); // clamp negative
     expect(agingBucket(0)).toBe("0-30");
     expect(agingBucket(30)).toBe("0-30");
     expect(agingBucket(31)).toBe("31-60");
@@ -470,9 +585,63 @@ Implement types, entities, errors, `ap-match.ts` helpers, extend `JOURNAL_EVENT_
 2. Require `gr.status === "posted"`
 3. Require `grLine.purchaseOrderLineId === line.purchaseOrderLineId`
 4. `assertExactUnitCost`, `assertLineAmount`
-5. Optional: if `line.productId` set, must equal `poLine.productId` and `grLine.productId`
-6. `assertRemainingCapacity` for PO (`orderedQty`, `orderedQty*unitCost`) and GR (`qty`, `qty*unitCost`)
+5. If `line.productId` set, must equal `poLine.productId` and `grLine.productId`
+6. `assertRemainingCapacity` for PO (`orderedQty`, `orderedQty*unitCost`) and GR (`qty`, `qty*unitCost`) using `ctx.matchedOnPo` / `ctx.matchedOnGr`
 7. Return planned match with `matchedQty = line.qty`, `matchedAmount = line.amount`
+
+`planThreeWayMatches` must:
+
+```ts
+export function planThreeWayMatches(
+  lines: MatchLineInput[],
+  resolveContext: (line: MatchLineInput) => MatchLineContext,
+): PlannedInvoiceMatch[] {
+  const poIds = new Set<string>();
+  const grIds = new Set<string>();
+  for (const line of lines) {
+    if (poIds.has(line.purchaseOrderLineId)) {
+      throw new ThreeWayMatchError("Duplicate purchaseOrderLineId on invoice");
+    }
+    if (grIds.has(line.goodsReceiptLineId)) {
+      throw new ThreeWayMatchError("Duplicate goodsReceiptLineId on invoice");
+    }
+    poIds.add(line.purchaseOrderLineId);
+    grIds.add(line.goodsReceiptLineId);
+  }
+
+  const plannedPo = new Map<string, { qty: number; amount: number }>();
+  const plannedGr = new Map<string, { qty: number; amount: number }>();
+  const plans: PlannedInvoiceMatch[] = [];
+
+  for (const line of [...lines].sort((a, b) => a.lineNumber - b.lineNumber)) {
+    const ctx = resolveContext(line);
+    const addPo = plannedPo.get(line.purchaseOrderLineId) ?? { qty: 0, amount: 0 };
+    const addGr = plannedGr.get(line.goodsReceiptLineId) ?? { qty: 0, amount: 0 };
+    const merged: MatchLineContext = {
+      ...ctx,
+      matchedOnPo: {
+        qty: String(Number(ctx.matchedOnPo.qty) + addPo.qty),
+        amount: String(Number(ctx.matchedOnPo.amount) + addPo.amount),
+      },
+      matchedOnGr: {
+        qty: String(Number(ctx.matchedOnGr.qty) + addGr.qty),
+        amount: String(Number(ctx.matchedOnGr.amount) + addGr.amount),
+      },
+    };
+    const plan = planInvoiceLineMatch(line, merged);
+    plans.push(plan);
+    plannedPo.set(line.purchaseOrderLineId, {
+      qty: addPo.qty + Number(plan.matchedQty),
+      amount: addPo.amount + Number(plan.matchedAmount),
+    });
+    plannedGr.set(line.goodsReceiptLineId, {
+      qty: addGr.qty + Number(plan.matchedQty),
+      amount: addGr.amount + Number(plan.matchedAmount),
+    });
+  }
+  return plans;
+}
+```
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -895,28 +1064,31 @@ export class PostSupplierInvoice {
 1. Idempotency lookup → return cached result if present
 2. `ctx.ap.findById` — NotFoundError if missing; `InvoiceNotDraftError` if not draft
 3. `await this.ensureDefaults.execute(orgId)` (idempotent CoA + new mappings)
-4. For each line, build `MatchLineContext`:
-   - `poLine = ctx.po.findLineById`
-   - Load GR: find line via `ctx.gr.findById` for the receipt that owns `goodsReceiptLineId` — implement helper on ApPort **or** add `ctx.gr.findLineById(orgId, id)` if missing. **Lock:** add `findLineById` to `GoodsReceiptPort` if not present:
+4. **Lock:** extend `GoodsReceiptPort` with `findLineById` and implement it on the GR Drizzle repository (select by `id` + `orgId`). Load each line via:
 
 ```ts
 // packages/application/src/ports/inventory.ts — GoodsReceiptPort
 findLineById(orgId: string, id: string): Promise<GoodsReceiptLine | null>;
 ```
 
-   Implement in GR repository: select line by id+orgId; for `gr` header use `findById` with `grLine.goodsReceiptId`.
-5. Aggregates: sum qty/amount from `listMatchesForPostedInvoicesByPoLine` / `ByGrLine`
-6. `planThreeWayMatches(lines, resolveContext)` — throws `ThreeWayMatchError` on failure
+   Then `poLine = await ctx.po.findLineById(...)`, `grLine = await ctx.gr.findLineById(...)`, `gr = await ctx.gr.findById(orgId, grLine.goodsReceiptId)`.
+5. For each line’s `resolveContext`, set `matchedOnPo` / `matchedOnGr` to the **sum** of qty/amount from `listMatchesForPostedInvoicesByPoLine` / `ByGrLine` only (posted invoices). Intra-invoice planned totals are applied inside `planThreeWayMatches` (Task 1).
+6. `planThreeWayMatches(lines, resolveContext)` — throws `ThreeWayMatchError` on duplicate PO/GR line ids within the invoice, capacity overrun (posted + planned), or other match failures
 7. If `gr.supplierId` is non-null, require `invoice.supplierId === gr.supplierId` (else `ThreeWayMatchError`)
 8. `insertMatches` for each planned row (generate ids; set `supplierInvoiceLineId` from invoice lines by lineNumber)
 9. `markPosted(orgId, id, now)`
 10. Resolve mapping `supplier_invoice.posted`; throw `AccountMappingMissingError` if null
 11. `findPeriodCoveringDate(orgId, invoice.invoiceDate)`; throw `AccountingPeriodMissingError` if null; `assertPeriodOpen(period)`
 12. `total = moneyAbs(sum of line amounts as string via Number())`
-13. `insertJournal`:
+13. Build journal line drafts; **`assertJournalBalanced(lines)`**; then `insertJournal`:
 
 ```ts
-{
+const lines = [
+  { accountId: mapping.debitAccountId, debit: total, credit: "0", lineNo: 1 },
+  { accountId: mapping.creditAccountId, debit: "0", credit: total, lineNo: 2 },
+];
+assertJournalBalanced(lines);
+await ctx.accounting!.insertJournal({
   entry: {
     orgId,
     periodId: period.id,
@@ -927,11 +1099,8 @@ findLineById(orgId: string, id: string): Promise<GoodsReceiptLine | null>;
     reversesJournalId: null,
     postedAt: now,
   },
-  lines: [
-    { accountId: mapping.debitAccountId, debit: total, credit: "0", lineNo: 1 },
-    { accountId: mapping.creditAccountId, debit: "0", credit: total, lineNo: 2 },
-  ],
-}
+  lines,
+});
 ```
 
 14. Save idempotency result; return `{ invoice, matches, journal }`
@@ -987,7 +1156,7 @@ it("rejects when period closed", async () => {
 
 - [ ] **Step 2: Run** `pnpm --filter @stock-management/application test -- src/use-cases/post-supplier-invoice.test.ts` — FAIL
 
-- [ ] **Step 3: Implement** post use case + `GoodsReceiptPort.findLineById` if needed
+- [ ] **Step 3: Implement** post use case + `GoodsReceiptPort.findLineById` (required) + GR repo method
 
 - [ ] **Step 4: PASS**
 
@@ -1048,7 +1217,7 @@ export class VoidSupplierInvoice {
 6. If any journal already has `reversesJournalId === forward.id`, treat as already voided journal-side → still ensure invoice marked voided (idempotent) or return existing
 7. Mapping `supplier_invoice.voided`; period covering **today** (void date) **or** `invoice.invoiceDate` — **lock: use `invoice.invoiceDate`** so void stays in same period as forward (matches inventory void enrichment spirit); `assertPeriodOpen`
 8. Amount = moneyAbs(sum of forward journal debit lines) (or reload Σ invoice line amounts)
-9. `insertJournal` with swapped accounts from voided mapping, `reversesJournalId: forward.id`, `outboxEventId: null`
+9. Build reverse lines from `supplier_invoice.voided` mapping; **`assertJournalBalanced(lines)`**; then `insertJournal` with `reversesJournalId: forward.id`, `outboxEventId: null`
 10. `markVoided` — **do not delete** `invoice_matches` rows (historical); remaining-capacity queries ignore voided invoices via status join, so capacity frees automatically
 11. Save idempotency; return
 
@@ -1308,22 +1477,145 @@ Required cases (must all pass):
 
 ```ts
 describe("supplier invoice three-way DoD", () => {
-  it("happy path posts match journal", async () => { /* ... */ });
-  it("rejects over-qty against remaining GR", async () => { /* ... */ });
-  it("rejects cost mismatch", async () => { /* ... */ });
-  it("void reverses AP journal and frees capacity", async () => {
-    // post inv-1 matching full GR qty → void → post inv-2 same links succeeds
+  it("happy path posts match journal", async () => {
+    const { post, seedDraft, accounts } = makeThreeWayDodHarness();
+    const draftId = await seedDraft({
+      qty: "2",
+      unitCost: "10",
+      amount: "20",
+      grQty: "5",
+      poOrderedQty: "10",
+      poUnitCost: "10",
+      grUnitCost: "10",
+    });
+    const result = await post.execute("org-1", "user-1", draftId);
+    expect(result.invoice.status).toBe("posted");
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]).toMatchObject({
+      matchedQty: "2",
+      matchedAmount: "20",
+    });
+    expect(result.journal.lines[0]).toMatchObject({
+      accountId: accounts.grni.id,
+      debit: "20",
+      credit: "0",
+    });
+    expect(result.journal.lines[1]).toMatchObject({
+      accountId: accounts.ap.id,
+      debit: "0",
+      credit: "20",
+    });
+    expect(result.journal.outboxEventId).toBeNull();
+    expect(result.journal.sourceDocumentType).toBe("supplier_invoice");
   });
+
+  it("rejects over-qty against remaining GR", async () => {
+    const { post, seedDraft, seedPostedMatch } = makeThreeWayDodHarness();
+    await seedPostedMatch({
+      grLineId: "grl-1",
+      poLineId: "pol-1",
+      matchedQty: "2",
+      matchedAmount: "20",
+    });
+    const draftId = await seedDraft({
+      qty: "1",
+      unitCost: "10",
+      amount: "10",
+      grQty: "2",
+      poOrderedQty: "10",
+      purchaseOrderLineId: "pol-1",
+      goodsReceiptLineId: "grl-1",
+      poUnitCost: "10",
+      grUnitCost: "10",
+    });
+    await expect(post.execute("org-1", "user-1", draftId)).rejects.toBeInstanceOf(
+      ThreeWayMatchError,
+    );
+  });
+
+  it("rejects cost mismatch", async () => {
+    const { post, seedDraft } = makeThreeWayDodHarness();
+    const draftId = await seedDraft({
+      qty: "1",
+      unitCost: "11",
+      amount: "11",
+      poUnitCost: "10",
+      grUnitCost: "10",
+      grQty: "5",
+      poOrderedQty: "10",
+    });
+    await expect(post.execute("org-1", "user-1", draftId)).rejects.toBeInstanceOf(
+      ThreeWayMatchError,
+    );
+  });
+
+  it("void reverses AP journal and frees capacity", async () => {
+    const { post, voidInvoice, seedDraft, accounts } = makeThreeWayDodHarness();
+    const firstId = await seedDraft({
+      invoiceNumber: "INV-1",
+      qty: "2",
+      unitCost: "10",
+      amount: "20",
+      grQty: "2",
+      poOrderedQty: "10",
+      poUnitCost: "10",
+      grUnitCost: "10",
+      purchaseOrderLineId: "pol-1",
+      goodsReceiptLineId: "grl-1",
+    });
+    const posted = await post.execute("org-1", "user-1", firstId);
+    const voided = await voidInvoice.execute("org-1", "user-1", firstId);
+    expect(voided.invoice.status).toBe("voided");
+    expect(voided.reverseJournal.reversesJournalId).toBe(posted.journal.id);
+    expect(voided.reverseJournal.lines[0]).toMatchObject({
+      accountId: accounts.ap.id,
+      debit: "20",
+      credit: "0",
+    });
+    expect(voided.reverseJournal.lines[1]).toMatchObject({
+      accountId: accounts.grni.id,
+      debit: "0",
+      credit: "20",
+    });
+
+    const secondId = await seedDraft({
+      invoiceNumber: "INV-2",
+      qty: "2",
+      unitCost: "10",
+      amount: "20",
+      grQty: "2",
+      poOrderedQty: "10",
+      poUnitCost: "10",
+      grUnitCost: "10",
+      purchaseOrderLineId: "pol-1",
+      goodsReceiptLineId: "grl-1",
+    });
+    const repost = await post.execute("org-1", "user-1", secondId);
+    expect(repost.invoice.status).toBe("posted");
+    expect(repost.matches[0].matchedQty).toBe("2");
+  });
+
   it("post is idempotent on external_system+external_id", async () => {
-    const a = await post.execute("org-1", "u", id, {
+    const { post, seedDraft } = makeThreeWayDodHarness();
+    const id = await seedDraft({
+      qty: "1",
+      unitCost: "10",
+      amount: "10",
+      grQty: "5",
+      poOrderedQty: "10",
+      poUnitCost: "10",
+      grUnitCost: "10",
+    });
+    const a = await post.execute("org-1", "user-1", id, {
       externalSystem: "pos",
       externalId: "bill-1",
     });
-    const b = await post.execute("org-1", "u", id, {
+    const b = await post.execute("org-1", "user-1", id, {
       externalSystem: "pos",
       externalId: "bill-1",
     });
     expect(b.journal.id).toBe(a.journal.id);
+    expect(b.invoice.status).toBe("posted");
   });
 });
 ```
@@ -1404,6 +1696,7 @@ EOF
 
 1. **Spec coverage:** Design D2 items (SupplierInvoice, lines, InvoiceMatch, exact 3-way, GRNI→AP, aging buckets, no payments) map to Tasks 1–8; DoD tests Task 9; wiki Task 10.
 2. **Task 1 deferred wording locked:** required PO+GR ids; exact qty/unit-cost; remaining unmatched; aging = entire posted balance with 0–30 / 31–60 / 61–90 / 90+.
-3. **Journal approach locked:** sync `AccountingPort` in invoice UoW (not outbox enqueue).
-4. **D1 names consumed:** `AccountingPort.insertJournal`, `findMapping`, `findPeriodCoveringDate`, `listJournalsBySourceDocument`, `EnsureDefaultChartOfAccounts`, `assertPeriodOpen`, `assertJournalBalanced`, `moneyAbs`, accounts `2000`/`2100`.
-5. **Placeholders:** none — concrete types, algorithms, commands, commits.
+3. **Intra-invoice capacity:** `planThreeWayMatches` rejects duplicate PO/GR line ids **and** accumulates planned qty/amount per PO/GR line before each `planInvoiceLineMatch`.
+4. **Journal approach locked:** sync `AccountingPort` in invoice UoW (not outbox enqueue); `assertJournalBalanced` before every `insertJournal`.
+5. **D1 names consumed:** `AccountingPort.insertJournal`, `findMapping`, `findPeriodCoveringDate`, `listJournalsBySourceDocument`, `EnsureDefaultChartOfAccounts`, `assertPeriodOpen`, `assertJournalBalanced`, `moneyAbs`, accounts `2000`/`2100`.
+6. **Placeholders:** none — concrete types, algorithms, full Task 9 DoD bodies, commands, commits.
