@@ -35,3 +35,5 @@ export * from "./use-cases/supplier-return.js";
 export * from "./use-cases/customer-return.js";
 export * from "./use-cases/landed-cost.js";
 export * from "./use-cases/cost-revaluation.js";
+export * from "./use-cases/valuation-report.js";
+export * from "./use-cases/cogs-report.js";
