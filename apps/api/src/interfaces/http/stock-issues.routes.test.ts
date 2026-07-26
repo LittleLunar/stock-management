@@ -12,6 +12,7 @@ import {
   type UowContext,
 } from "@stock-management/application";
 import type {
+  Location,
   Product,
   StockBalance,
   StockIssue,
@@ -47,6 +48,17 @@ function makeHarness(onHand = "10", options?: { seedCostLayers?: boolean }) {
     costingMethod: "fifo",
     reorderMin: null,
     reorderMax: null,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const location: Location = {
+    id: LOCATION_ID,
+    orgId: ORG_ID,
+    branchId: BRANCH_ID,
+    code: "MAIN",
+    name: "Main storage",
+    type: "storage",
     status: "active",
     createdAt: now,
     updatedAt: now,
@@ -163,6 +175,25 @@ function makeHarness(onHand = "10", options?: { seedCostLayers?: boolean }) {
     products: {
       async findById(_orgId: string, id: string) {
         return id === product.id ? product : null;
+      },
+    },
+    locations: {
+      async findById(orgId: string, id: string) {
+        return orgId === ORG_ID && id === location.id ? location : null;
+      },
+      async list() {
+        return [location];
+      },
+    },
+    lots: {
+      async upsert() {
+        throw new Error("Unexpected lot upsert");
+      },
+      async findById() {
+        return null;
+      },
+      async list() {
+        return [];
       },
     },
     stock: {
