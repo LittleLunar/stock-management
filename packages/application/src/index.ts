@@ -1,6 +1,7 @@
 export * from "./dto/inputs.js";
 export * from "./ports/repositories.js";
 export * from "./ports/inventory.js";
+export * from "./ports/costing.js";
 export * from "./ports/unit-of-work.js";
 export * from "./use-cases/organization.js";
 export * from "./use-cases/branch.js";
@@ -14,6 +15,7 @@ export * from "./use-cases/goods-receipt.js";
 export * from "./use-cases/post-goods-receipt.js";
 export * from "./use-cases/void-goods-receipt.js";
 export * from "./use-cases/stock-inquiry.js";
+export * from "./use-cases/cost-inquiry.js";
 export * from "./use-cases/stock-issue.js";
 export * from "./use-cases/stock-transfer.js";
 export * from "./use-cases/stock-adjustment.js";

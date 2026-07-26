@@ -310,9 +310,11 @@ export type StockBalanceKey = Pick<
 
 export type CreateStockMovementInput = Omit<
   StockMovement,
-  "id" | "createdAt"
+  "id" | "createdAt" | "unitCost" | "totalCost"
 > & {
   createdAt?: Date;
+  unitCost?: string | null;
+  totalCost?: string | null;
 };
 
 export interface StockPort {

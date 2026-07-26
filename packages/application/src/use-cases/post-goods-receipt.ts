@@ -3,9 +3,12 @@ import {
   InsufficientStockError,
   NotFoundError,
   assertCanPostReceipt,
+  assertFifoCostingMethod,
   assertLotSerialRules,
   assertNoOverReceive,
+  resolveReceiptUnitCost,
   signedQtyForMovement,
+  totalCost,
 } from "@stock-management/domain";
 import type {
   GoodsReceipt,
@@ -78,7 +81,18 @@ export class PostGoodsReceipt {
       }
 
       const movements: StockMovement[] = [];
+      const receivedAt = new Date();
       for (const line of receipt.lines) {
+        const product = await ctx.products.findById(orgId, line.productId);
+        if (!product) throw new NotFoundError("Product");
+        assertFifoCostingMethod(product.costingMethod);
+
+        const poLine = line.purchaseOrderLineId
+          ? await ctx.po.findLineById(orgId, line.purchaseOrderLineId)
+          : null;
+        const unitCost = resolveReceiptUnitCost(line.unitCost, poLine?.unitCost);
+        const lineTotalCost = totalCost(unitCost, line.qty);
+
         const lotId = await this.resolveLotId(ctx, orgId, line);
         for (const serialNumber of line.serialNumbers) {
           await ctx.serials.upsert({
@@ -100,8 +114,25 @@ export class PostGoodsReceipt {
           documentLineId: line.id,
           movementType: "receipt",
           qty,
+          unitCost,
+          totalCost: lineTotalCost,
         });
         movements.push(movement);
+
+        await ctx.costing.insertLayer({
+          orgId,
+          productId: line.productId,
+          locationId: receipt.locationId,
+          lotId,
+          sourceDocumentType: "goods_receipt",
+          sourceDocumentId: receipt.id,
+          sourceDocumentLineId: line.id,
+          sourceMovementId: movement.id,
+          receivedAt,
+          unitCost,
+          qtyOriginal: line.qty,
+          qtyRemaining: line.qty,
+        });
 
         const balanceKey = {
           orgId,

@@ -519,6 +519,12 @@ function makeFake(options: FakeOptions = {}) {
         return [...serialsByNumber.values()];
       },
     },
+    costing: {
+      async insertLayer() { throw new Error("costing not used"); },
+      async listOpenLayers() { return []; },
+      async listLayersBySourceDocument() { return []; },
+      async setQtyRemaining() {},
+    },
     outbox: { async enqueue() {} },
     idempotency: {
       async find() {

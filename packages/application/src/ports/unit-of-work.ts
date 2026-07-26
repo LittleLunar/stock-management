@@ -1,3 +1,4 @@
+import type { CostingPort } from "./costing.js";
 import type {
   CustomerReturnPort,
   GoodsReceiptPort,
@@ -34,6 +35,7 @@ export interface UowContext {
   stock: StockPort;
   lots: LotPort;
   serials: SerialPort;
+  costing: CostingPort;
   outbox: OutboxPort;
   idempotency: IdempotencyPort;
 }

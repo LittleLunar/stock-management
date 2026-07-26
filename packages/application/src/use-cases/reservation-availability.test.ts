@@ -345,6 +345,12 @@ function makeFake(options: FakeOptions = {}) {
         return updated;
       },
     },
+    costing: {
+      async insertLayer() { throw new Error("costing not used"); },
+      async listOpenLayers() { return []; },
+      async listLayersBySourceDocument() { return []; },
+      async setQtyRemaining() {},
+    },
     outbox: {
       async enqueue(event) {
         outbox.push(event);
