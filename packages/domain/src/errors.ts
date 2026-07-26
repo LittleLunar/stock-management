@@ -21,3 +21,38 @@ export class UnauthorizedError extends DomainError {
     this.name = "UnauthorizedError";
   }
 }
+
+export class ConflictError extends DomainError {
+  constructor(message: string) {
+    super(message, "CONFLICT");
+    this.name = "ConflictError";
+  }
+}
+
+export class InvalidStateError extends DomainError {
+  constructor(message: string) {
+    super(message, "INVALID_STATE");
+    this.name = "InvalidStateError";
+  }
+}
+
+export class InsufficientStockError extends DomainError {
+  constructor(message: string) {
+    super(message, "INSUFFICIENT_STOCK");
+    this.name = "InsufficientStockError";
+  }
+}
+
+export class TrackingRequiredError extends DomainError {
+  constructor(message: string) {
+    super(message, "TRACKING_REQUIRED");
+    this.name = "TrackingRequiredError";
+  }
+}
+
+export class OverReceiveError extends DomainError {
+  constructor(message: string) {
+    super(message, "OVER_RECEIVE");
+    this.name = "OverReceiveError";
+  }
+}

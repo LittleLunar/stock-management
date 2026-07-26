@@ -1,8 +1,13 @@
 import type {
   CostingMethod,
+  DocumentStatus,
   LocationType,
+  LotStatus,
   MasterStatus,
   MembershipRole,
+  MovementType,
+  PoStatus,
+  SerialStatus,
 } from "./types.js";
 
 export type Organization = {
@@ -103,4 +108,107 @@ export type Membership = {
   status: MasterStatus;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type Lot = {
+  id: string;
+  orgId: string;
+  productId: string;
+  lotCode: string;
+  expiryDate: Date | null;
+  status: LotStatus;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type Serial = {
+  id: string;
+  orgId: string;
+  productId: string;
+  lotId: string | null;
+  serialNumber: string;
+  status: SerialStatus;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type StockBalance = {
+  id: string;
+  orgId: string;
+  productId: string;
+  locationId: string;
+  lotId: string | null;
+  qtyOnHand: string;
+  qtyReserved: string;
+  updatedAt: Date;
+};
+
+export type StockMovement = {
+  id: string;
+  orgId: string;
+  productId: string;
+  locationId: string;
+  lotId: string | null;
+  documentType: string;
+  documentId: string;
+  documentLineId: string | null;
+  movementType: MovementType;
+  qty: string;
+  createdAt: Date;
+};
+
+export type PurchaseOrder = {
+  id: string;
+  orgId: string;
+  supplierId: string;
+  branchId: string;
+  status: PoStatus;
+  documentNumber: string | null;
+  expectedDate: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type PurchaseOrderLine = {
+  id: string;
+  orgId: string;
+  purchaseOrderId: string;
+  productId: string;
+  orderedQty: string;
+  receivedQty: string;
+  unitCost: string | null;
+  lineNumber: number;
+};
+
+export type GoodsReceipt = {
+  id: string;
+  orgId: string;
+  purchaseOrderId: string | null;
+  supplierId: string | null;
+  branchId: string;
+  locationId: string;
+  status: DocumentStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  postedAt: Date | null;
+  voidedAt: Date | null;
+};
+
+export type GoodsReceiptLine = {
+  id: string;
+  orgId: string;
+  goodsReceiptId: string;
+  productId: string;
+  purchaseOrderLineId: string | null;
+  qty: string;
+  unitCost: string | null;
+  lotId: string | null;
+  lineNumber: number;
+};
+
+export type GoodsReceiptSerial = {
+  id: string;
+  orgId: string;
+  goodsReceiptLineId: string;
+  serialNumber: string;
 };
