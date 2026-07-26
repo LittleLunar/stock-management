@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   integer,
   jsonb,
@@ -82,7 +83,13 @@ export const locations = pgTable(
     status: masterStatusEnum("status").notNull().default("active"),
     ...timestamps,
   },
-  (t) => [uniqueIndex("locations_org_branch_code_uidx").on(t.orgId, t.branchId, t.code)],
+  (t) => [
+    uniqueIndex("locations_org_branch_code_uidx").on(
+      t.orgId,
+      t.branchId,
+      t.code,
+    ),
+  ],
 );
 
 export const users = pgTable(
@@ -169,7 +176,9 @@ export const products = pgTable(
     trackLot: boolean("track_lot").notNull().default(false),
     trackSerial: boolean("track_serial").notNull().default(false),
     trackExpiry: boolean("track_expiry").notNull().default(false),
-    costingMethod: costingMethodEnum("costing_method").notNull().default("fifo"),
+    costingMethod: costingMethodEnum("costing_method")
+      .notNull()
+      .default("fifo"),
     reorderMin: numeric("reorder_min", { precision: 18, scale: 4 }),
     reorderMax: numeric("reorder_max", { precision: 18, scale: 4 }),
     status: masterStatusEnum("status").notNull().default("active"),
@@ -191,7 +200,9 @@ export const productBarcodes = pgTable(
     barcode: text("barcode").notNull(),
     ...timestamps,
   },
-  (t) => [uniqueIndex("product_barcodes_org_barcode_uidx").on(t.orgId, t.barcode)],
+  (t) => [
+    uniqueIndex("product_barcodes_org_barcode_uidx").on(t.orgId, t.barcode),
+  ],
 );
 
 export const suppliers = pgTable(
@@ -279,6 +290,30 @@ export const serialStatusEnum = pgEnum("serial_status", [
 export const movementTypeEnum = pgEnum("movement_type", [
   "receipt",
   "receipt_void",
+  "issue",
+  "issue_void",
+  "transfer_out",
+  "transfer_out_void",
+  "transfer_in",
+  "transfer_in_void",
+  "adjustment",
+  "adjustment_void",
+  "count_variance",
+  "count_variance_void",
+]);
+
+export const issueTypeEnum = pgEnum("issue_type", [
+  "consume",
+  "sample",
+  "write_off",
+  "other",
+]);
+
+export const transferStatusEnum = pgEnum("transfer_status", [
+  "draft",
+  "in_transit",
+  "received",
+  "void",
 ]);
 
 export const outboxStatusEnum = pgEnum("outbox_status", [
@@ -322,6 +357,7 @@ export const serials = pgTable(
       .notNull()
       .references(() => products.id),
     lotId: uuid("lot_id").references(() => lots.id),
+    locationId: uuid("location_id").references(() => locations.id),
     serialNumber: text("serial_number").notNull(),
     status: serialStatusEnum("status").notNull().default("in_stock"),
     ...timestamps,
@@ -515,6 +551,330 @@ export const goodsReceiptSerials = pgTable(
       t.orgId,
       t.goodsReceiptLineId,
       t.serialNumber,
+    ),
+  ],
+);
+
+export const stockIssues = pgTable(
+  "stock_issues",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    documentNumber: text("document_number"),
+    issueType: issueTypeEnum("issue_type").notNull(),
+    reasonNote: text("reason_note"),
+    status: documentStatusEnum("status").notNull().default("draft"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    postedBy: uuid("posted_by").references(() => users.id),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => users.id),
+    externalSystem: text("external_system"),
+    externalId: text("external_id"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_issues_org_document_number_uidx").on(
+      t.orgId,
+      t.documentNumber,
+    ),
+    uniqueIndex("stock_issues_org_external_uidx").on(
+      t.orgId,
+      t.externalSystem,
+      t.externalId,
+    ),
+  ],
+);
+
+export const stockIssueLines = pgTable(
+  "stock_issue_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    stockIssueId: uuid("stock_issue_id")
+      .notNull()
+      .references(() => stockIssues.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    lotId: uuid("lot_id").references(() => lots.id),
+    lineNumber: integer("line_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_issue_lines_org_issue_line_uidx").on(
+      t.orgId,
+      t.stockIssueId,
+      t.lineNumber,
+    ),
+    check("stock_issue_lines_qty_positive", sql`${t.qty} > 0`),
+  ],
+);
+
+export const stockIssueSerials = pgTable(
+  "stock_issue_serials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    stockIssueLineId: uuid("stock_issue_line_id")
+      .notNull()
+      .references(() => stockIssueLines.id),
+    serialNumber: text("serial_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_issue_serials_org_line_number_uidx").on(
+      t.orgId,
+      t.stockIssueLineId,
+      t.serialNumber,
+    ),
+  ],
+);
+
+export const stockTransfers = pgTable(
+  "stock_transfers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    fromLocationId: uuid("from_location_id")
+      .notNull()
+      .references(() => locations.id),
+    toLocationId: uuid("to_location_id")
+      .notNull()
+      .references(() => locations.id),
+    transitLocationId: uuid("transit_location_id")
+      .notNull()
+      .references(() => locations.id),
+    documentNumber: text("document_number"),
+    status: transferStatusEnum("status").notNull().default("draft"),
+    shippedAt: timestamp("shipped_at", { withTimezone: true }),
+    shippedBy: uuid("shipped_by").references(() => users.id),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    receivedBy: uuid("received_by").references(() => users.id),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => users.id),
+    externalSystem: text("external_system"),
+    externalId: text("external_id"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_transfers_org_document_number_uidx").on(
+      t.orgId,
+      t.documentNumber,
+    ),
+    uniqueIndex("stock_transfers_org_external_uidx").on(
+      t.orgId,
+      t.externalSystem,
+      t.externalId,
+    ),
+  ],
+);
+
+export const stockTransferLines = pgTable(
+  "stock_transfer_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    stockTransferId: uuid("stock_transfer_id")
+      .notNull()
+      .references(() => stockTransfers.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    lotId: uuid("lot_id").references(() => lots.id),
+    lineNumber: integer("line_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_transfer_lines_org_transfer_line_uidx").on(
+      t.orgId,
+      t.stockTransferId,
+      t.lineNumber,
+    ),
+    check("stock_transfer_lines_qty_positive", sql`${t.qty} > 0`),
+  ],
+);
+
+export const stockTransferSerials = pgTable(
+  "stock_transfer_serials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    stockTransferLineId: uuid("stock_transfer_line_id")
+      .notNull()
+      .references(() => stockTransferLines.id),
+    serialNumber: text("serial_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_transfer_serials_org_line_number_uidx").on(
+      t.orgId,
+      t.stockTransferLineId,
+      t.serialNumber,
+    ),
+  ],
+);
+
+export const stockAdjustments = pgTable(
+  "stock_adjustments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    documentNumber: text("document_number"),
+    reasonCode: text("reason_code").notNull(),
+    reasonNote: text("reason_note"),
+    status: documentStatusEnum("status").notNull().default("draft"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    postedBy: uuid("posted_by").references(() => users.id),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => users.id),
+    externalSystem: text("external_system"),
+    externalId: text("external_id"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_adjustments_org_document_number_uidx").on(
+      t.orgId,
+      t.documentNumber,
+    ),
+    uniqueIndex("stock_adjustments_org_external_uidx").on(
+      t.orgId,
+      t.externalSystem,
+      t.externalId,
+    ),
+  ],
+);
+
+export const stockAdjustmentLines = pgTable(
+  "stock_adjustment_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    stockAdjustmentId: uuid("stock_adjustment_id")
+      .notNull()
+      .references(() => stockAdjustments.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+    lotId: uuid("lot_id").references(() => lots.id),
+    lineNumber: integer("line_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_adjustment_lines_org_adjustment_line_uidx").on(
+      t.orgId,
+      t.stockAdjustmentId,
+      t.lineNumber,
+    ),
+    check("stock_adjustment_lines_qty_nonzero", sql`${t.qty} <> 0`),
+  ],
+);
+
+export const stockAdjustmentSerials = pgTable(
+  "stock_adjustment_serials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    stockAdjustmentLineId: uuid("stock_adjustment_line_id")
+      .notNull()
+      .references(() => stockAdjustmentLines.id),
+    serialNumber: text("serial_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_adjustment_serials_org_line_number_uidx").on(
+      t.orgId,
+      t.stockAdjustmentLineId,
+      t.serialNumber,
+    ),
+  ],
+);
+
+export const stockCounts = pgTable(
+  "stock_counts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    documentNumber: text("document_number"),
+    status: documentStatusEnum("status").notNull().default("draft"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    postedBy: uuid("posted_by").references(() => users.id),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: uuid("voided_by").references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_counts_org_document_number_uidx").on(
+      t.orgId,
+      t.documentNumber,
+    ),
+  ],
+);
+
+export const stockCountLines = pgTable(
+  "stock_count_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    stockCountId: uuid("stock_count_id")
+      .notNull()
+      .references(() => stockCounts.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    lotId: uuid("lot_id").references(() => lots.id),
+    expectedQty: numeric("expected_qty", { precision: 18, scale: 4 }).notNull(),
+    countedQty: numeric("counted_qty", { precision: 18, scale: 4 }),
+    lineNumber: integer("line_number").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("stock_count_lines_org_count_line_uidx").on(
+      t.orgId,
+      t.stockCountId,
+      t.lineNumber,
     ),
   ],
 );
