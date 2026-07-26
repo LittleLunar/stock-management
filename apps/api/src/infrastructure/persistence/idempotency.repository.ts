@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type {
   IdempotencyPort,
   IdempotencyRecord,
@@ -18,6 +18,12 @@ export class DrizzleIdempotencyRepository implements IdempotencyPort {
     externalSystem: string,
     externalId: string,
   ): Promise<IdempotencyRecord | null> {
+    if (this.lockForUpdate) {
+      const lockKey = `${orgId}:${operation}:${externalSystem}:${externalId}`;
+      await this.db.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`,
+      );
+    }
     const query = this.db
       .select()
       .from(idempotencyKeys)
