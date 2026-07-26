@@ -1,7 +1,17 @@
 import { useState } from "react";
+import { useCostLayers } from "../hooks/costing";
 import { useStockBalances, useStockMovements } from "../hooks/inventory";
 import { useLocations, useProducts } from "../hooks/masters";
 import { formatApiError } from "../lib/errors";
+
+type CostLayerRow = {
+  id: string;
+  productId: string;
+  locationId: string;
+  unitCost: string;
+  qtyRemaining: string;
+  receivedAt: string;
+};
 
 export function StockPage() {
   const { data: products } = useProducts();
@@ -15,6 +25,8 @@ export function StockPage() {
   };
   const balances = useStockBalances({ ...filters, lowStock });
   const movements = useStockMovements(filters);
+  const costLayers = useCostLayers(filters);
+  const layers = (costLayers.data ?? []) as CostLayerRow[];
 
   const productName = (id: string) => {
     const product = products?.find((item) => item.id === id);
@@ -173,6 +185,46 @@ export function StockPage() {
               No movements match these filters.
             </p>
           ) : null}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-semibold">Open cost layers</h2>
+        {costLayers.isLoading ? <p>Loading…</p> : null}
+        {costLayers.error ? (
+          <p className="text-red-700">{formatApiError(costLayers.error)}</p>
+        ) : null}
+        <div className="overflow-x-auto rounded border border-slate-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3">Location</th>
+                <th className="px-4 py-3">Received</th>
+                <th className="px-4 py-3 text-right">Qty rem</th>
+                <th className="px-4 py-3 text-right">Unit cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {layers.map((layer) => (
+                <tr key={layer.id} className="border-b">
+                  <td className="px-4 py-3">{productName(layer.productId)}</td>
+                  <td className="px-4 py-3">
+                    {locationName(layer.locationId)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {new Date(layer.receivedAt).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {layer.qtyRemaining}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {layer.unitCost}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

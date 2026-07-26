@@ -6,7 +6,9 @@ import {
   type CreateCustomer,
   type CreateCustomerReturn,
   type CreateGoodsReceipt,
+  type CreateLandedCost,
   type CreateLocation,
+  type CreateCostRevaluation,
   type CreateOrganization,
   type CreateProduct,
   type CreatePurchaseOrder,
@@ -735,4 +737,66 @@ export const api = {
       ctx,
       { method: "POST" },
     ),
+  listCostLayers: (
+    ctx: ApiHeaders,
+    query: { productId?: string; locationId?: string } = {},
+  ) => request<unknown[]>(withQuery("/api/v1/stock/cost-layers", query), ctx),
+  listCostSummaries: (
+    ctx: ApiHeaders,
+    query: { productId?: string; locationId?: string } = {},
+  ) =>
+    request<unknown[]>(withQuery("/api/v1/stock/cost-summaries", query), ctx),
+  listValuation: (
+    ctx: ApiHeaders,
+    query: {
+      asOf?: string;
+      branchId?: string;
+      locationId?: string;
+      productId?: string;
+    } = {},
+  ) =>
+    request<{ rows: unknown[]; totalValue: string }>(
+      withQuery("/api/v1/cost-reports/valuation", query),
+      ctx,
+    ),
+  listCogs: (
+    ctx: ApiHeaders,
+    query: { from: string; to: string; branchId?: string },
+  ) =>
+    request<{ rows: unknown[]; totalCogs: string }>(
+      withQuery("/api/v1/cost-reports/cogs", query),
+      ctx,
+    ),
+  listLandedCosts: (ctx: ApiHeaders) =>
+    request<unknown[]>("/api/v1/landed-costs", ctx),
+  createLandedCost: (ctx: ApiHeaders, body: CreateLandedCost) =>
+    request<unknown>("/api/v1/landed-costs", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  postLandedCost: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/landed-costs/${id}/post`, ctx, {
+      method: "POST",
+      body: "{}",
+    }),
+  voidLandedCost: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/landed-costs/${id}/void`, ctx, {
+      method: "POST",
+    }),
+  listCostRevaluations: (ctx: ApiHeaders) =>
+    request<unknown[]>("/api/v1/cost-revaluations", ctx),
+  createCostRevaluation: (ctx: ApiHeaders, body: CreateCostRevaluation) =>
+    request<unknown>("/api/v1/cost-revaluations", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  postCostRevaluation: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/cost-revaluations/${id}/post`, ctx, {
+      method: "POST",
+      body: "{}",
+    }),
+  voidCostRevaluation: (ctx: ApiHeaders, id: string) =>
+    request<unknown>(`/api/v1/cost-revaluations/${id}/void`, ctx, {
+      method: "POST",
+    }),
 };
