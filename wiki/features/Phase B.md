@@ -15,7 +15,8 @@ Internal inventory loop — full quantity cycle across locations.
 **B1 complete (2026-07-26).** Purchase-order, goods-receipt, and stock-inquiry
 application/HTTP flows shipped, including transactional receipt post/void,
 idempotency, outbox enqueue, and a thin web UI for the inbound workflow.
-**Next: B2 — outbound documents** (issue, transfer, adjustment, count).
+**B2 active:** stock-issue and stock-transfer HTTP slices are complete;
+adjustment, count, and thin web slices remain.
 
 | Slice | Focus                                                                                    | Status / Plan                                                                         |
 | ----- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -43,6 +44,9 @@ Design: `docs/superpowers/specs/2026-07-26-phase-b-design.md`
 - Stock issue, transfer (in-transit), adjustment, count
 - Stock-issue REST lifecycle: create, list, get, update, post, and void;
   posting rejects insufficient stock and supports replay-safe idempotency keys
+- Stock-transfer REST lifecycle: create, list, get, update, ship, receive, and
+  void; transfers move stock through an explicit transit location, reject
+  non-transit locations at ship, and cannot be voided after receipt
 - Supplier / customer returns structure
 - Low stock, lot/serial lookup
 - Reservations + availability APIs (POS stubs)

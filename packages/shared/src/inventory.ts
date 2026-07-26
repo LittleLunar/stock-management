@@ -142,6 +142,44 @@ export type PostStockIssue = z.infer<typeof PostStockIssueSchema>;
 export const PostStockIssueHeadersSchema = PostGoodsReceiptHeadersSchema;
 export type PostStockIssueHeaders = z.infer<typeof PostStockIssueHeadersSchema>;
 
+export const StockTransferLineInputSchema = StockIssueLineInputSchema;
+export type StockTransferLineInput = z.infer<
+  typeof StockTransferLineInputSchema
+>;
+
+export const CreateStockTransferSchema = z.object({
+  fromLocationId: UuidSchema,
+  toLocationId: UuidSchema,
+  transitLocationId: UuidSchema,
+  documentNumber: z.string().trim().min(1).nullable().optional(),
+  lines: z.array(StockTransferLineInputSchema).min(1),
+});
+export type CreateStockTransfer = z.infer<typeof CreateStockTransferSchema>;
+
+export const UpdateStockTransferSchema = CreateStockTransferSchema.partial();
+export type UpdateStockTransfer = z.infer<typeof UpdateStockTransferSchema>;
+
+export const StockTransferIdParamsSchema = z.object({
+  id: UuidSchema,
+});
+export type StockTransferIdParams = z.infer<typeof StockTransferIdParamsSchema>;
+
+export const ShipStockTransferSchema = PostGoodsReceiptSchema;
+export type ShipStockTransfer = z.infer<typeof ShipStockTransferSchema>;
+
+export const ShipStockTransferHeadersSchema = PostGoodsReceiptHeadersSchema;
+export type ShipStockTransferHeaders = z.infer<
+  typeof ShipStockTransferHeadersSchema
+>;
+
+export const ReceiveStockTransferSchema = PostGoodsReceiptSchema;
+export type ReceiveStockTransfer = z.infer<typeof ReceiveStockTransferSchema>;
+
+export const ReceiveStockTransferHeadersSchema = PostGoodsReceiptHeadersSchema;
+export type ReceiveStockTransferHeaders = z.infer<
+  typeof ReceiveStockTransferHeadersSchema
+>;
+
 const OptionalBooleanQuerySchema = z
   .enum(["true", "false"])
   .transform((value) => value === "true")

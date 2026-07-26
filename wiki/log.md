@@ -7,6 +7,14 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B2 stock-transfer HTTP
+
+Added shared stock-transfer request schemas and the `/api/v1/stock-transfers`
+create, list, get, update, ship, receive, and void endpoints. Ship and receive
+move stock through an explicit transit location; ship rejects locations not
+typed `transit`, and received transfers cannot be voided. Updated [[Phase B]]
+and [[index]].
+
 ## [2026-07-26] update | Phase B2 stock-issue HTTP
 
 Added shared stock-issue request schemas and the `/api/v1/stock-issues`
