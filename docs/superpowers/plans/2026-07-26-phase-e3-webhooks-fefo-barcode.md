@@ -175,7 +175,7 @@ sequenceDiagram
 | `apps/api/src/infrastructure/persistence/product.repository.ts` | `findByBarcode` |
 | `apps/api/src/infrastructure/persistence/lot.repository.ts` | `findById` |
 | `apps/api/src/infrastructure/workers/outbox-poller.ts` | `processWebhooks` after journal |
-| `apps/api/src/infrastructure/workers/outbox-webhooks.integration.test.ts` | Journal then webhook order |
+| `apps/api/src/infrastructure/workers/outbox-poller.test.ts` | Journal-then-webhook order + markFailed |
 | `apps/api/src/interfaces/http/webhooks.routes.ts` | Subscriptions + deliveries |
 | `apps/api/src/interfaces/http/webhooks.routes.test.ts` | HTTP tests |
 | `apps/api/src/interfaces/http/products.routes.ts` | Barcode route before `:id` |
@@ -1285,7 +1285,7 @@ EOF
 - Create: `apps/api/src/infrastructure/workers/outbox-poller.test.ts` (or extend existing)
 - Modify: `apps/api/src/index.ts` (wire `ProcessOutboxForWebhooks` + `HttpPoster`)
 - Modify: `apps/api/src/main/composition-root.ts` if services exported there
-- Create: `apps/api/src/infrastructure/workers/outbox-webhooks.integration.test.ts` (in-memory order test)
+- Modify: any existing poller call sites (e.g. `outbox-journals.integration.test.ts`) to pass `processWebhooks`
 
 **Interfaces:**
 - Consumes: Task 4 `ProcessOutboxForWebhooks`; existing `ProcessOutboxForJournals`
@@ -1588,7 +1588,374 @@ describe("WebhookSubscriptionUseCases", () => {
 });
 ```
 
-Route test: assert 403 for non-admin role; 201 create for org_admin (mirror style of `apps/api/src/interfaces/http/accounting.routes.test.ts` — build Fastify with stub context).
+```ts
+// apps/api/src/interfaces/http/webhooks.routes.test.ts
+import Fastify from "fastify";
+import { afterEach, describe, expect, it } from "vitest";
+import type {
+  Membership,
+  MembershipRole,
+  WebhookDelivery,
+  WebhookSubscription,
+} from "@stock-management/domain";
+import {
+  WebhookSubscriptionUseCases,
+  type CreateWebhookSubscriptionInput,
+  type MembershipAccessPort,
+  type UpdateWebhookSubscriptionInput,
+  type WebhookPort,
+} from "@stock-management/application";
+import { createContextPlugin } from "../plugins/context.js";
+import { registerErrorHandler } from "../plugins/error-handler.js";
+import { requestIdPlugin } from "../plugins/request-id.js";
+import { webhooksRoutes } from "./webhooks.routes.js";
+
+const ORG_ID = "00000000-0000-4000-8000-000000000001";
+const ADMIN_USER = "00000000-0000-4000-8000-0000000000a1";
+const WAREHOUSE_USER = "00000000-0000-4000-8000-0000000000w1";
+const OUTBOX_EVENT_ID = "00000000-0000-4000-8000-0000000000e1";
+const now = new Date("2026-07-26T12:00:00.000Z");
+
+function membership(
+  userId: string,
+  role: MembershipRole,
+): Membership {
+  return {
+    id: `m-${userId}`,
+    orgId: ORG_ID,
+    userId,
+    role,
+    status: "active",
+    branchIds: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function createMemWebhookPort(): WebhookPort {
+  const subs = new Map<string, WebhookSubscription>();
+  const deliveries: WebhookDelivery[] = [];
+  let seq = 0;
+  return {
+    async listSubscriptions(orgId) {
+      return [...subs.values()].filter((s) => s.orgId === orgId);
+    },
+    async findSubscription(orgId, id) {
+      const row = subs.get(id);
+      return row?.orgId === orgId ? row : null;
+    },
+    async listActiveSubscriptions(orgId) {
+      return [...subs.values()].filter((s) => s.orgId === orgId && s.active);
+    },
+    async createSubscription(orgId, input: CreateWebhookSubscriptionInput) {
+      seq += 1;
+      const row: WebhookSubscription = {
+        id: `00000000-0000-4000-8000-${String(seq).padStart(12, "0")}`,
+        orgId,
+        url: input.url,
+        secret: input.secret,
+        eventTypes: input.eventTypes,
+        branchId: input.branchId ?? null,
+        active: input.active ?? true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      subs.set(row.id, row);
+      return row;
+    },
+    async updateSubscription(
+      orgId,
+      id,
+      input: UpdateWebhookSubscriptionInput,
+    ) {
+      const row = subs.get(id);
+      if (!row || row.orgId !== orgId) return null;
+      Object.assign(row, input, { updatedAt: now });
+      return row;
+    },
+    async findDeliveryBySubscriptionAndEvent(
+      orgId,
+      subscriptionId,
+      outboxEventId,
+    ) {
+      return (
+        deliveries.find(
+          (d) =>
+            d.orgId === orgId &&
+            d.subscriptionId === subscriptionId &&
+            d.outboxEventId === outboxEventId,
+        ) ?? null
+      );
+    },
+    async insertDelivery(input) {
+      const row: WebhookDelivery = {
+        id: `00000000-0000-4000-8000-${String(deliveries.length + 100).padStart(12, "0")}`,
+        orgId: input.orgId,
+        subscriptionId: input.subscriptionId,
+        outboxEventId: input.outboxEventId,
+        status: input.status,
+        httpStatus: input.httpStatus,
+        error: input.error,
+        createdAt: now,
+        updatedAt: now,
+      };
+      deliveries.push(row);
+      return row;
+    },
+    async updateDelivery(orgId, id, patch) {
+      const row = deliveries.find((d) => d.orgId === orgId && d.id === id)!;
+      Object.assign(row, patch, { updatedAt: now });
+      return row;
+    },
+    async listDeliveries(orgId, filters) {
+      return deliveries.filter(
+        (d) =>
+          d.orgId === orgId &&
+          (filters?.subscriptionId
+            ? d.subscriptionId === filters.subscriptionId
+            : true),
+      );
+    },
+  };
+}
+
+function createMembershipAccess(): MembershipAccessPort {
+  const byUser = new Map<string, Membership>([
+    [ADMIN_USER, membership(ADMIN_USER, "org_admin")],
+    [WAREHOUSE_USER, membership(WAREHOUSE_USER, "warehouse")],
+  ]);
+  return {
+    async findActiveByUser(orgId, userId) {
+      const row = byUser.get(userId);
+      return row?.orgId === orgId ? row : null;
+    },
+  };
+}
+
+describe("webhooks routes", () => {
+  const apps: ReturnType<typeof Fastify>[] = [];
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((app) => app.close()));
+  });
+
+  async function buildApp(port = createMemWebhookPort()) {
+    const app = Fastify();
+    apps.push(app);
+    registerErrorHandler(app);
+    await app.register(requestIdPlugin);
+    await app.register(createContextPlugin(createMembershipAccess()));
+    const useCases = new WebhookSubscriptionUseCases(port);
+    await app.register(webhooksRoutes(useCases), { prefix: "/api/v1" });
+    return { app, port };
+  }
+
+  const createBody = {
+    url: "https://hooks.example/inventory",
+    secret: "12345678",
+    eventTypes: ["document.posted"],
+    active: true,
+  };
+
+  it("returns 403 for warehouse on POST and GET /webhook-subscriptions", async () => {
+    const { app } = await buildApp();
+    const headers = {
+      "x-org-id": ORG_ID,
+      "x-user-id": WAREHOUSE_USER,
+    };
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/v1/webhook-subscriptions",
+      headers,
+      payload: createBody,
+    });
+    expect(createRes.statusCode).toBe(403);
+    expect(createRes.json()).toMatchObject({ code: "FORBIDDEN" });
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/api/v1/webhook-subscriptions",
+      headers,
+    });
+    expect(listRes.statusCode).toBe(403);
+    expect(listRes.json()).toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("creates subscription as org_admin with 201", async () => {
+    const { app } = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/webhook-subscriptions",
+      headers: { "x-org-id": ORG_ID, "x-user-id": ADMIN_USER },
+      payload: createBody,
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body).toMatchObject({
+      orgId: ORG_ID,
+      url: createBody.url,
+      secret: createBody.secret,
+      eventTypes: ["document.posted"],
+      branchId: null,
+      active: true,
+    });
+    expect(body.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  it("lists subscriptions and gets by id for org_admin", async () => {
+    const { app } = await buildApp();
+    const headers = { "x-org-id": ORG_ID, "x-user-id": ADMIN_USER };
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/webhook-subscriptions",
+      headers,
+      payload: createBody,
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id as string;
+
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/v1/webhook-subscriptions",
+      headers,
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json()).toHaveLength(1);
+    expect(list.json()[0].id).toBe(id);
+
+    const get = await app.inject({
+      method: "GET",
+      url: `/api/v1/webhook-subscriptions/${id}`,
+      headers,
+    });
+    expect(get.statusCode).toBe(200);
+    expect(get.json()).toMatchObject({
+      id,
+      url: createBody.url,
+      eventTypes: ["document.posted"],
+    });
+  });
+
+  it("lists webhook deliveries for org_admin", async () => {
+    const port = createMemWebhookPort();
+    const { app } = await buildApp(port);
+    const headers = { "x-org-id": ORG_ID, "x-user-id": ADMIN_USER };
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/v1/webhook-subscriptions",
+      headers,
+      payload: createBody,
+    });
+    const subscriptionId = created.json().id as string;
+
+    await port.insertDelivery({
+      orgId: ORG_ID,
+      subscriptionId,
+      outboxEventId: OUTBOX_EVENT_ID,
+      status: "succeeded",
+      httpStatus: 200,
+      error: null,
+    });
+
+    const all = await app.inject({
+      method: "GET",
+      url: "/api/v1/webhook-deliveries",
+      headers,
+    });
+    expect(all.statusCode).toBe(200);
+    expect(all.json()).toHaveLength(1);
+    expect(all.json()[0]).toMatchObject({
+      subscriptionId,
+      outboxEventId: OUTBOX_EVENT_ID,
+      status: "succeeded",
+      httpStatus: 200,
+    });
+
+    const filtered = await app.inject({
+      method: "GET",
+      url: `/api/v1/webhook-deliveries?subscriptionId=${subscriptionId}`,
+      headers,
+    });
+    expect(filtered.statusCode).toBe(200);
+    expect(filtered.json()).toHaveLength(1);
+
+    const warehouse = await app.inject({
+      method: "GET",
+      url: "/api/v1/webhook-deliveries",
+      headers: { "x-org-id": ORG_ID, "x-user-id": WAREHOUSE_USER },
+    });
+    expect(warehouse.statusCode).toBe(403);
+  });
+});
+```
+
+Route handler sketch (implement in Step 3 — POST returns **201**):
+
+```ts
+// apps/api/src/interfaces/http/webhooks.routes.ts
+import type { FastifyPluginAsync } from "fastify";
+import { canPerform, ForbiddenError } from "@stock-management/domain";
+import type { WebhookSubscriptionUseCases } from "@stock-management/application";
+import {
+  CreateWebhookSubscriptionSchema,
+  UpdateWebhookSubscriptionSchema,
+  UuidSchema,
+} from "@stock-management/shared";
+
+function assertWebhookAdmin(role: Parameters<typeof canPerform>[0]): void {
+  if (!canPerform(role, "webhook.admin")) throw new ForbiddenError();
+}
+
+export function webhooksRoutes(
+  useCases: WebhookSubscriptionUseCases,
+): FastifyPluginAsync {
+  return async (app) => {
+    app.get("/webhook-subscriptions", async (request) => {
+      assertWebhookAdmin(request.ctx.role);
+      return useCases.list(request.ctx.orgId);
+    });
+
+    app.post("/webhook-subscriptions", async (request, reply) => {
+      assertWebhookAdmin(request.ctx.role);
+      const body = CreateWebhookSubscriptionSchema.parse(request.body);
+      const row = await useCases.create(request.ctx.orgId, body);
+      return reply.code(201).send(row);
+    });
+
+    app.get<{ Params: { id: string } }>(
+      "/webhook-subscriptions/:id",
+      async (request) => {
+        assertWebhookAdmin(request.ctx.role);
+        const id = UuidSchema.parse(request.params.id);
+        return useCases.get(request.ctx.orgId, id);
+      },
+    );
+
+    app.patch<{ Params: { id: string } }>(
+      "/webhook-subscriptions/:id",
+      async (request) => {
+        assertWebhookAdmin(request.ctx.role);
+        const id = UuidSchema.parse(request.params.id);
+        const body = UpdateWebhookSubscriptionSchema.parse(request.body);
+        return useCases.update(request.ctx.orgId, id, body);
+      },
+    );
+
+    app.get("/webhook-deliveries", async (request) => {
+      assertWebhookAdmin(request.ctx.role);
+      const q = request.query as { subscriptionId?: string };
+      const subscriptionId = q.subscriptionId
+        ? UuidSchema.parse(q.subscriptionId)
+        : undefined;
+      return useCases.listDeliveries(request.ctx.orgId, subscriptionId);
+    });
+  };
+}
+```
 
 - [ ] **Step 2: Run to verify fail**
 
@@ -1597,13 +1964,31 @@ pnpm --filter @stock-management/application test -- src/use-cases/webhook-subscr
 pnpm --filter @stock-management/api test -- src/interfaces/http/webhooks.routes.test.ts
 ```
 
-- [ ] **Step 3: Implement use cases, Zod, routes, wire composition root + register plugin**
+Expected: FAIL — `webhooksRoutes` / `WebhookSubscriptionUseCases` / `createContextPlugin` wiring missing
+
+- [ ] **Step 3: Implement use cases, Zod, routes (201 on create), wire composition root + register plugin**
+
+Ensure `CreateWebhookSubscriptionInput` / `UpdateWebhookSubscriptionInput` are exported from `@stock-management/application` (re-export from `ports/webhook.ts`).
 
 - [ ] **Step 4: Run tests — PASS**
+
+```bash
+pnpm --filter @stock-management/application test -- src/use-cases/webhook-subscription.test.ts
+pnpm --filter @stock-management/api test -- src/interfaces/http/webhooks.routes.test.ts
+```
+
+Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
+git add packages/application/src/use-cases/webhook-subscription.ts \
+  packages/application/src/use-cases/webhook-subscription.test.ts \
+  packages/shared/src/webhooks.ts packages/shared/src/index.ts \
+  apps/api/src/interfaces/http/webhooks.routes.ts \
+  apps/api/src/interfaces/http/webhooks.routes.test.ts \
+  apps/api/src/main/composition-root.ts apps/api/src/index.ts \
+  apps/api/src/interfaces/plugins/error-handler.ts
 git commit -m "$(cat <<'EOF'
 feat(api): add org_admin webhook subscription and delivery APIs
 
@@ -2065,11 +2450,11 @@ listWebhookDeliveries: (ctx, subscriptionId?: string) =>
   ),
 ```
 
-`BarcodeScanField` sketch:
+`BarcodeScanField` sketch (Enter submit **and** blur-submit — matches Decisions):
 
 ```tsx
 // apps/web/src/components/BarcodeScanField.tsx
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type FocusEvent } from "react";
 import { toast } from "sonner";
 import { useProductByBarcode } from "../hooks/masters";
 import { formatApiError } from "../lib/errors";
@@ -2083,10 +2468,9 @@ export function BarcodeScanField({ onProduct, placeholder }: Props) {
   const [code, setCode] = useState("");
   const lookup = useProductByBarcode();
 
-  async function submit(event?: FormEvent) {
-    event?.preventDefault();
+  async function lookupCode() {
     const trimmed = code.trim();
-    if (!trimmed) return;
+    if (!trimmed || lookup.isPending) return;
     try {
       const product = await lookup.mutateAsync(trimmed);
       onProduct(product.id);
@@ -2094,6 +2478,15 @@ export function BarcodeScanField({ onProduct, placeholder }: Props) {
     } catch (err) {
       toast.error(formatApiError(err));
     }
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await lookupCode();
+  }
+
+  async function onBlur(_event: FocusEvent<HTMLInputElement>) {
+    await lookupCode();
   }
 
   return (
@@ -2104,9 +2497,10 @@ export function BarcodeScanField({ onProduct, placeholder }: Props) {
         value={code}
         placeholder={placeholder ?? "Scan barcode…"}
         onChange={(e) => setCode(e.target.value)}
+        onBlur={onBlur}
         autoComplete="off"
       />
-      <button type="submit" className="border px-2 py-1">
+      <button type="submit" className="border px-2 py-1" disabled={lookup.isPending}>
         Find
       </button>
     </form>
@@ -2202,8 +2596,10 @@ pnpm --filter @stock-management/web typecheck
 - [x] Real paths cited: `outbox-poller.ts`, `process-outbox-for-journals.ts`, `stock-issue.ts`, `stock-transfer.ts`, `commit-reservation.ts`, `product_barcodes`
 - [x] Migration after E2 `0010` → `0011_phase_e3_webhooks.sql`
 - [x] No TBD / TODO / `/* ... */` stub test bodies
+- [x] Task 6 HTTP tests: full Fastify/Vitest bodies (403 warehouse, 201 create, list/get/deliveries)
 - [x] Types consistent: `WebhookSubscription`, `WebhookDelivery`, `WebhookDeliveryStatus`, `webhook.admin`, FEFO errors
-- [x] Barcode route registered before `:id`
+- [x] Barcode route registered before `:id`; BarcodeScanField Enter + blur-submit
+- [x] Poller order covered by `outbox-poller.test.ts` (no orphaned integration file)
 - [x] Spec + master + E1/E2 links correct
 - [x] Test commands use `pnpm --filter @stock-management/{domain,application,api,web}`
 
