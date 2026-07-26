@@ -4,6 +4,8 @@ import Fastify from "fastify";
 import { HealthResponseSchema } from "@stock-management/shared";
 import { loadEnv } from "./infrastructure/config/env.js";
 import { createDb } from "./infrastructure/db/client.js";
+import { DrizzleOutboxRepository } from "./infrastructure/persistence/outbox.repository.js";
+import { OutboxPoller } from "./infrastructure/workers/outbox-poller.js";
 import { createAppServices } from "./main/composition-root.js";
 import { registerErrorHandler } from "./interfaces/plugins/error-handler.js";
 import { contextPlugin } from "./interfaces/plugins/context.js";
@@ -96,5 +98,26 @@ await app.register(availabilityRoutes(services.availability), {
 });
 await app.register(supplierReturnsRoutes(services), { prefix: "/api/v1" });
 await app.register(customerReturnsRoutes(services), { prefix: "/api/v1" });
+
+const outboxPoller = env.OUTBOX_POLLER_ENABLED
+  ? new OutboxPoller({
+      intervalMs: env.OUTBOX_POLLER_INTERVAL_MS,
+      log: app.log,
+      runInTransaction: (fn) =>
+        db.transaction(async (tx) => fn(new DrizzleOutboxRepository(tx))),
+    })
+  : null;
+
+if (outboxPoller) {
+  outboxPoller.start();
+  app.log.info(
+    { intervalMs: env.OUTBOX_POLLER_INTERVAL_MS },
+    "outbox poller started",
+  );
+  app.addHook("onClose", async () => {
+    outboxPoller.stop();
+    app.log.info("outbox poller stopped");
+  });
+}
 
 await app.listen({ port: env.PORT, host: "0.0.0.0" });
