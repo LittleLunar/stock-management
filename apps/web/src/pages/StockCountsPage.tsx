@@ -16,12 +16,14 @@ type CountLineDraft = {
   productId: string;
   lotId: string;
   countedQty: string;
+  unitCost: string;
 };
 
 const emptyLine = (): CountLineDraft => ({
   productId: "",
   lotId: "",
   countedQty: "",
+  unitCost: "",
 });
 
 export function StockCountsPage() {
@@ -52,6 +54,12 @@ export function StockCountsPage() {
         (balance.lotId ?? "") === (lotId || ""),
     );
     return match?.qtyOnHand ?? "0";
+  }
+
+  function countedExceedsExpected(countedQty: string, productId: string, lotId: string) {
+    const expected = expectedQty(productId, lotId);
+    if (expected === "—" || countedQty === "") return false;
+    return Number(countedQty) > Number(expected);
   }
 
   function updateLine(
@@ -87,6 +95,13 @@ export function StockCountsPage() {
           productId: line.productId,
           lotId: line.lotId || null,
           countedQty: line.countedQty,
+          unitCost: countedExceedsExpected(
+            line.countedQty,
+            line.productId,
+            line.lotId,
+          )
+            ? line.unitCost.trim() || null
+            : null,
           lineNumber: index + 1,
         })),
       },
@@ -106,16 +121,25 @@ export function StockCountsPage() {
       {
         id: selectedCount.id,
         body: {
-          lines: selectedCount.lines.map((line, index) => ({
-            id: line.id,
-            productId: line.productId,
-            lotId: line.lotId,
-            countedQty:
+          lines: selectedCount.lines.map((line, index) => {
+            const countedQty =
               countedEdits[line.id] !== undefined
                 ? countedEdits[line.id]
-                : (line.countedQty ?? "0"),
-            lineNumber: line.lineNumber ?? index + 1,
-          })),
+                : (line.countedQty ?? "0");
+            const unitCostEdit = countedEdits[`${line.id}:unitCost`];
+            const needsUnitCost =
+              Number(countedQty) > Number(line.expectedQty);
+            return {
+              id: line.id,
+              productId: line.productId,
+              lotId: line.lotId,
+              countedQty,
+              unitCost: needsUnitCost
+                ? (unitCostEdit ?? line.unitCost ?? "").trim() || null
+                : null,
+              lineNumber: line.lineNumber ?? index + 1,
+            };
+          }),
         },
       },
       {
@@ -193,7 +217,7 @@ export function StockCountsPage() {
           {lines.map((line, index) => (
             <div
               key={index}
-              className="grid gap-2 rounded bg-slate-50 p-3 md:grid-cols-[minmax(12rem,1fr)_8rem_8rem_8rem_auto]"
+              className="grid gap-2 rounded bg-slate-50 p-3 md:grid-cols-[minmax(12rem,1fr)_8rem_8rem_8rem_8rem_auto]"
             >
               <select
                 required
@@ -236,6 +260,25 @@ export function StockCountsPage() {
                   updateLine(index, "countedQty", event.target.value)
                 }
               />
+              {countedExceedsExpected(
+                line.countedQty,
+                line.productId,
+                line.lotId,
+              ) ? (
+                <input
+                  required
+                  inputMode="decimal"
+                  className="rounded border border-slate-300 px-3 py-2"
+                  aria-label={`Line ${index + 1} unit cost`}
+                  placeholder="Unit cost"
+                  value={line.unitCost}
+                  onChange={(event) =>
+                    updateLine(index, "unitCost", event.target.value)
+                  }
+                />
+              ) : (
+                <div aria-hidden="true" />
+              )}
               <button
                 type="button"
                 disabled={lines.length === 1}
@@ -378,10 +421,16 @@ export function StockCountsPage() {
                   <th className="px-4 py-3">Lot</th>
                   <th className="px-4 py-3 text-right">Expected</th>
                   <th className="px-4 py-3 text-right">Counted</th>
+                  <th className="px-4 py-3 text-right">Unit cost</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {selectedCount.lines.map((line) => (
+                {selectedCount.lines.map((line) => {
+                  const countedQty =
+                    countedEdits[line.id] ?? line.countedQty ?? "";
+                  const needsUnitCost =
+                    Number(countedQty) > Number(line.expectedQty);
+                  return (
                   <tr key={line.id}>
                     <td className="px-4 py-3 font-medium">
                       {productLabel(line.productId)}
@@ -413,8 +462,35 @@ export function StockCountsPage() {
                         </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      {needsUnitCost && selectedCount.status === "draft" ? (
+                        <input
+                          inputMode="decimal"
+                          className="w-28 rounded border border-slate-300 px-2 py-1 text-right tabular-nums"
+                          placeholder="Unit cost"
+                          value={
+                            countedEdits[`${line.id}:unitCost`] ??
+                            line.unitCost ??
+                            ""
+                          }
+                          onChange={(event) =>
+                            setCountedEdits((current) => ({
+                              ...current,
+                              [`${line.id}:unitCost`]: event.target.value,
+                            }))
+                          }
+                        />
+                      ) : needsUnitCost ? (
+                        <span className="tabular-nums">
+                          {line.unitCost ?? "—"}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

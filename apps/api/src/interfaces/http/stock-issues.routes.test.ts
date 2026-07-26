@@ -5,6 +5,7 @@ import {
   PostStockIssue,
   StockIssueUseCases,
   VoidStockIssue,
+  createFakeCosting,
   type IdempotencyRecord,
   type StockIssueWithLines,
   type UnitOfWork,
@@ -28,7 +29,11 @@ const LOCATION_ID = "00000000-0000-4000-8000-000000000004";
 const PRODUCT_ID = "00000000-0000-4000-8000-000000000005";
 const now = new Date("2026-07-26T00:00:00.000Z");
 
-function makeHarness(onHand = "10") {
+function createInMemoryCosting() {
+  return createFakeCosting();
+}
+
+function makeHarness(onHand = "10", options?: { seedCostLayers?: boolean }) {
   const product: Product = {
     id: PRODUCT_ID,
     orgId: ORG_ID,
@@ -60,6 +65,24 @@ function makeHarness(onHand = "10") {
     updatedAt: now,
   };
   let movementSequence = 0;
+  const costing = createInMemoryCosting();
+
+  if (options?.seedCostLayers !== false) {
+    void costing.insertLayer({
+      orgId: ORG_ID,
+      productId: PRODUCT_ID,
+      locationId: LOCATION_ID,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-seed",
+      sourceDocumentLineId: "grl-seed",
+      sourceMovementId: "m-seed",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "10",
+      qtyOriginal: onHand,
+      qtyRemaining: onHand,
+    });
+  }
 
   const issueRepo: NonNullable<UowContext["issues"]> = {
     async list(orgId) {
@@ -169,8 +192,22 @@ function makeHarness(onHand = "10") {
           ...input,
           id: `movement-${++movementSequence}`,
           createdAt: input.createdAt ?? now,
+          unitCost: input.unitCost ?? null,
+          totalCost: input.totalCost ?? null,
         };
         movements.push(movement);
+        return movement;
+      },
+      async updateMovementCosts(
+        _orgId: string,
+        movementId: string,
+        unitCost: string,
+        totalCost: string,
+      ) {
+        const movement = movements.find((candidate) => candidate.id === movementId);
+        if (!movement) throw new Error("Movement not found");
+        movement.unitCost = unitCost;
+        movement.totalCost = totalCost;
         return movement;
       },
       async listBalances() {
@@ -197,6 +234,7 @@ function makeHarness(onHand = "10") {
         return [];
       },
     },
+    costing,
     outbox: { async enqueue() {} },
     idempotency: {
       async find(
@@ -237,6 +275,7 @@ function makeHarness(onHand = "10") {
 
   return {
     buildApp,
+    costing,
     getBalance: () => balance,
     getMovements: () => movements,
   };
@@ -259,8 +298,8 @@ describe("stock issue routes", () => {
     await Promise.all(apps.splice(0).map((app) => app.close()));
   });
 
-  async function setup(onHand = "10") {
-    const harness = makeHarness(onHand);
+  async function setup(onHand = "10", options?: { seedCostLayers?: boolean }) {
+    const harness = makeHarness(onHand, options);
     const app = await harness.buildApp();
     apps.push(app);
     return { app, harness };
@@ -344,6 +383,54 @@ describe("stock issue routes", () => {
     });
     expect(harness.getBalance().qtyOnHand).toBe("2");
     expect(harness.getMovements()).toHaveLength(0);
+  });
+
+  it("consumes FIFO cost layers and stamps movement costs on post", async () => {
+    const { app, harness } = await setup("10", { seedCostLayers: false });
+    await harness.costing.insertLayer({
+      orgId: ORG_ID,
+      productId: PRODUCT_ID,
+      locationId: LOCATION_ID,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-1",
+      sourceDocumentLineId: "grl-1",
+      sourceMovementId: "m-1",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "10",
+      qtyOriginal: "2",
+      qtyRemaining: "2",
+    });
+    await harness.costing.insertLayer({
+      orgId: ORG_ID,
+      productId: PRODUCT_ID,
+      locationId: LOCATION_ID,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-2",
+      sourceDocumentLineId: "grl-2",
+      sourceMovementId: "m-2",
+      receivedAt: new Date("2026-01-02"),
+      unitCost: "12",
+      qtyOriginal: "5",
+      qtyRemaining: "5",
+    });
+    const created = await createDraft(app, "3");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/stock-issues/${created.id}/post`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(harness.getMovements()[0]?.totalCost).toBe("32");
+    expect(
+      harness.costing.layers.find((layer) => layer.id === "layer-1")?.qtyRemaining,
+    ).toBe("0");
+    expect(
+      harness.costing.layers.find((layer) => layer.id === "layer-2")?.qtyRemaining,
+    ).toBe("4");
   });
 
   it("returns the same result when a post idempotency key is replayed", async () => {

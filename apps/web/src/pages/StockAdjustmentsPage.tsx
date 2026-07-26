@@ -12,6 +12,7 @@ import { formatApiError } from "../lib/errors";
 type AdjustmentLineDraft = {
   productId: string;
   qty: string;
+  unitCost: string;
   lotId: string;
   serialNumbers: string;
 };
@@ -19,6 +20,7 @@ type AdjustmentLineDraft = {
 const emptyLine = (): AdjustmentLineDraft => ({
   productId: "",
   qty: "1",
+  unitCost: "",
   lotId: "",
   serialNumbers: "",
 });
@@ -74,6 +76,8 @@ export function StockAdjustmentsPage() {
           productId: line.productId,
           qty: line.qty,
           lotId: line.lotId || null,
+          unitCost:
+            Number(line.qty) > 0 ? line.unitCost.trim() || null : null,
           serialNumbers: line.serialNumbers
             .split(/[\n,]/)
             .map((value) => value.trim())
@@ -167,7 +171,7 @@ export function StockAdjustmentsPage() {
         <div className="space-y-2">
           {lines.map((line, index) => (
             <div key={index} className="space-y-2 rounded bg-slate-50 p-3">
-              <div className="grid gap-2 md:grid-cols-[minmax(12rem,1fr)_10rem_auto]">
+              <div className="grid gap-2 md:grid-cols-[minmax(12rem,1fr)_10rem_10rem_auto]">
                 <select
                   required
                   className="rounded border border-slate-300 px-3 py-2"
@@ -194,6 +198,21 @@ export function StockAdjustmentsPage() {
                     updateLine(index, "qty", event.target.value)
                   }
                 />
+                {Number(line.qty) > 0 ? (
+                  <input
+                    required
+                    inputMode="decimal"
+                    className="rounded border border-slate-300 px-3 py-2"
+                    aria-label={`Line ${index + 1} unit cost`}
+                    placeholder="Unit cost"
+                    value={line.unitCost}
+                    onChange={(event) =>
+                      updateLine(index, "unitCost", event.target.value)
+                    }
+                  />
+                ) : (
+                  <div aria-hidden="true" />
+                )}
                 <button
                   type="button"
                   disabled={lines.length === 1}

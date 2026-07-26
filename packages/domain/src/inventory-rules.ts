@@ -291,6 +291,7 @@ export function assertCanReleaseReservation(
   reservation: Pick<StockReservation, "status">,
   _now?: Date,
 ): void {
+  void _now;
   assertReservationOpen(reservation);
 }
 

@@ -19,9 +19,18 @@ draft ──post──► posted ──void──► void
                   ├── Stock Movements (immutable)
                   ├── Balance updates (same Unit of Work)
                   ├── Outbox enqueue ([[Phase B]])
-                  ├── Cost layers / consumptions ([[Phase C]])
+                  ├── Cost layers / consumptions ([[Phase C]] — complete)
                   └── Outbox → Journal ([[Phase D]])
 ```
+
+> [!note]
+> **Phase C complete:** Every inventory post/void updates cost layers and stamps
+> movement costs in the same UoW. Landed cost and revaluation adjust open-layer
+> `unit_cost` via `cost_layer_value_adjustments` (no qty). Reports:
+> `GET /api/v1/cost-reports/valuation`, `GET /api/v1/cost-reports/cogs`.
+> Outbox payloads may include `inventoryValueDelta` / `cogsTotal` /
+> `landedAmount` / `revaluationValueDelta` for Phase D journals (not posted in C).
+> Design: `docs/superpowers/specs/2026-07-26-phase-c-costing-design.md`.
 
 ## Transfer ship/receive (B2)
 

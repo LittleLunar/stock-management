@@ -63,3 +63,38 @@ export class InsufficientAvailabilityError extends DomainError {
     this.name = "InsufficientAvailabilityError";
   }
 }
+
+export class MissingUnitCostError extends DomainError {
+  constructor(message = "Unit cost is required") {
+    super(message, "MISSING_UNIT_COST");
+    this.name = "MissingUnitCostError";
+  }
+}
+
+export class UnsupportedCostingMethodError extends DomainError {
+  constructor(message = "Only FIFO costing is supported") {
+    super(message, "UNSUPPORTED_COSTING_METHOD");
+    this.name = "UnsupportedCostingMethodError";
+  }
+}
+
+export class InsufficientCostError extends DomainError {
+  constructor(message = "Insufficient open cost layer quantity") {
+    super(message, "INSUFFICIENT_COST");
+    this.name = "InsufficientCostError";
+  }
+}
+
+export class LayerInUseError extends DomainError {
+  constructor(message = "Cost layer has been partially consumed") {
+    super(message, "LAYER_IN_USE");
+    this.name = "LayerInUseError";
+  }
+}
+
+export class AllocationMismatchError extends DomainError {
+  constructor(message = "Allocated line amounts do not sum to total") {
+    super(message, "ALLOCATION_MISMATCH");
+    this.name = "AllocationMismatchError";
+  }
+}

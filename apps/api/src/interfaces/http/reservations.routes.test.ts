@@ -6,6 +6,7 @@ import {
   CommitReservation,
   ReleaseReservation,
   ReservationUseCases,
+  createFakeCosting,
   type CreateReservationInput,
   type ReservationPort,
   type StockIssueWithLines,
@@ -112,6 +113,22 @@ function makeFake(options: FakeOptions = {}) {
   };
   seedBalance(LOCATION_ID, options.onHand ?? "10");
   seedBalance(LOCATION_2_ID, options.onHandLocation2 ?? "0");
+
+  const costing = createFakeCosting();
+  void costing.insertLayer({
+    orgId: ORG_ID,
+    productId: PRODUCT_ID,
+    locationId: LOCATION_ID,
+    lotId: null,
+    sourceDocumentType: "goods_receipt",
+    sourceDocumentId: "gr-seed",
+    sourceDocumentLineId: "grl-seed",
+    sourceMovementId: "m-seed",
+    receivedAt: new Date("2026-01-01"),
+    unitCost: "10",
+    qtyOriginal: options.onHand ?? "10",
+    qtyRemaining: options.onHand ?? "10",
+  });
 
   const reservations: StockReservation[] = [...(options.reservations ?? [])];
   const issues = new Map<string, StockIssueWithLines>();
@@ -228,8 +245,17 @@ function makeFake(options: FakeOptions = {}) {
         ...input,
         id: `movement-${++movementSeq}`,
         createdAt: input.createdAt ?? now,
+        unitCost: input.unitCost ?? null,
+        totalCost: input.totalCost ?? null,
       };
       movements.push(movement);
+      return movement;
+    },
+    async updateMovementCosts(_orgId, movementId, unitCost, totalCost) {
+      const movement = movements.find((candidate) => candidate.id === movementId);
+      if (!movement) throw new Error("Movement not found");
+      movement.unitCost = unitCost;
+      movement.totalCost = totalCost;
       return movement;
     },
     async listBalances(listOrgId, filters) {
@@ -345,6 +371,7 @@ function makeFake(options: FakeOptions = {}) {
         return updated;
       },
     },
+    costing,
     outbox: { async enqueue() {} },
     idempotency: {
       async find() {

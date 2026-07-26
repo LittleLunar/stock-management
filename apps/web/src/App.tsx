@@ -35,7 +35,11 @@ import {
   useSuppliers,
 } from "./hooks/masters";
 import { CustomerReturnsPage } from "./pages/CustomerReturnsPage";
+import { CogsReportPage } from "./pages/CogsReportPage";
+import { CostRevaluationsPage } from "./pages/CostRevaluationsPage";
+import { CostValuationPage } from "./pages/CostValuationPage";
 import { GoodsReceiptsPage } from "./pages/GoodsReceiptsPage";
+import { LandedCostsPage } from "./pages/LandedCostsPage";
 import { PurchaseOrdersPage } from "./pages/PurchaseOrdersPage";
 import { ReservationsPage } from "./pages/ReservationsPage";
 import { StockAdjustmentsPage } from "./pages/StockAdjustmentsPage";
@@ -138,6 +142,27 @@ function Shell() {
           </Link>
           <Link to="/stock" className="rounded px-2 py-1 hover:bg-slate-100">
             Stock inquiry
+          </Link>
+          <Link
+            to="/cost-valuation"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Valuation
+          </Link>
+          <Link to="/cogs" className="rounded px-2 py-1 hover:bg-slate-100">
+            COGS
+          </Link>
+          <Link
+            to="/landed-costs"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Landed costs
+          </Link>
+          <Link
+            to="/cost-revaluations"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Revaluations
           </Link>
           <Link
             to="/reservations"
@@ -674,6 +699,30 @@ const stockRoute = createRoute({
   component: StockPage,
 });
 
+const costValuationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cost-valuation",
+  component: CostValuationPage,
+});
+
+const cogsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cogs",
+  component: CogsReportPage,
+});
+
+const landedCostsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/landed-costs",
+  component: LandedCostsPage,
+});
+
+const costRevaluationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cost-revaluations",
+  component: CostRevaluationsPage,
+});
+
 const reservationsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/reservations",
@@ -726,6 +775,10 @@ const routeTree = rootRoute.addChildren([
   purchaseOrdersRoute,
   goodsReceiptsRoute,
   stockRoute,
+  costValuationRoute,
+  cogsRoute,
+  landedCostsRoute,
+  costRevaluationsRoute,
   reservationsRoute,
   stockIssuesRoute,
   stockTransfersRoute,

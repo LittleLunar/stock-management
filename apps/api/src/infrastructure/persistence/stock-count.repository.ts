@@ -141,6 +141,7 @@ export class DrizzleStockCountRepository implements StockCountPort {
         lotId: line.lotId ?? null,
         expectedQty: line.expectedQty,
         countedQty: line.countedQty,
+        unitCost: line.unitCost ?? null,
         lineNumber: line.lineNumber,
       })),
     );

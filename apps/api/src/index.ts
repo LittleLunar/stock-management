@@ -29,6 +29,9 @@ import { reservationsRoutes } from "./interfaces/http/reservations.routes.js";
 import { availabilityRoutes } from "./interfaces/http/availability.routes.js";
 import { supplierReturnsRoutes } from "./interfaces/http/supplier-returns.routes.js";
 import { customerReturnsRoutes } from "./interfaces/http/customer-returns.routes.js";
+import { landedCostsRoutes } from "./interfaces/http/landed-costs.routes.js";
+import { costRevaluationsRoutes } from "./interfaces/http/cost-revaluations.routes.js";
+import { costReportsRoutes } from "./interfaces/http/cost-reports.routes.js";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
@@ -87,7 +90,9 @@ await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
   prefix: "/api/v1",
 });
 await app.register(goodsReceiptsRoutes(services), { prefix: "/api/v1" });
-await app.register(stockRoutes(services.stockInquiry), { prefix: "/api/v1" });
+await app.register(stockRoutes(services.stockInquiry, services.costInquiry), {
+  prefix: "/api/v1",
+});
 await app.register(stockIssuesRoutes(services), { prefix: "/api/v1" });
 await app.register(stockTransfersRoutes(services), { prefix: "/api/v1" });
 await app.register(stockAdjustmentsRoutes(services), { prefix: "/api/v1" });
@@ -98,6 +103,9 @@ await app.register(availabilityRoutes(services.availability), {
 });
 await app.register(supplierReturnsRoutes(services), { prefix: "/api/v1" });
 await app.register(customerReturnsRoutes(services), { prefix: "/api/v1" });
+await app.register(landedCostsRoutes(services), { prefix: "/api/v1" });
+await app.register(costRevaluationsRoutes(services), { prefix: "/api/v1" });
+await app.register(costReportsRoutes(services), { prefix: "/api/v1" });
 
 const outboxPoller = env.OUTBOX_POLLER_ENABLED
   ? new OutboxPoller({

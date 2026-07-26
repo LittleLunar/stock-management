@@ -11,6 +11,7 @@ import {
   type UowContext,
 } from "@stock-management/application";
 import type {
+  CostLayer,
   GoodsReceipt,
   Product,
   PurchaseOrder,
@@ -77,6 +78,7 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
   const receipts = new Map<string, GoodsReceiptWithLines>();
   const balances = new Map<string, StockBalance>();
   const movements: StockMovement[] = [];
+  const layers = new Map<string, CostLayer>();
   const idempotency = new Map<string, IdempotencyRecord>();
   let movementSequence = 0;
 
@@ -258,6 +260,8 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
           ...input,
           id: `movement-${++movementSequence}`,
           createdAt: input.createdAt ?? now,
+          unitCost: input.unitCost ?? null,
+          totalCost: input.totalCost ?? null,
         };
         movements.push(movement);
         return movement;
@@ -291,12 +295,128 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
         return {
           id: randomUUID(),
           ...input,
+          locationId: input.locationId ?? null,
           status: "in_stock",
           createdAt: now,
           updatedAt: now,
         };
       },
       async list() {
+        return [];
+      },
+    },
+    costing: {
+      async insertLayer(layer) {
+        const created: CostLayer = {
+          ...layer,
+          originalUnitCost: layer.originalUnitCost ?? layer.unitCost,
+          id: layer.id ?? randomUUID(),
+        };
+        layers.set(created.id, created);
+        return created;
+      },
+      async getLayer(orgId, layerId) {
+        const layer = layers.get(layerId);
+        return layer && layer.orgId === orgId ? layer : null;
+      },
+      async listOpenLayers(orgId, filter) {
+        return [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === orgId &&
+            Number(layer.qtyRemaining) > 0 &&
+            (!filter.productId || layer.productId === filter.productId) &&
+            (!filter.locationId || layer.locationId === filter.locationId),
+        );
+      },
+      async listLayersBySourceDocument(orgId, documentType, documentId) {
+        return [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === orgId &&
+            layer.sourceDocumentType === documentType &&
+            layer.sourceDocumentId === documentId,
+        );
+      },
+      async setQtyRemaining(orgId, layerId, qtyRemaining) {
+        const layer = layers.get(layerId);
+        if (!layer || layer.orgId !== orgId) return;
+        layers.set(layerId, { ...layer, qtyRemaining });
+      },
+      async lockOpenLayersFifo() {
+        return [];
+      },
+      async listOpenLayersBySourceLine() {
+        return [];
+      },
+      async insertConsumption() {
+        throw new Error("unused");
+      },
+      async listConsumptionsByMovementIds() {
+        return [];
+      },
+      async listLayersForValuation(orgId, filter) {
+        return [...layers.values()].filter((layer) => {
+          if (layer.orgId !== orgId) return false;
+          if (filter.productId && layer.productId !== filter.productId) return false;
+          if (filter.locationId && layer.locationId !== filter.locationId) return false;
+          return true;
+        });
+      },
+      async updateLayerUnitCost(orgId, layerId, unitCost) {
+        const layer = layers.get(layerId);
+        if (!layer || layer.orgId !== orgId) return;
+        layers.set(layerId, { ...layer, unitCost });
+      },
+      async listConsumptionsForLayers() {
+        return [];
+      },
+      async insertValueAdjustment() {
+        throw new Error("unused");
+      },
+      async listAdjustmentsForLayers() {
+        return [];
+      },
+      async listAdjustmentsBySourceDocument() {
+        return [];
+      },
+      async upsertProductCostSummary(row) {
+        return {
+          id: row.id ?? randomUUID(),
+          orgId: row.orgId,
+          productId: row.productId,
+          locationId: row.locationId,
+          lotId: row.lotId,
+          qtyRemainingSum: row.qtyRemainingSum,
+          onHandValue: row.onHandValue,
+          updatedAt: row.updatedAt ?? now,
+        };
+      },
+      async recomputeProductCostSummary(key) {
+        const open = [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === key.orgId &&
+            layer.productId === key.productId &&
+            layer.locationId === key.locationId &&
+            (layer.lotId ?? null) === (key.lotId ?? null) &&
+            Number(layer.qtyRemaining) > 0,
+        );
+        let qty = 0;
+        let value = 0;
+        for (const layer of open) {
+          qty += Number(layer.qtyRemaining);
+          value += Number(layer.qtyRemaining) * Number(layer.unitCost);
+        }
+        return {
+          id: randomUUID(),
+          orgId: key.orgId,
+          productId: key.productId,
+          locationId: key.locationId,
+          lotId: key.lotId,
+          qtyRemainingSum: String(qty),
+          onHandValue: String(value),
+          updatedAt: now,
+        };
+      },
+      async listProductCostSummaries() {
         return [];
       },
     },

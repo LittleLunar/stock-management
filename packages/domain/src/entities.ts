@@ -168,7 +168,63 @@ export type StockMovement = {
   documentLineId: string | null;
   movementType: MovementType;
   qty: string;
+  unitCost: string | null;
+  totalCost: string | null;
   createdAt: Date;
+};
+
+export type CostLayer = {
+  id: string;
+  orgId: string;
+  productId: string;
+  locationId: string;
+  lotId: string | null;
+  sourceDocumentType: string;
+  sourceDocumentId: string;
+  sourceDocumentLineId: string | null;
+  sourceMovementId: string;
+  receivedAt: Date;
+  unitCost: string;
+  originalUnitCost: string;
+  qtyOriginal: string;
+  qtyRemaining: string;
+};
+
+export type CostConsumption = {
+  id: string;
+  orgId: string;
+  costLayerId: string;
+  movementId: string;
+  qty: string;
+  unitCost: string;
+  totalCost: string;
+  isReversal: boolean;
+  createdAt: Date;
+};
+
+export type CostLayerValueAdjustment = {
+  id: string;
+  orgId: string;
+  costLayerId: string;
+  effectiveAt: Date;
+  oldUnitCost: string;
+  newUnitCost: string;
+  amount: string;
+  sourceDocumentType: string;
+  sourceDocumentId: string;
+  sourceDocumentLineId: string | null;
+  createdAt: Date;
+};
+
+export type ProductCostSummary = {
+  id: string;
+  orgId: string;
+  productId: string;
+  locationId: string;
+  lotId: string | null;
+  qtyRemainingSum: string;
+  onHandValue: string;
+  updatedAt: Date;
 };
 
 export type PurchaseOrder = {
@@ -299,6 +355,7 @@ export type StockAdjustmentLine = {
   productId: string;
   qty: string;
   lotId: string | null;
+  unitCost: string | null;
   lineNumber: number;
 };
 
@@ -323,6 +380,7 @@ export type StockCountLine = {
   lotId: string | null;
   expectedQty: string;
   countedQty: string | null;
+  unitCost: string | null;
   lineNumber: number;
 };
 
@@ -401,6 +459,7 @@ export type CustomerReturnLine = {
   productId: string;
   qty: string;
   lotId: string | null;
+  unitCost: string | null;
   lineNumber: number;
 };
 

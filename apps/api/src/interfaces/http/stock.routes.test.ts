@@ -1,12 +1,15 @@
 import Fastify from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  CostInquiryUseCases,
   StockInquiryUseCases,
   type LotPort,
   type SerialPort,
   type StockPort,
+  type UnitOfWork,
 } from "@stock-management/application";
 import type {
+  CostLayer,
   Lot,
   Serial,
   StockBalance,
@@ -62,6 +65,8 @@ const movements: StockMovement[] = [
     documentLineId: "receipt-line-1",
     movementType: "receipt",
     qty: "2",
+    unitCost: "10",
+    totalCost: "20",
     createdAt: now,
   },
   {
@@ -75,6 +80,8 @@ const movements: StockMovement[] = [
     documentLineId: "receipt-line-2",
     movementType: "receipt",
     qty: "12",
+    unitCost: "5",
+    totalCost: "60",
     createdAt: now,
   },
 ];
@@ -98,10 +105,30 @@ const serials: Serial[] = [
     orgId: ORG_ID,
     productId: PRODUCT_ID,
     lotId: LOT_ID,
+    locationId: LOCATION_ID,
     serialNumber: "SN-100",
     status: "in_stock",
     createdAt: now,
     updatedAt: now,
+  },
+];
+
+const costLayers: CostLayer[] = [
+  {
+    id: "layer-1",
+    orgId: ORG_ID,
+    productId: PRODUCT_ID,
+    locationId: LOCATION_ID,
+    lotId: LOT_ID,
+    sourceDocumentType: "goods_receipt",
+    sourceDocumentId: "00000000-0000-4000-8000-000000000010",
+    sourceDocumentLineId: "00000000-0000-4000-8000-000000000011",
+    sourceMovementId: "movement-1",
+    receivedAt: now,
+    unitCost: "10",
+    originalUnitCost: "10",
+    qtyOriginal: "2",
+    qtyRemaining: "2",
   },
 ];
 
@@ -192,6 +219,45 @@ describe("stock inquiry routes", () => {
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
     await app.register(contextPlugin);
+    const uow: UnitOfWork = {
+      run(fn) {
+        return fn({
+          costing: {
+            async insertLayer() {
+              throw new Error("unused");
+            },
+            async getLayer() {
+              return null;
+            },
+            async listOpenLayers(orgId, filter) {
+              return costLayers.filter(
+                (layer) =>
+                  layer.orgId === orgId &&
+                  Number(layer.qtyRemaining) > 0 &&
+                  (!filter.productId || layer.productId === filter.productId) &&
+                  (!filter.locationId || layer.locationId === filter.locationId),
+              );
+            },
+            async listLayersBySourceDocument() {
+              return [];
+            },
+            async setQtyRemaining() {},
+            async lockOpenLayersFifo() {
+              return [];
+            },
+            async listOpenLayersBySourceLine() {
+              return [];
+            },
+            async insertConsumption() {
+              throw new Error("unused");
+            },
+            async listConsumptionsByMovementIds() {
+              return [];
+            },
+          },
+        } as never);
+      },
+    };
     await app.register(
       stockRoutes(
         new StockInquiryUseCases(
@@ -199,6 +265,7 @@ describe("stock inquiry routes", () => {
           new InMemoryLotRepository(),
           new InMemorySerialRepository(),
         ),
+        new CostInquiryUseCases(uow),
       ),
       { prefix: "/api/v1" },
     );
@@ -274,6 +341,27 @@ describe("stock inquiry routes", () => {
     expect(serialsResponse.statusCode).toBe(200);
     expect(serialsResponse.json<Serial[]>()).toMatchObject([
       { serialNumber: "SN-100", lotId: LOT_ID },
+    ]);
+  });
+
+  it("lists open cost layers", async () => {
+    const app = await setup();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/stock/cost-layers?productId=${PRODUCT_ID}&locationId=${LOCATION_ID}`,
+      headers,
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toMatchObject([
+      {
+        id: "layer-1",
+        productId: PRODUCT_ID,
+        locationId: LOCATION_ID,
+        unitCost: "10",
+        qtyRemaining: "2",
+      },
     ]);
   });
 });

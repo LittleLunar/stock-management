@@ -3,6 +3,7 @@ import {
   InvalidStateError,
   NotFoundError,
   assertCanPostCustomerReturn,
+  assertLayersFullyOpen,
   assertLotSerialRules,
   serialStatusAfterCustomerReturn,
   signedQtyForMovement,
@@ -17,6 +18,8 @@ import type {
   IdempotencyInput,
   UpdateCustomerReturnInput,
 } from "../dto/inputs.js";
+import { createLayerForMovement } from "../costing/apply-document-costing.js";
+import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import type { CustomerReturnPort } from "../ports/inventory.js";
 import type { UnitOfWork, UowContext } from "../ports/unit-of-work.js";
 
@@ -117,15 +120,33 @@ export class PostCustomerReturn {
           lotId: line.lotId,
         };
         const balance = await ctx.stock.findBalance(balanceKey);
+        const movement = await ctx.stock.insertMovement({
+          ...balanceKey,
+          documentType: "customer_return",
+          documentId: doc.id,
+          documentLineId: line.id,
+          movementType: "customer_return",
+          qty,
+        });
+        const costs = await createLayerForMovement(ctx, {
+          orgId,
+          productId: line.productId,
+          locationId: doc.locationId,
+          lotId: line.lotId,
+          qty: line.qty,
+          unitCost: line.unitCost ?? "",
+          movementId: movement.id,
+          sourceDocumentType: "customer_return",
+          sourceDocumentId: doc.id,
+          sourceDocumentLineId: line.id,
+        });
         movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "customer_return",
-            documentId: doc.id,
-            documentLineId: line.id,
-            movementType: "customer_return",
-            qty,
-          }),
+          await ctx.stock.updateMovementCosts(
+            orgId,
+            movement.id,
+            costs.unitCost,
+            costs.totalCost,
+          ),
         );
         await ctx.stock.setBalance(
           balanceKey,
@@ -181,6 +202,13 @@ export class VoidCustomerReturn {
         );
       }
 
+      const layers = await ctx.costing.listLayersBySourceDocument(
+        orgId,
+        "customer_return",
+        doc.id,
+      );
+      assertLayersFullyOpen(layers);
+
       const postedMovements = (
         await ctx.stock.listMovements(orgId, {
           documentType: "customer_return",
@@ -212,9 +240,16 @@ export class VoidCustomerReturn {
             documentLineId: posted.documentLineId,
             movementType: "customer_return_void",
             qty,
+            unitCost: posted.unitCost,
+            totalCost: posted.totalCost
+              ? String(-Math.abs(Number(posted.totalCost)))
+              : null,
           }),
         );
         await ctx.stock.setBalance(balanceKey, nextQty);
+      }
+      for (const layer of layers) {
+        await ctx.costing.setQtyRemaining(orgId, layer.id, "0");
       }
       for (const line of doc.lines) {
         for (const serialNumber of line.serialNumbers) {
@@ -278,7 +313,17 @@ async function enqueueReturnEvents(
     eventType: action === "posted" ? "document.posted" : "document.voided",
     aggregateType,
     aggregateId: returnId,
-    payload: { returnId, userId },
+    payload: {
+      returnId,
+      userId,
+      ...(action === "posted"
+        ? costingOutboxFields({
+            inventoryValueDelta: String(
+              movements.reduce((sum, m) => sum + Number(m.totalCost ?? 0), 0),
+            ),
+          })
+        : {}),
+    },
   });
   await ctx.outbox.enqueue({
     orgId,

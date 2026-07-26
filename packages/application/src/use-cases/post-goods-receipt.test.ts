@@ -1,4 +1,5 @@
 import type {
+  CostLayer,
   GoodsReceipt,
   Product,
   PurchaseOrder,
@@ -6,7 +7,12 @@ import type {
   StockBalance,
   StockMovement,
 } from "@stock-management/domain";
-import { OverReceiveError } from "@stock-management/domain";
+import {
+  LayerInUseError,
+  MissingUnitCostError,
+  OverReceiveError,
+  UnsupportedCostingMethodError,
+} from "@stock-management/domain";
 import { describe, expect, it } from "vitest";
 import type {
   GoodsReceiptWithLines,
@@ -18,7 +24,20 @@ import { VoidGoodsReceipt } from "./void-goods-receipt.js";
 
 const now = new Date("2026-07-26T00:00:00.000Z");
 
-function makeFake(receivingQty = "3") {
+type FakeOptions = {
+  receivingQty?: string;
+  lineUnitCost?: string | null;
+  poUnitCost?: string | null;
+  costingMethod?: "fifo" | "avg";
+  withPo?: boolean;
+};
+
+function makeFake(options: FakeOptions | string = {}) {
+  const opts: FakeOptions =
+    typeof options === "string" ? { receivingQty: options } : options;
+  const receivingQty = opts.receivingQty ?? "3";
+  const withPo = opts.withPo ?? true;
+
   const po: PurchaseOrder = {
     id: "po-1",
     orgId: "org-1",
@@ -37,15 +56,15 @@ function makeFake(receivingQty = "3") {
     productId: "product-1",
     orderedQty: "5",
     receivedQty: "0",
-    unitCost: "10",
+    unitCost: opts.poUnitCost === undefined ? "10" : opts.poUnitCost,
     lineNumber: 1,
   };
   const receipt: GoodsReceipt = {
     id: "gr-1",
     orgId: "org-1",
-    purchaseOrderId: po.id,
-    supplierId: po.supplierId,
-    branchId: po.branchId,
+    purchaseOrderId: withPo ? po.id : null,
+    supplierId: withPo ? po.supplierId : null,
+    branchId: "branch-1",
     locationId: "location-1",
     status: "draft",
     createdAt: now,
@@ -60,10 +79,10 @@ function makeFake(receivingQty = "3") {
         id: "gr-line-1",
         orgId: "org-1",
         goodsReceiptId: receipt.id,
-        productId: poLine.productId,
-        purchaseOrderLineId: poLine.id,
+        productId: "product-1",
+        purchaseOrderLineId: withPo ? poLine.id : null,
         qty: receivingQty,
-        unitCost: "10",
+        unitCost: opts.lineUnitCost === undefined ? "10" : opts.lineUnitCost,
         lotId: null,
         lineNumber: 1,
         serialNumbers: [],
@@ -80,7 +99,7 @@ function makeFake(receivingQty = "3") {
     trackLot: false,
     trackSerial: false,
     trackExpiry: false,
-    costingMethod: "fifo",
+    costingMethod: opts.costingMethod ?? "fifo",
     reorderMin: null,
     reorderMax: null,
     status: "active",
@@ -92,6 +111,7 @@ function makeFake(receivingQty = "3") {
   let currentPo = { ...po, lines: [poLine] };
   const balances = new Map<string, StockBalance>();
   const movements: StockMovement[] = [];
+  const layers = new Map<string, CostLayer>();
   const idempotency = new Map<string, IdempotencyRecord>();
   let sequence = 0;
 
@@ -199,6 +219,8 @@ function makeFake(receivingQty = "3") {
           ...input,
           id: `movement-${++sequence}`,
           createdAt: input.createdAt ?? now,
+          unitCost: input.unitCost ?? null,
+          totalCost: input.totalCost ?? null,
         };
         movements.push(movement);
         return movement;
@@ -208,6 +230,146 @@ function makeFake(receivingQty = "3") {
       },
       async listMovements() {
         return movements;
+      },
+    },
+    costing: {
+      async insertLayer(layer) {
+        const created: CostLayer = {
+          ...layer,
+          originalUnitCost: layer.originalUnitCost ?? layer.unitCost,
+          id: layer.id ?? `layer-${++sequence}`,
+        };
+        layers.set(created.id, created);
+        return created;
+      },
+      async getLayer(orgId, layerId) {
+        const layer = layers.get(layerId);
+        return layer && layer.orgId === orgId ? layer : null;
+      },
+      async listOpenLayers(orgId, filter) {
+        return [...layers.values()].filter((layer) => {
+          if (layer.orgId !== orgId) return false;
+          if (Number(layer.qtyRemaining) <= 0) return false;
+          if (filter.productId && layer.productId !== filter.productId) return false;
+          if (filter.locationId && layer.locationId !== filter.locationId) return false;
+          return true;
+        });
+      },
+      async listLayersBySourceDocument(orgId, documentType, documentId) {
+        return [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === orgId &&
+            layer.sourceDocumentType === documentType &&
+            layer.sourceDocumentId === documentId,
+        );
+      },
+      async setQtyRemaining(orgId, layerId, qtyRemaining) {
+        const layer = layers.get(layerId);
+        if (!layer || layer.orgId !== orgId) return;
+        layers.set(layerId, { ...layer, qtyRemaining });
+      },
+      async lockOpenLayersFifo(key) {
+        return [...layers.values()]
+          .filter(
+            (layer) =>
+              layer.orgId === key.orgId &&
+              layer.productId === key.productId &&
+              layer.locationId === key.locationId &&
+              (layer.lotId ?? null) === (key.lotId ?? null) &&
+              Number(layer.qtyRemaining) > 0,
+          )
+          .sort(
+            (a, b) =>
+              a.receivedAt.getTime() - b.receivedAt.getTime() ||
+              a.id.localeCompare(b.id),
+          );
+      },
+      async listOpenLayersBySourceLine(orgId, sourceDocumentLineId) {
+        return [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === orgId &&
+            layer.sourceDocumentLineId === sourceDocumentLineId &&
+            Number(layer.qtyRemaining) > 0,
+        );
+      },
+      async insertConsumption() {
+        throw new Error("consumption not used in GR tests");
+      },
+      async listConsumptionsByMovementIds() {
+        return [];
+      },
+      async listLayersForValuation(orgId, filter) {
+        return [...layers.values()].filter((layer) => {
+          if (layer.orgId !== orgId) return false;
+          if (filter.productId && layer.productId !== filter.productId) return false;
+          if (filter.locationId && layer.locationId !== filter.locationId) return false;
+          if (
+            filter.locationIds &&
+            filter.locationIds.length > 0 &&
+            !filter.locationIds.includes(layer.locationId)
+          ) {
+            return false;
+          }
+          return true;
+        });
+      },
+      async updateLayerUnitCost(orgId, layerId, unitCost) {
+        const layer = layers.get(layerId);
+        if (!layer || layer.orgId !== orgId) return;
+        layers.set(layerId, { ...layer, unitCost });
+      },
+      async listConsumptionsForLayers() {
+        return [];
+      },
+      async insertValueAdjustment() {
+        throw new Error("value adjustments not used in GR tests");
+      },
+      async listAdjustmentsForLayers() {
+        return [];
+      },
+      async listAdjustmentsBySourceDocument() {
+        return [];
+      },
+      async upsertProductCostSummary(row) {
+        return {
+          id: row.id ?? `summary-${++sequence}`,
+          orgId: row.orgId,
+          productId: row.productId,
+          locationId: row.locationId,
+          lotId: row.lotId,
+          qtyRemainingSum: row.qtyRemainingSum,
+          onHandValue: row.onHandValue,
+          updatedAt: row.updatedAt ?? new Date(),
+        };
+      },
+      async recomputeProductCostSummary(key) {
+        const open = [...layers.values()].filter(
+          (layer) =>
+            layer.orgId === key.orgId &&
+            layer.productId === key.productId &&
+            layer.locationId === key.locationId &&
+            (layer.lotId ?? null) === (key.lotId ?? null) &&
+            Number(layer.qtyRemaining) > 0,
+        );
+        let qty = 0;
+        let value = 0;
+        for (const layer of open) {
+          qty += Number(layer.qtyRemaining);
+          value += Number(layer.qtyRemaining) * Number(layer.unitCost);
+        }
+        return {
+          id: `summary-${++sequence}`,
+          orgId: key.orgId,
+          productId: key.productId,
+          locationId: key.locationId,
+          lotId: key.lotId,
+          qtyRemainingSum: String(qty),
+          onHandValue: String(value),
+          updatedAt: new Date(),
+        };
+      },
+      async listProductCostSummaries() {
+        return [];
       },
     },
     lots: {
@@ -231,7 +393,10 @@ function makeFake(receivingQty = "3") {
     },
     idempotency: {
       async find(orgId, operation, externalSystem, externalId) {
-        return idempotency.get(`${orgId}:${operation}:${externalSystem}:${externalId}`) ?? null;
+        return (
+          idempotency.get(`${orgId}:${operation}:${externalSystem}:${externalId}`) ??
+          null
+        );
       },
       async save(record) {
         idempotency.set(
@@ -254,6 +419,16 @@ function makeFake(receivingQty = "3") {
       balances.get(balanceKey(product.id, receipt.locationId, null)) ?? null,
     getReceipt: () => currentReceipt,
     getMovements: () => movements,
+    partiallyConsumeLayer: (sourceDocumentLineId: string, consumeQty: string) => {
+      for (const [id, layer] of layers) {
+        if (layer.sourceDocumentLineId === sourceDocumentLineId) {
+          layers.set(id, {
+            ...layer,
+            qtyRemaining: String(Number(layer.qtyRemaining) - Number(consumeQty)),
+          });
+        }
+      }
+    },
   };
 }
 
@@ -268,6 +443,37 @@ describe("PostGoodsReceipt", () => {
     expect(fake.getReceipt().status).toBe("posted");
     expect(result.movements).toHaveLength(1);
     expect(result.movements[0]?.qty).toBe("3");
+  });
+
+  it("creates a cost layer and stamps movement cost on post", async () => {
+    const { uow } = makeFake("3");
+    const result = await new PostGoodsReceipt(uow).execute("org-1", "user-1", "gr-1");
+    expect(result.movements[0]?.unitCost).toBe("10");
+    expect(result.movements[0]?.totalCost).toBe("30");
+    const layers = await uow.run((ctx) =>
+      ctx.costing.listOpenLayers("org-1", { productId: "product-1" }),
+    );
+    expect(layers).toHaveLength(1);
+    expect(layers[0]?.qtyRemaining).toBe("3");
+    expect(layers[0]?.unitCost).toBe("10");
+  });
+
+  it("rejects post when unit cost missing and no PO cost", async () => {
+    const { uow } = makeFake({
+      lineUnitCost: null,
+      poUnitCost: null,
+      withPo: false,
+    });
+    await expect(
+      new PostGoodsReceipt(uow).execute("org-1", "user-1", "gr-1"),
+    ).rejects.toBeInstanceOf(MissingUnitCostError);
+  });
+
+  it("rejects post when product costing method is avg", async () => {
+    const { uow } = makeFake({ costingMethod: "avg" });
+    await expect(
+      new PostGoodsReceipt(uow).execute("org-1", "user-1", "gr-1"),
+    ).rejects.toBeInstanceOf(UnsupportedCostingMethodError);
   });
 
   it("returns the prior result for the same external idempotency key", async () => {
@@ -311,5 +517,24 @@ describe("VoidGoodsReceipt", () => {
     expect(result.movements).toHaveLength(1);
     expect(result.movements[0]?.movementType).toBe("receipt_void");
     expect(result.movements[0]?.qty).toBe("-3");
+  });
+
+  it("void closes open layers", async () => {
+    const { uow } = makeFake("3");
+    await new PostGoodsReceipt(uow).execute("org-1", "user-1", "gr-1");
+    await new VoidGoodsReceipt(uow).execute("org-1", "user-1", "gr-1");
+    const open = await uow.run((ctx) =>
+      ctx.costing.listOpenLayers("org-1", { productId: "product-1" }),
+    );
+    expect(open).toHaveLength(0);
+  });
+
+  it("void rejects when layer partially consumed", async () => {
+    const { uow, partiallyConsumeLayer } = makeFake("3");
+    await new PostGoodsReceipt(uow).execute("org-1", "user-1", "gr-1");
+    partiallyConsumeLayer("gr-line-1", "1");
+    await expect(
+      new VoidGoodsReceipt(uow).execute("org-1", "user-1", "gr-1"),
+    ).rejects.toBeInstanceOf(LayerInUseError);
   });
 });

@@ -5,6 +5,7 @@ import {
   PostSupplierReturn,
   SupplierReturnUseCases,
   VoidSupplierReturn,
+  createFakeCosting,
   type IdempotencyRecord,
   type SupplierReturnWithLines,
   type UnitOfWork,
@@ -70,6 +71,21 @@ function makeHarness(options?: {
     updatedAt: now,
   };
   let movementSequence = 0;
+  const costing = createFakeCosting();
+  void costing.insertLayer({
+    orgId: ORG_ID,
+    productId: PRODUCT_ID,
+    locationId: LOCATION_ID,
+    lotId: null,
+    sourceDocumentType: "goods_receipt",
+    sourceDocumentId: "gr-seed",
+    sourceDocumentLineId: "grl-seed",
+    sourceMovementId: "m-seed",
+    receivedAt: new Date("2026-01-01"),
+    unitCost: "10",
+    qtyOriginal: options?.onHand ?? "10",
+    qtyRemaining: options?.onHand ?? "10",
+  });
 
   if (trackSerial) {
     serialsByNumber.set(serialNumber, {
@@ -191,14 +207,30 @@ function makeHarness(options?: {
       async insertMovement(
         input: Omit<StockMovement, "id" | "createdAt"> & {
           createdAt?: Date;
+          unitCost?: string | null;
+          totalCost?: string | null;
         },
       ) {
         const movement: StockMovement = {
           ...input,
           id: `movement-${++movementSequence}`,
           createdAt: input.createdAt ?? now,
+          unitCost: input.unitCost ?? null,
+          totalCost: input.totalCost ?? null,
         };
         movements.push(movement);
+        return movement;
+      },
+      async updateMovementCosts(
+        _orgId: string,
+        movementId: string,
+        unitCost: string,
+        totalCost: string,
+      ) {
+        const movement = movements.find((candidate) => candidate.id === movementId);
+        if (!movement) throw new Error("Movement not found");
+        movement.unitCost = unitCost;
+        movement.totalCost = totalCost;
         return movement;
       },
       async listBalances() {
@@ -250,6 +282,7 @@ function makeHarness(options?: {
         return [...serialsByNumber.values()];
       },
     },
+    costing,
     outbox: { async enqueue() {} },
     idempotency: {
       async find(

@@ -2,14 +2,20 @@ import {
   AvailabilityUseCases,
   BranchUseCases,
   CategoryUseCases,
+  CogsReportUseCases,
+  CostInquiryUseCases,
+  CostRevaluationUseCases,
   CustomerReturnUseCases,
   CustomerUseCases,
   CommitReservation,
   GoodsReceiptUseCases,
+  LandedCostUseCases,
   LocationUseCases,
   OrganizationUseCases,
+  PostCostRevaluation,
   PostCustomerReturn,
   PostGoodsReceipt,
+  PostLandedCost,
   PostStockAdjustment,
   PostStockCount,
   PostStockIssue,
@@ -28,8 +34,11 @@ import {
   SupplierReturnUseCases,
   SupplierUseCases,
   UsersUseCases,
+  ValuationReportUseCases,
+  VoidCostRevaluation,
   VoidCustomerReturn,
   VoidGoodsReceipt,
+  VoidLandedCost,
   VoidStockAdjustment,
   VoidStockCount,
   VoidStockIssue,
@@ -39,9 +48,13 @@ import {
 import type { Db } from "../infrastructure/db/client.js";
 import { DrizzleBranchRepository } from "../infrastructure/persistence/branch.repository.js";
 import { DrizzleCategoryRepository } from "../infrastructure/persistence/category.repository.js";
+import { DrizzleCogsMovementSource } from "../infrastructure/persistence/cogs-movement.repository.js";
+import { DrizzleCostingRepository } from "../infrastructure/persistence/costing.repository.js";
+import { DrizzleCostRevaluationRepository } from "../infrastructure/persistence/cost-revaluation.repository.js";
 import { DrizzleCustomerRepository } from "../infrastructure/persistence/customer.repository.js";
 import { DrizzleCustomerReturnRepository } from "../infrastructure/persistence/customer-return.repository.js";
 import { DrizzleGoodsReceiptRepository } from "../infrastructure/persistence/goods-receipt.repository.js";
+import { DrizzleLandedCostRepository } from "../infrastructure/persistence/landed-cost.repository.js";
 import { DrizzleLocationRepository } from "../infrastructure/persistence/location.repository.js";
 import { DrizzleLotRepository } from "../infrastructure/persistence/lot.repository.js";
 import { DrizzleOrganizationRepository } from "../infrastructure/persistence/organization.repository.js";
@@ -73,6 +86,7 @@ export type AppServices = {
   postGoodsReceipt: PostGoodsReceipt;
   voidGoodsReceipt: VoidGoodsReceipt;
   stockInquiry: StockInquiryUseCases;
+  costInquiry: CostInquiryUseCases;
   stockIssues: StockIssueUseCases;
   postStockIssue: PostStockIssue;
   voidStockIssue: VoidStockIssue;
@@ -96,6 +110,15 @@ export type AppServices = {
   customerReturns: CustomerReturnUseCases;
   postCustomerReturn: PostCustomerReturn;
   voidCustomerReturn: VoidCustomerReturn;
+  landedCosts: LandedCostUseCases;
+  postLandedCost: PostLandedCost;
+  voidLandedCost: VoidLandedCost;
+  costRevaluations: CostRevaluationUseCases;
+  postCostRevaluation: PostCostRevaluation;
+  voidCostRevaluation: VoidCostRevaluation;
+  valuationReport: ValuationReportUseCases;
+  cogsReport: CogsReportUseCases;
+  costing: DrizzleCostingRepository;
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
@@ -114,6 +137,9 @@ export function createAppServices(db: Db): AppServices {
   const supplierReturns = new DrizzleSupplierReturnRepository(db);
   const customerReturns = new DrizzleCustomerReturnRepository(db);
   const locations = new DrizzleLocationRepository(db);
+  const landedCosts = new DrizzleLandedCostRepository(db);
+  const costRevaluations = new DrizzleCostRevaluationRepository(db);
+  const costing = new DrizzleCostingRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
 
   return {
@@ -130,6 +156,7 @@ export function createAppServices(db: Db): AppServices {
     postGoodsReceipt: new PostGoodsReceipt(unitOfWork),
     voidGoodsReceipt: new VoidGoodsReceipt(unitOfWork),
     stockInquiry: new StockInquiryUseCases(stock, lots, serials),
+    costInquiry: new CostInquiryUseCases(unitOfWork),
     stockIssues: new StockIssueUseCases(stockIssues),
     postStockIssue: new PostStockIssue(unitOfWork),
     voidStockIssue: new VoidStockIssue(unitOfWork),
@@ -153,5 +180,14 @@ export function createAppServices(db: Db): AppServices {
     customerReturns: new CustomerReturnUseCases(customerReturns),
     postCustomerReturn: new PostCustomerReturn(unitOfWork),
     voidCustomerReturn: new VoidCustomerReturn(unitOfWork),
+    landedCosts: new LandedCostUseCases(landedCosts),
+    postLandedCost: new PostLandedCost(unitOfWork),
+    voidLandedCost: new VoidLandedCost(unitOfWork),
+    costRevaluations: new CostRevaluationUseCases(costRevaluations),
+    postCostRevaluation: new PostCostRevaluation(unitOfWork),
+    voidCostRevaluation: new VoidCostRevaluation(unitOfWork),
+    valuationReport: new ValuationReportUseCases(costing, locations),
+    cogsReport: new CogsReportUseCases(new DrizzleCogsMovementSource(db)),
+    costing,
   };
 }

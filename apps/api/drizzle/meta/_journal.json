@@ -29,6 +29,27 @@
       "when": 1785065940382,
       "tag": "0003_mighty_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785070726668,
+      "tag": "0004_dear_sunspot",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785075000000,
+      "tag": "0005_phase_c2_line_unit_cost",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785073537536,
+      "tag": "0006_phase_c3_landed_reval_reports",
+      "breakpoints": true
     }
   ]
 }

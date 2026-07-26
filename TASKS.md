@@ -2,7 +2,7 @@
 
 ## Active
 
-- [ ] **Phase C FIFO costing** - next after Phase B qty loop; plan under `docs/superpowers/plans/` when started
+- [ ] **Phase D accounting** - unblocked after Phase C; journals / AP / periods
 
 ## Waiting On
 
@@ -10,13 +10,17 @@
 
 ## Someday
 
-- [ ] **Phase D accounting** - after Phase C
 - [ ] **Phase E multi-branch hardening**
 - [ ] **Phase F POS integration** - plug into ipos or built-in POS
-- [ ] Write detailed plan files for Phases C–F under `docs/superpowers/plans/`
 
 ## Done
 
+- [x] ~~Phase C3 — landed, reval, reports, web~~ (2026-07-26)
+- [x] ~~Phase C2 — FIFO consumption on all inventory docs~~ (2026-07-26)
+- [x] ~~Phase C1 — cost layers on goods receipt~~ (2026-07-26)
+- [x] ~~Phase C Pass 3 plan (deep C3)~~ (2026-07-26)
+- [x] ~~Phase C Pass 2 plan (deep C2)~~ (2026-07-26)
+- [x] ~~Phase C Pass 1 plans (design + master + deep C1)~~ (2026-07-26)
 - [x] ~~Phase B complete (qty loop B1–B3)~~ (2026-07-26)
 - [x] ~~Phase B3 — returns, reservations, outbox~~ (2026-07-26)
 - [x] ~~Phase B2 — outbound documents~~ (2026-07-26)

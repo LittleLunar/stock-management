@@ -5,7 +5,9 @@ import type {
   StockBalance,
   StockMovement,
 } from "@stock-management/domain";
+import { MissingUnitCostError } from "@stock-management/domain";
 import { describe, expect, it } from "vitest";
+import { createFakeCosting } from "../costing/fake-costing.js";
 import type {
   CreateCustomerInput,
   CreateCustomerReturnInput,
@@ -49,6 +51,7 @@ type FakeOptions = {
   seedCustomerSerials?: boolean;
   supplierSerialStatus?: Serial["status"];
   customerSerialStatus?: Serial["status"];
+  seedCostLayers?: boolean;
 };
 
 function makeFake(options: FakeOptions = {}) {
@@ -73,6 +76,7 @@ function makeFake(options: FakeOptions = {}) {
   };
 
   const balances = new Map<string, StockBalance>();
+  const costing = createFakeCosting();
   const balanceKey = (
     productKey: string,
     locationKey: string,
@@ -89,6 +93,23 @@ function makeFake(options: FakeOptions = {}) {
     qtyReserved: "0",
     updatedAt: now,
   });
+  if (options.seedCostLayers !== false) {
+    costing.layers.push({
+      id: "default-layer",
+      orgId,
+      productId,
+      locationId,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-seed",
+      sourceDocumentLineId: "grl-seed",
+      sourceMovementId: "m-seed",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "10",
+      qtyOriginal: options.onHand ?? "10",
+      qtyRemaining: options.onHand ?? "10",
+    });
+  }
 
   const movements: StockMovement[] = [];
   const outbox: unknown[] = [];
@@ -265,6 +286,7 @@ function makeFake(options: FakeOptions = {}) {
           productId: line.productId,
           qty: line.qty,
           lotId: line.lotId ?? null,
+          unitCost: line.unitCost ?? null,
           lineNumber: line.lineNumber,
           serialNumbers: line.serialNumbers ?? [],
         })),
@@ -293,6 +315,7 @@ function makeFake(options: FakeOptions = {}) {
               productId: line.productId,
               qty: line.qty,
               lotId: line.lotId ?? null,
+              unitCost: line.unitCost ?? null,
               lineNumber: line.lineNumber,
               serialNumbers: line.serialNumbers ?? [],
             }))
@@ -382,6 +405,13 @@ function makeFake(options: FakeOptions = {}) {
         ...input,
       };
       movements.push(movement);
+      return movement;
+    },
+    async updateMovementCosts(_orgId, movementId, unitCost, totalCost) {
+      const movement = movements.find((candidate) => candidate.id === movementId);
+      if (!movement) throw new Error("Movement not found");
+      movement.unitCost = unitCost;
+      movement.totalCost = totalCost;
       return movement;
     },
     async listBalances() {
@@ -483,6 +513,7 @@ function makeFake(options: FakeOptions = {}) {
         return [...serialsByNumber.values()];
       },
     },
+    costing,
     outbox: {
       async enqueue(event) {
         outbox.push(event);
@@ -516,6 +547,7 @@ function makeFake(options: FakeOptions = {}) {
     movements,
     outbox,
     serialsByNumber,
+    costing,
     getOnHand: () =>
       balances.get(balanceKey(productId, locationId, null))?.qtyOnHand ?? "0",
   };
@@ -592,6 +624,66 @@ describe("SupplierReturnUseCases", () => {
       /negative stock|Insufficient/i,
     );
   });
+
+  it("prefers GR line layer when goodsReceiptLineId is set", async () => {
+    const fake = makeFake({ onHand: "10" });
+    const costing = fake.costing;
+    await costing.insertLayer({
+      id: "gr-line-layer",
+      orgId,
+      productId,
+      locationId,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-1",
+      sourceDocumentLineId: "grl-preferred",
+      sourceMovementId: "m-gr",
+      receivedAt: new Date("2026-01-01"),
+      unitCost: "15",
+      qtyOriginal: "5",
+      qtyRemaining: "5",
+    });
+    await costing.insertLayer({
+      id: "other-layer",
+      orgId,
+      productId,
+      locationId,
+      lotId: null,
+      sourceDocumentType: "goods_receipt",
+      sourceDocumentId: "gr-2",
+      sourceDocumentLineId: "grl-other",
+      sourceMovementId: "m-other",
+      receivedAt: new Date("2026-01-02"),
+      unitCost: "10",
+      qtyOriginal: "5",
+      qtyRemaining: "5",
+    });
+
+    const drafts = new SupplierReturnUseCases(fake.supplierReturnPort);
+    const post = new PostSupplierReturn(fake.uow);
+    const draft = await drafts.create(orgId, {
+      branchId,
+      locationId,
+      supplierId,
+      lines: [
+        {
+          productId,
+          qty: "2",
+          lineNumber: 1,
+          goodsReceiptLineId: "grl-preferred",
+        },
+      ],
+    });
+
+    const posted = await post.execute(orgId, userId, draft.id);
+    expect(posted.movements[0]?.totalCost).toBe("30");
+    expect(costing.layers.find((l) => l.id === "gr-line-layer")?.qtyRemaining).toBe(
+      "3",
+    );
+    expect(costing.layers.find((l) => l.id === "other-layer")?.qtyRemaining).toBe(
+      "5",
+    );
+  });
 });
 
 describe("CustomerReturnUseCases", () => {
@@ -616,6 +708,7 @@ describe("CustomerReturnUseCases", () => {
           qty: "2",
           lineNumber: 1,
           serialNumbers: ["C1"],
+          unitCost: "7",
         },
       ],
     });
@@ -634,5 +727,47 @@ describe("CustomerReturnUseCases", () => {
     expect(fake.getOnHand()).toBe("4");
     expect(voided.movements[0]?.movementType).toBe("customer_return_void");
     expect(fake.serialsByNumber.get("C1")?.status).toBe("issued");
+  });
+
+  it("creates a cost layer on post", async () => {
+    const fake = makeFake({ onHand: "4", seedCostLayers: false });
+    const drafts = new CustomerReturnUseCases(fake.customerReturnPort);
+    const post = new PostCustomerReturn(fake.uow);
+
+    const draft = await drafts.create(orgId, {
+      branchId,
+      locationId,
+      customerId,
+      lines: [{ productId, qty: "3", lineNumber: 1, unitCost: "9" }],
+    });
+
+    const posted = await post.execute(orgId, userId, draft.id);
+    expect(posted.movements[0]?.totalCost).toBe("27");
+    expect(fake.costing.layers).toHaveLength(1);
+    expect(fake.costing.layers[0]).toMatchObject({
+      locationId,
+      unitCost: "9",
+      qtyRemaining: "3",
+      sourceDocumentType: "customer_return",
+    });
+  });
+
+  it("throws MissingUnitCostError when unitCost is absent", async () => {
+    const fake = makeFake({ onHand: "4", seedCostLayers: false });
+    const drafts = new CustomerReturnUseCases(fake.customerReturnPort);
+    const post = new PostCustomerReturn(fake.uow);
+
+    const draft = await drafts.create(orgId, {
+      branchId,
+      locationId,
+      customerId,
+      lines: [{ productId, qty: "2", lineNumber: 1 }],
+    });
+
+    await expect(post.execute(orgId, userId, draft.id)).rejects.toBeInstanceOf(
+      MissingUnitCostError,
+    );
+    expect(fake.getOnHand()).toBe("4");
+    expect(fake.costing.layers).toHaveLength(0);
   });
 });

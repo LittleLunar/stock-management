@@ -2,13 +2,18 @@
 tags:
   - concept
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-26
 source_count: 1
 ---
 
 # Inventory Accounting
 
 Inventory events post double-entry journals (usually via outbox after stock post).
+
+> [!note]
+> [[Phase C]] enriches outbox payloads with cost money fields
+> (`inventoryValueDelta`, `cogsTotal`, `landedAmount`, `revaluationValueDelta`)
+> but does **not** write journals. [[Phase D]] consumes those events.
 
 ## Typical postings
 

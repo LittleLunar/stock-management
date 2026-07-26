@@ -193,6 +193,7 @@ export const StockAdjustmentLineInputSchema = z.object({
   productId: UuidSchema,
   qty: SignedQuantitySchema,
   lotId: UuidSchema.nullable().optional(),
+  unitCost: NonNegativeAmountSchema.nullable().optional(),
   serialNumbers: z.array(z.string().trim().min(1)).optional(),
   lineNumber: z.number().int().positive(),
 });
@@ -234,6 +235,7 @@ export const StockCountLineInputSchema = z.object({
   productId: UuidSchema,
   lotId: UuidSchema.nullable().optional(),
   countedQty: NonNegativeAmountSchema.nullable(),
+  unitCost: NonNegativeAmountSchema.nullable().optional(),
   lineNumber: z.number().int().positive(),
 });
 export type StockCountLineInput = z.infer<typeof StockCountLineInputSchema>;
@@ -282,6 +284,26 @@ export const StockTrackingQuerySchema = z.object({
   productId: UuidSchema.optional(),
 });
 export type StockTrackingQuery = z.infer<typeof StockTrackingQuerySchema>;
+
+export const CostLayersQuerySchema = z.object({
+  productId: UuidSchema.optional(),
+  locationId: UuidSchema.optional(),
+});
+export type CostLayersQuery = z.infer<typeof CostLayersQuerySchema>;
+
+export const CostLayerSchema = z.object({
+  id: UuidSchema,
+  productId: UuidSchema,
+  locationId: UuidSchema,
+  lotId: UuidSchema.nullable(),
+  receivedAt: z.string().datetime(),
+  unitCost: z.string(),
+  qtyOriginal: z.string(),
+  qtyRemaining: z.string(),
+  sourceDocumentType: z.string(),
+  sourceDocumentId: UuidSchema,
+});
+export type CostLayerResponse = z.infer<typeof CostLayerSchema>;
 
 export const CreateReservationSchema = z
   .object({
@@ -387,6 +409,7 @@ export const CustomerReturnLineInputSchema = z.object({
   productId: UuidSchema,
   qty: PositiveQuantitySchema,
   lotId: UuidSchema.nullable().optional(),
+  unitCost: NonNegativeAmountSchema.nullable().optional(),
   serialNumbers: z.array(z.string().trim().min(1)).optional(),
   lineNumber: z.number().int().positive(),
 });

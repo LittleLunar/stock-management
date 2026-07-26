@@ -2,8 +2,14 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   ConflictError,
   DomainError,
+  InsufficientCostError,
+  InsufficientStockError,
+  LayerInUseError,
+  MissingUnitCostError,
   NotFoundError,
   UnauthorizedError,
+  UnsupportedCostingMethodError,
+  AllocationMismatchError,
 } from "@stock-management/domain";
 import type { ErrorEnvelope } from "@stock-management/shared";
 import { ZodError } from "zod";
@@ -39,9 +45,21 @@ export function registerErrorHandler(app: FastifyInstance): void {
         .send(envelope(request, error.code, error.message));
     }
 
-    if (error instanceof ConflictError) {
+    if (error instanceof ConflictError || error instanceof LayerInUseError) {
       return reply
         .status(409)
+        .send(envelope(request, error.code, error.message));
+    }
+
+    if (
+      error instanceof InsufficientStockError ||
+      error instanceof InsufficientCostError ||
+      error instanceof MissingUnitCostError ||
+      error instanceof UnsupportedCostingMethodError ||
+      error instanceof AllocationMismatchError
+    ) {
+      return reply
+        .status(400)
         .send(envelope(request, error.code, error.message));
     }
 

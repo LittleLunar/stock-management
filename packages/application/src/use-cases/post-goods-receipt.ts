@@ -3,15 +3,20 @@ import {
   InsufficientStockError,
   NotFoundError,
   assertCanPostReceipt,
+  assertFifoCostingMethod,
   assertLotSerialRules,
   assertNoOverReceive,
+  resolveReceiptUnitCost,
   signedQtyForMovement,
+  totalCost,
 } from "@stock-management/domain";
 import type {
   GoodsReceipt,
   PurchaseOrderLine,
   StockMovement,
 } from "@stock-management/domain";
+import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
+import { refreshCostSummary } from "../costing/refresh-cost-summary.js";
 import type { IdempotencyInput } from "../dto/inputs.js";
 import type { GoodsReceiptLineDetails } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
@@ -78,7 +83,18 @@ export class PostGoodsReceipt {
       }
 
       const movements: StockMovement[] = [];
+      const receivedAt = new Date();
       for (const line of receipt.lines) {
+        const product = await ctx.products.findById(orgId, line.productId);
+        if (!product) throw new NotFoundError("Product");
+        assertFifoCostingMethod(product.costingMethod);
+
+        const poLine = line.purchaseOrderLineId
+          ? await ctx.po.findLineById(orgId, line.purchaseOrderLineId)
+          : null;
+        const unitCost = resolveReceiptUnitCost(line.unitCost, poLine?.unitCost);
+        const lineTotalCost = totalCost(unitCost, line.qty);
+
         const lotId = await this.resolveLotId(ctx, orgId, line);
         for (const serialNumber of line.serialNumbers) {
           await ctx.serials.upsert({
@@ -100,8 +116,32 @@ export class PostGoodsReceipt {
           documentLineId: line.id,
           movementType: "receipt",
           qty,
+          unitCost,
+          totalCost: lineTotalCost,
         });
         movements.push(movement);
+
+        await ctx.costing.insertLayer({
+          orgId,
+          productId: line.productId,
+          locationId: receipt.locationId,
+          lotId,
+          sourceDocumentType: "goods_receipt",
+          sourceDocumentId: receipt.id,
+          sourceDocumentLineId: line.id,
+          sourceMovementId: movement.id,
+          receivedAt,
+          unitCost,
+          originalUnitCost: unitCost,
+          qtyOriginal: line.qty,
+          qtyRemaining: line.qty,
+        });
+        await refreshCostSummary(ctx.costing, {
+          orgId,
+          productId: line.productId,
+          locationId: receipt.locationId,
+          lotId,
+        });
 
         const balanceKey = {
           orgId,
@@ -135,12 +175,19 @@ export class PostGoodsReceipt {
       );
       const result = { receipt: postedReceipt, movements };
 
+      const inventoryValueDelta = String(
+        movements.reduce((sum, m) => sum + Number(m.totalCost ?? 0), 0),
+      );
       await ctx.outbox.enqueue({
         orgId,
         eventType: "document.posted",
         aggregateType: "goods_receipt",
         aggregateId: receipt.id,
-        payload: { receiptId: receipt.id, userId },
+        payload: {
+          receiptId: receipt.id,
+          userId,
+          ...costingOutboxFields({ inventoryValueDelta }),
+        },
       });
       await ctx.outbox.enqueue({
         orgId,

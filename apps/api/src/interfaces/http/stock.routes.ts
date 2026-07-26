@@ -1,6 +1,10 @@
 import type { FastifyPluginAsync } from "fastify";
-import type { StockInquiryUseCases } from "@stock-management/application";
+import type {
+  CostInquiryUseCases,
+  StockInquiryUseCases,
+} from "@stock-management/application";
 import {
+  CostLayersQuerySchema,
   StockBalancesQuerySchema,
   StockMovementsQuerySchema,
   StockTrackingQuerySchema,
@@ -8,6 +12,7 @@ import {
 
 export function stockRoutes(
   useCases: StockInquiryUseCases,
+  costInquiry: CostInquiryUseCases,
 ): FastifyPluginAsync {
   return async (app) => {
     app.get("/stock/balances", async (request) => {
@@ -28,6 +33,23 @@ export function stockRoutes(
     app.get("/stock/serials", async (request) => {
       const query = StockTrackingQuerySchema.parse(request.query);
       return useCases.listSerials(request.ctx.orgId, query);
+    });
+
+    app.get("/stock/cost-layers", async (request) => {
+      const query = CostLayersQuerySchema.parse(request.query);
+      const layers = await costInquiry.listCostLayers(request.ctx.orgId, query);
+      return layers.map((layer) => ({
+        id: layer.id,
+        productId: layer.productId,
+        locationId: layer.locationId,
+        lotId: layer.lotId,
+        receivedAt: layer.receivedAt.toISOString(),
+        unitCost: layer.unitCost,
+        qtyOriginal: layer.qtyOriginal,
+        qtyRemaining: layer.qtyRemaining,
+        sourceDocumentType: layer.sourceDocumentType,
+        sourceDocumentId: layer.sourceDocumentId,
+      }));
     });
   };
 }

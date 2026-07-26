@@ -276,6 +276,12 @@ export const documentStatusEnum = pgEnum("document_status", [
   "void",
 ]);
 
+export const landedCostTypeEnum = pgEnum("landed_cost_type", [
+  "freight",
+  "duty",
+  "other",
+]);
+
 export const lotStatusEnum = pgEnum("lot_status", [
   "active",
   "depleted",
@@ -431,10 +437,203 @@ export const stockMovements = pgTable("stock_movements", {
   documentLineId: uuid("document_line_id"),
   movementType: movementTypeEnum("movement_type").notNull(),
   qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+  unitCost: numeric("unit_cost", { precision: 18, scale: 4 }),
+  totalCost: numeric("total_cost", { precision: 18, scale: 4 }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
+
+export const costLayers = pgTable(
+  "cost_layers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    lotId: uuid("lot_id").references(() => lots.id),
+    sourceDocumentType: text("source_document_type").notNull(),
+    sourceDocumentId: uuid("source_document_id").notNull(),
+    sourceDocumentLineId: uuid("source_document_line_id"),
+    sourceMovementId: uuid("source_movement_id")
+      .notNull()
+      .references(() => stockMovements.id),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }).notNull(),
+    originalUnitCost: numeric("original_unit_cost", { precision: 18, scale: 4 }).notNull(),
+    qtyOriginal: numeric("qty_original", { precision: 18, scale: 4 }).notNull(),
+    qtyRemaining: numeric("qty_remaining", { precision: 18, scale: 4 }).notNull(),
+  },
+  (t) => [
+    index("cost_layers_fifo_idx").on(
+      t.orgId,
+      t.productId,
+      t.locationId,
+      t.lotId,
+      t.receivedAt,
+    ),
+  ],
+);
+
+export const costConsumptions = pgTable("cost_consumptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  costLayerId: uuid("cost_layer_id")
+    .notNull()
+    .references(() => costLayers.id),
+  movementId: uuid("movement_id")
+    .notNull()
+    .references(() => stockMovements.id),
+  qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+  unitCost: numeric("unit_cost", { precision: 18, scale: 4 }).notNull(),
+  totalCost: numeric("total_cost", { precision: 18, scale: 4 }).notNull(),
+  isReversal: boolean("is_reversal").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const costLayerValueAdjustments = pgTable("cost_layer_value_adjustments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  costLayerId: uuid("cost_layer_id")
+    .notNull()
+    .references(() => costLayers.id),
+  effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
+  oldUnitCost: numeric("old_unit_cost", { precision: 18, scale: 4 }).notNull(),
+  newUnitCost: numeric("new_unit_cost", { precision: 18, scale: 4 }).notNull(),
+  amount: numeric("amount", { precision: 18, scale: 4 }).notNull(),
+  sourceDocumentType: text("source_document_type").notNull(),
+  sourceDocumentId: uuid("source_document_id").notNull(),
+  sourceDocumentLineId: uuid("source_document_line_id"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const landedCostDocuments = pgTable("landed_cost_documents", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  branchId: uuid("branch_id")
+    .notNull()
+    .references(() => branches.id),
+  supplierId: uuid("supplier_id").references(() => suppliers.id),
+  costType: landedCostTypeEnum("cost_type").notNull(),
+  totalAmount: numeric("total_amount", { precision: 18, scale: 4 }).notNull(),
+  status: documentStatusEnum("status").notNull().default("draft"),
+  postedAt: timestamp("posted_at", { withTimezone: true }),
+  voidedAt: timestamp("voided_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const landedCostLines = pgTable(
+  "landed_cost_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    landedCostDocumentId: uuid("landed_cost_document_id")
+      .notNull()
+      .references(() => landedCostDocuments.id),
+    lineNumber: integer("line_number").notNull(),
+    goodsReceiptLineId: uuid("goods_receipt_line_id").references(
+      () => goodsReceiptLines.id,
+    ),
+    costLayerId: uuid("cost_layer_id").references(() => costLayers.id),
+    amount: numeric("amount", { precision: 18, scale: 4 }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("landed_cost_lines_org_doc_line_uidx").on(
+      t.orgId,
+      t.landedCostDocumentId,
+      t.lineNumber,
+    ),
+  ],
+);
+
+export const costRevaluations = pgTable("cost_revaluations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  branchId: uuid("branch_id")
+    .notNull()
+    .references(() => branches.id),
+  reasonCode: text("reason_code").notNull(),
+  reasonNote: text("reason_note"),
+  status: documentStatusEnum("status").notNull().default("draft"),
+  postedAt: timestamp("posted_at", { withTimezone: true }),
+  voidedAt: timestamp("voided_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const costRevaluationLines = pgTable(
+  "cost_revaluation_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    costRevaluationId: uuid("cost_revaluation_id")
+      .notNull()
+      .references(() => costRevaluations.id),
+    lineNumber: integer("line_number").notNull(),
+    costLayerId: uuid("cost_layer_id")
+      .notNull()
+      .references(() => costLayers.id),
+    newUnitCost: numeric("new_unit_cost", { precision: 18, scale: 4 }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("cost_revaluation_lines_org_doc_line_uidx").on(
+      t.orgId,
+      t.costRevaluationId,
+      t.lineNumber,
+    ),
+  ],
+);
+
+export const productCostSummaries = pgTable(
+  "product_cost_summaries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    lotId: uuid("lot_id").references(() => lots.id),
+    qtyRemainingSum: numeric("qty_remaining_sum", { precision: 18, scale: 4 }).notNull(),
+    onHandValue: numeric("on_hand_value", { precision: 18, scale: 4 }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("product_cost_summaries_org_product_location_lot_uidx").on(
+      t.orgId,
+      t.productId,
+      t.locationId,
+      sql`coalesce(${t.lotId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+    ),
+  ],
+);
 
 export const purchaseOrders = pgTable(
   "purchase_orders",
@@ -798,6 +997,7 @@ export const stockAdjustmentLines = pgTable(
       .references(() => products.id),
     qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
     lotId: uuid("lot_id").references(() => lots.id),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }),
     lineNumber: integer("line_number").notNull(),
     ...timestamps,
   },
@@ -878,6 +1078,7 @@ export const stockCountLines = pgTable(
     lotId: uuid("lot_id").references(() => lots.id),
     expectedQty: numeric("expected_qty", { precision: 18, scale: 4 }).notNull(),
     countedQty: numeric("counted_qty", { precision: 18, scale: 4 }),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }),
     lineNumber: integer("line_number").notNull(),
     ...timestamps,
   },
@@ -1085,6 +1286,7 @@ export const customerReturnLines = pgTable(
       .references(() => products.id),
     qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
     lotId: uuid("lot_id").references(() => lots.id),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }),
     lineNumber: integer("line_number").notNull(),
     ...timestamps,
   },

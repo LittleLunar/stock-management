@@ -1,10 +1,12 @@
 import {
+  assertLayersFullyOpen,
   InsufficientStockError,
   InvalidStateError,
   NotFoundError,
   signedQtyForMovement,
 } from "@stock-management/domain";
 import type { GoodsReceipt, StockMovement } from "@stock-management/domain";
+import { refreshCostSummary } from "../costing/refresh-cost-summary.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
 export type VoidGoodsReceiptResult = {
@@ -32,6 +34,13 @@ export class VoidGoodsReceipt {
           `Cannot void goods receipt in status ${receipt.status}`,
         );
       }
+
+      const layers = await ctx.costing.listLayersBySourceDocument(
+        orgId,
+        "goods_receipt",
+        receipt.id,
+      );
+      assertLayersFullyOpen(layers);
 
       const postedMovements = (
         await ctx.stock.listMovements(orgId, {
@@ -68,9 +77,23 @@ export class VoidGoodsReceipt {
             documentLineId: postedMovement.documentLineId,
             movementType: "receipt_void",
             qty,
+            unitCost: postedMovement.unitCost,
+            totalCost: postedMovement.totalCost
+              ? String(-Math.abs(Number(postedMovement.totalCost)))
+              : null,
           }),
         );
         await ctx.stock.setBalance(balanceKey, nextQty);
+      }
+
+      for (const layer of layers) {
+        await ctx.costing.setQtyRemaining(orgId, layer.id, "0");
+        await refreshCostSummary(ctx.costing, {
+          orgId: layer.orgId,
+          productId: layer.productId,
+          locationId: layer.locationId,
+          lotId: layer.lotId,
+        });
       }
 
       for (const line of receipt.lines) {

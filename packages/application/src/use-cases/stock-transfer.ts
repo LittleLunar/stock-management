@@ -6,6 +6,7 @@ import {
   assertCanReceiveTransfer,
   assertCanShipTransfer,
   assertCanVoidTransfer,
+  assertLayersFullyOpen,
   assertLotSerialRules,
   assertSerialAvailableForOutbound,
   signedQtyForMovement,
@@ -20,6 +21,10 @@ import type {
   IdempotencyInput,
   UpdateStockTransferInput,
 } from "../dto/inputs.js";
+import {
+  moveLayersForTransferHop,
+  restoreConsumptionsForVoidedMovements,
+} from "../costing/apply-document-costing.js";
 import type {
   StockTransferPort,
   StockTransferWithLines,
@@ -235,15 +240,7 @@ export class VoidStockTransfer {
       }
       const movements =
         transfer.status === "in_transit"
-          ? await moveTransferLines(
-              ctx,
-              orgId,
-              transfer,
-              transfer.transitLocationId,
-              transfer.fromLocationId,
-              "transfer_in_void",
-              "transfer_out_void",
-            )
+          ? await voidTransferShipCostAndQty(ctx, orgId, transfer)
           : [];
       if (transfer.status === "in_transit") {
         await updateTransferSerialLocations(
@@ -408,32 +405,145 @@ async function moveTransferLines(
   for (const line of transfer.lines) {
     const fromQty = signedQtyForMovement(fromMovementType, line.qty);
     const toQty = signedQtyForMovement(toMovementType, line.qty);
-    movements.push(
-      await applyMovement(
-        ctx,
-        orgId,
-        transfer.id,
-        line.id,
-        line.productId,
-        fromLocationId,
-        line.lotId,
-        fromMovementType,
-        fromQty,
-      ),
+    const outMovement = await applyMovement(
+      ctx,
+      orgId,
+      transfer.id,
+      line.id,
+      line.productId,
+      fromLocationId,
+      line.lotId,
+      fromMovementType,
+      fromQty,
     );
-    movements.push(
-      await applyMovement(
-        ctx,
-        orgId,
-        transfer.id,
-        line.id,
-        line.productId,
-        toLocationId,
-        line.lotId,
-        toMovementType,
-        toQty,
-      ),
+    const inMovement = await applyMovement(
+      ctx,
+      orgId,
+      transfer.id,
+      line.id,
+      line.productId,
+      toLocationId,
+      line.lotId,
+      toMovementType,
+      toQty,
     );
+    const costs = await moveLayersForTransferHop(ctx, {
+      orgId,
+      productId: line.productId,
+      lotId: line.lotId,
+      qty: line.qty,
+      fromLocationId,
+      toLocationId,
+      outMovementId: outMovement.id,
+      inMovementId: inMovement.id,
+      sourceDocumentType: "stock_transfer",
+      sourceDocumentId: transfer.id,
+      sourceDocumentLineId: line.id,
+    });
+    const stampedOut = await ctx.stock.updateMovementCosts(
+      orgId,
+      outMovement.id,
+      costs.unitCost,
+      String(-Math.abs(Number(costs.totalCost))),
+    );
+    const stampedIn = await ctx.stock.updateMovementCosts(
+      orgId,
+      inMovement.id,
+      costs.unitCost,
+      costs.totalCost,
+    );
+    movements.push(stampedOut, stampedIn);
+  }
+  return movements;
+}
+
+async function voidTransferShipCostAndQty(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  transfer: StockTransferWithLines,
+): Promise<StockMovement[]> {
+  const shipMovements = (
+    await ctx.stock.listMovements(orgId, {
+      documentType: "stock_transfer",
+      documentId: transfer.id,
+    })
+  ).filter(
+    (m) =>
+      m.movementType === "transfer_out" &&
+      m.locationId === transfer.fromLocationId,
+  );
+
+  const transitLayers = (
+    await ctx.costing.listLayersBySourceDocument(
+      orgId,
+      "stock_transfer",
+      transfer.id,
+    )
+  ).filter((layer) => layer.locationId === transfer.transitLocationId);
+  assertLayersFullyOpen(transitLayers);
+
+  const movements: StockMovement[] = [];
+  const voidMovementIdByForwardId = new Map<string, string>();
+
+  for (const line of transfer.lines) {
+    const fromQty = signedQtyForMovement("transfer_out_void", line.qty);
+    const toQty = signedQtyForMovement("transfer_in_void", line.qty);
+    const transitOut = await applyMovement(
+      ctx,
+      orgId,
+      transfer.id,
+      line.id,
+      line.productId,
+      transfer.transitLocationId,
+      line.lotId,
+      "transfer_in_void",
+      toQty,
+    );
+    const fromIn = await applyMovement(
+      ctx,
+      orgId,
+      transfer.id,
+      line.id,
+      line.productId,
+      transfer.fromLocationId,
+      line.lotId,
+      "transfer_out_void",
+      fromQty,
+    );
+    const shipOut = shipMovements.find(
+      (m) => m.documentLineId === line.id,
+    );
+    if (shipOut) {
+      voidMovementIdByForwardId.set(shipOut.id, fromIn.id);
+      const stampedTransit = await ctx.stock.updateMovementCosts(
+        orgId,
+        transitOut.id,
+        shipOut.unitCost ?? "0",
+        shipOut.totalCost
+          ? String(-Math.abs(Number(shipOut.totalCost)))
+          : "0",
+      );
+      const stampedFrom = await ctx.stock.updateMovementCosts(
+        orgId,
+        fromIn.id,
+        shipOut.unitCost ?? "0",
+        shipOut.totalCost
+          ? String(Math.abs(Number(shipOut.totalCost)))
+          : "0",
+      );
+      movements.push(stampedTransit, stampedFrom);
+    } else {
+      movements.push(transitOut, fromIn);
+    }
+  }
+
+  await restoreConsumptionsForVoidedMovements(ctx, {
+    orgId,
+    forwardMovementIds: shipMovements.map((m) => m.id),
+    voidMovementIdByForwardId,
+  });
+  for (const layer of transitLayers) {
+    await ctx.costing.setQtyRemaining(orgId, layer.id, "0");
   }
   return movements;
 }

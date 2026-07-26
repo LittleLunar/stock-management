@@ -84,10 +84,40 @@ export class DrizzleStockRepository implements StockPort {
         documentLineId: input.documentLineId,
         movementType: input.movementType,
         qty: input.qty,
+        unitCost: input.unitCost ?? null,
+        totalCost: input.totalCost ?? null,
         createdAt: input.createdAt,
       })
       .returning();
-    return movement as StockMovement;
+    return {
+      ...(movement as StockMovement),
+      unitCost: (movement.unitCost as string | null) ?? null,
+      totalCost: (movement.totalCost as string | null) ?? null,
+    };
+  }
+
+  async updateMovementCosts(
+    orgId: string,
+    movementId: string,
+    unitCost: string,
+    totalCost: string,
+  ): Promise<StockMovement> {
+    const [movement] = await this.db
+      .update(stockMovements)
+      .set({ unitCost, totalCost })
+      .where(
+        and(
+          eq(stockMovements.orgId, orgId),
+          eq(stockMovements.id, movementId),
+        ),
+      )
+      .returning();
+    if (!movement) throw new Error("Stock movement not found");
+    return {
+      ...(movement as StockMovement),
+      unitCost: (movement.unitCost as string | null) ?? null,
+      totalCost: (movement.totalCost as string | null) ?? null,
+    };
   }
 
   async listBalances(

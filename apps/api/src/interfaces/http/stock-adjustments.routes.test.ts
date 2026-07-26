@@ -5,6 +5,7 @@ import {
   PostStockAdjustment,
   StockAdjustmentUseCases,
   VoidStockAdjustment,
+  createFakeCosting,
   type IdempotencyRecord,
   type StockAdjustmentWithLines,
   type UnitOfWork,
@@ -27,6 +28,10 @@ const BRANCH_ID = "00000000-0000-4000-8000-000000000003";
 const LOCATION_ID = "00000000-0000-4000-8000-000000000004";
 const PRODUCT_ID = "00000000-0000-4000-8000-000000000005";
 const now = new Date("2026-07-26T00:00:00.000Z");
+
+function createInMemoryCosting() {
+  return createFakeCosting();
+}
 
 function makeHarness(onHand = "10") {
   const product: Product = {
@@ -60,6 +65,22 @@ function makeHarness(onHand = "10") {
     updatedAt: now,
   };
   let movementSequence = 0;
+  const costing = createInMemoryCosting();
+
+  void costing.insertLayer({
+    orgId: ORG_ID,
+    productId: PRODUCT_ID,
+    locationId: LOCATION_ID,
+    lotId: null,
+    sourceDocumentType: "goods_receipt",
+    sourceDocumentId: "gr-seed",
+    sourceDocumentLineId: "grl-seed",
+    sourceMovementId: "m-seed",
+    receivedAt: new Date("2026-01-01"),
+    unitCost: "10",
+    qtyOriginal: onHand,
+    qtyRemaining: onHand,
+  });
 
   const adjustmentRepo: NonNullable<UowContext["adjustments"]> = {
     async list(orgId) {
@@ -93,6 +114,7 @@ function makeHarness(onHand = "10") {
           productId: line.productId,
           qty: line.qty,
           lotId: line.lotId ?? null,
+          unitCost: line.unitCost ?? null,
           lineNumber: line.lineNumber,
           serialNumbers: line.serialNumbers ?? [],
         })),
@@ -114,6 +136,7 @@ function makeHarness(onHand = "10") {
             productId: line.productId,
             qty: line.qty,
             lotId: line.lotId ?? null,
+            unitCost: line.unitCost ?? null,
             lineNumber: line.lineNumber,
             serialNumbers: line.serialNumbers ?? [],
           })) ?? current.lines,
@@ -171,8 +194,22 @@ function makeHarness(onHand = "10") {
           ...input,
           id: `movement-${++movementSequence}`,
           createdAt: input.createdAt ?? now,
+          unitCost: input.unitCost ?? null,
+          totalCost: input.totalCost ?? null,
         };
         movements.push(movement);
+        return movement;
+      },
+      async updateMovementCosts(
+        _orgId: string,
+        movementId: string,
+        unitCost: string,
+        totalCost: string,
+      ) {
+        const movement = movements.find((candidate) => candidate.id === movementId);
+        if (!movement) throw new Error("Movement not found");
+        movement.unitCost = unitCost;
+        movement.totalCost = totalCost;
         return movement;
       },
       async listBalances() {
@@ -199,6 +236,7 @@ function makeHarness(onHand = "10") {
         return [];
       },
     },
+    costing,
     outbox: { async enqueue() {} },
     idempotency: {
       async find(
@@ -330,6 +368,23 @@ describe("stock adjustment routes", () => {
     expect(
       harness.getMovements().map((movement) => movement.movementType),
     ).toEqual(["adjustment", "adjustment_void"]);
+  });
+
+  it("returns 400 when a positive adjustment is posted without unit cost", async () => {
+    const { app, harness } = await setup();
+    const created = await createDraft(app, "3");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/v1/stock-adjustments/${created.id}/post`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: { code: "MISSING_UNIT_COST" },
+    });
+    expect(harness.getBalance().qtyOnHand).toBe("10");
   });
 
   it("returns 400 when a negative adjustment exceeds on-hand", async () => {

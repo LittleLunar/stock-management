@@ -217,6 +217,7 @@ export class DrizzleStockAdjustmentRepository implements StockAdjustmentPort {
           productId: input.productId,
           qty: input.qty,
           lotId: input.lotId ?? null,
+          unitCost: input.unitCost ?? null,
           lineNumber: input.lineNumber,
         })
         .returning();

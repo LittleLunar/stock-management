@@ -6,10 +6,5 @@
     "types": ["node"]
   },
   "include": ["src/**/*"],
-  "exclude": ["src/**/*.test.ts"],
-  "references": [
-    { "path": "../../packages/domain" },
-    { "path": "../../packages/application" },
-    { "path": "../../packages/shared" }
-  ]
+  "exclude": ["src/**/*.test.ts"]
 }

@@ -14,6 +14,11 @@ import type {
   IdempotencyInput,
   UpdateStockIssueInput,
 } from "../dto/inputs.js";
+import {
+  consumeFifoForMovement,
+  restoreConsumptionsForVoidedMovements,
+} from "../costing/apply-document-costing.js";
+import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import type { StockIssuePort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -115,15 +120,29 @@ export async function postStockIssueInCtx(
       lotId: line.lotId,
     };
     const balance = await ctx.stock.findBalance(balanceKey);
+    const movement = await ctx.stock.insertMovement({
+      ...balanceKey,
+      documentType: "stock_issue",
+      documentId: issue.id,
+      documentLineId: line.id,
+      movementType: "issue",
+      qty,
+    });
+    const costs = await consumeFifoForMovement(ctx, {
+      orgId,
+      productId: line.productId,
+      locationId: issue.locationId,
+      lotId: line.lotId,
+      qty: line.qty,
+      movementId: movement.id,
+    });
     movements.push(
-      await ctx.stock.insertMovement({
-        ...balanceKey,
-        documentType: "stock_issue",
-        documentId: issue.id,
-        documentLineId: line.id,
-        movementType: "issue",
-        qty,
-      }),
+      await ctx.stock.updateMovementCosts(
+        orgId,
+        movement.id,
+        costs.unitCost,
+        costs.totalCost,
+      ),
     );
     await ctx.stock.setBalance(
       balanceKey,
@@ -199,6 +218,7 @@ export class VoidStockIssue {
         })
       ).filter((movement) => movement.movementType === "issue");
       const movements: StockMovement[] = [];
+      const voidMovementIdByForwardId = new Map<string, string>();
       for (const posted of postedMovements) {
         const qty = signedQtyForMovement("issue_void", posted.qty);
         const balanceKey = {
@@ -208,21 +228,30 @@ export class VoidStockIssue {
           lotId: posted.lotId,
         };
         const balance = await ctx.stock.findBalance(balanceKey);
-        movements.push(
-          await ctx.stock.insertMovement({
-            ...balanceKey,
-            documentType: "stock_issue",
-            documentId: issue.id,
-            documentLineId: posted.documentLineId,
-            movementType: "issue_void",
-            qty,
-          }),
-        );
+        const voidMovement = await ctx.stock.insertMovement({
+          ...balanceKey,
+          documentType: "stock_issue",
+          documentId: issue.id,
+          documentLineId: posted.documentLineId,
+          movementType: "issue_void",
+          qty,
+          unitCost: posted.unitCost,
+          totalCost: posted.totalCost
+            ? String(-Math.abs(Number(posted.totalCost)))
+            : null,
+        });
+        voidMovementIdByForwardId.set(posted.id, voidMovement.id);
+        movements.push(voidMovement);
         await ctx.stock.setBalance(
           balanceKey,
           String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
         );
       }
+      await restoreConsumptionsForVoidedMovements(ctx, {
+        orgId,
+        forwardMovementIds: postedMovements.map((movement) => movement.id),
+        voidMovementIdByForwardId,
+      });
       for (const line of issue.lines) {
         await updateSerialStatuses(
           ctx.serials,
@@ -304,7 +333,17 @@ async function enqueueIssueEvents(
     eventType: action === "posted" ? "document.posted" : "document.voided",
     aggregateType: "stock_issue",
     aggregateId: issueId,
-    payload: { issueId, userId },
+    payload: {
+      issueId,
+      userId,
+      ...(action === "posted"
+        ? costingOutboxFields({
+            cogsTotal: String(
+              movements.reduce((sum, m) => sum + Number(m.totalCost ?? 0), 0),
+            ),
+          })
+        : {}),
+    },
   });
   await ctx.outbox.enqueue({
     orgId,
