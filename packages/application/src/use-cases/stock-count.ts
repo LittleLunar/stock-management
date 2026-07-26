@@ -1,0 +1,302 @@
+import {
+  InsufficientStockError,
+  InvalidStateError,
+  NotFoundError,
+  assertCanPostCount,
+  countVariance,
+  signedQtyForMovement,
+} from "@stock-management/domain";
+import type { StockCount, StockMovement } from "@stock-management/domain";
+import type {
+  CreateStockCountInput,
+  IdempotencyInput,
+  UpdateStockCountInput,
+} from "../dto/inputs.js";
+import type { StockCountPort, StockPort } from "../ports/inventory.js";
+import type { UnitOfWork } from "../ports/unit-of-work.js";
+
+export type StockCountResult = {
+  count: StockCount;
+  movements: StockMovement[];
+};
+
+export class StockCountUseCases {
+  constructor(
+    private readonly repo: StockCountPort,
+    private readonly stock: StockPort,
+  ) {}
+
+  list(orgId: string) {
+    return this.repo.list(orgId);
+  }
+
+  async get(orgId: string, id: string) {
+    const count = await this.repo.findById(orgId, id);
+    if (!count) throw new NotFoundError("Stock count");
+    return count;
+  }
+
+  async create(orgId: string, input: CreateStockCountInput) {
+    const lines = await this.snapshotLines(
+      orgId,
+      input.locationId,
+      input.lines,
+    );
+    return this.repo.create(orgId, { ...input, lines });
+  }
+
+  async update(orgId: string, id: string, input: UpdateStockCountInput) {
+    const count = await this.get(orgId, id);
+    if (count.status !== "draft") {
+      throw new InvalidStateError("Only draft stock counts can be updated");
+    }
+    const lines = input.lines
+      ? await this.snapshotLines(
+          orgId,
+          input.locationId ?? count.locationId,
+          input.lines,
+        )
+      : undefined;
+    const updated = await this.repo.update(orgId, id, { ...input, lines });
+    if (!updated) throw new NotFoundError("Stock count");
+    return updated;
+  }
+
+  private async snapshotLines(
+    orgId: string,
+    locationId: string,
+    lines: CreateStockCountInput["lines"],
+  ) {
+    return Promise.all(
+      lines.map(async (line) => {
+        const balance = await this.stock.findBalance({
+          orgId,
+          productId: line.productId,
+          locationId,
+          lotId: line.lotId ?? null,
+        });
+        return {
+          ...line,
+          lotId: line.lotId ?? null,
+          expectedQty: balance?.qtyOnHand ?? "0",
+        };
+      }),
+    );
+  }
+}
+
+const POST_OPERATION = "post-stock-count";
+
+export class PostStockCount {
+  constructor(private readonly uow: UnitOfWork) {}
+
+  execute(
+    orgId: string,
+    userId: string,
+    countId: string,
+    idempotency?: IdempotencyInput,
+  ): Promise<StockCountResult> {
+    return this.uow.run(async (ctx) => {
+      const counts = ctx.counts;
+      if (!counts) throw new Error("Stock count port is not configured");
+      if (idempotency) {
+        const existing = await ctx.idempotency.find(
+          orgId,
+          POST_OPERATION,
+          idempotency.externalSystem,
+          idempotency.externalId,
+        );
+        if (existing) return existing.result as StockCountResult;
+      }
+
+      const count = await counts.findById(orgId, countId);
+      if (!count) throw new NotFoundError("Stock count");
+      assertCanPostCount(count);
+
+      const variances = count.lines.map((line) => {
+        if (line.countedQty === null) {
+          throw new InvalidStateError(
+            "All stock count lines require a counted quantity",
+          );
+        }
+        return { line, qty: countVariance(line.expectedQty, line.countedQty) };
+      });
+      for (const { line, qty } of variances) {
+        if (Number(qty) === 0) continue;
+        const balance = await ctx.stock.findBalance({
+          orgId,
+          productId: line.productId,
+          locationId: count.locationId,
+          lotId: line.lotId,
+        });
+        if (Number(balance?.qtyOnHand ?? "0") + Number(qty) < 0) {
+          throw new InsufficientStockError(
+            "Posting stock count would create negative stock",
+          );
+        }
+      }
+
+      const movements: StockMovement[] = [];
+      for (const { line, qty } of variances) {
+        if (Number(qty) === 0) continue;
+        const balanceKey = {
+          orgId,
+          productId: line.productId,
+          locationId: count.locationId,
+          lotId: line.lotId,
+        };
+        const balance = await ctx.stock.findBalance(balanceKey);
+        movements.push(
+          await ctx.stock.insertMovement({
+            ...balanceKey,
+            documentType: "stock_count",
+            documentId: count.id,
+            documentLineId: line.id,
+            movementType: "count_variance",
+            qty,
+          }),
+        );
+        await ctx.stock.setBalance(
+          balanceKey,
+          String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
+        );
+      }
+
+      const posted = await counts.updateStatus(
+        orgId,
+        count.id,
+        "posted",
+        new Date(),
+      );
+      const result = { count: posted, movements };
+      await enqueueCountEvents(
+        ctx,
+        orgId,
+        userId,
+        count.id,
+        "posted",
+        movements,
+      );
+      if (idempotency) {
+        await ctx.idempotency.save({
+          orgId,
+          operation: POST_OPERATION,
+          externalSystem: idempotency.externalSystem,
+          externalId: idempotency.externalId,
+          result,
+        });
+      }
+      return result;
+    });
+  }
+}
+
+export class VoidStockCount {
+  constructor(private readonly uow: UnitOfWork) {}
+
+  execute(
+    orgId: string,
+    userId: string,
+    countId: string,
+  ): Promise<StockCountResult> {
+    return this.uow.run(async (ctx) => {
+      const counts = ctx.counts;
+      if (!counts) throw new Error("Stock count port is not configured");
+      const count = await counts.findById(orgId, countId);
+      if (!count) throw new NotFoundError("Stock count");
+      if (count.status !== "posted") {
+        throw new InvalidStateError(
+          `Cannot void stock count in status ${count.status}`,
+        );
+      }
+
+      const postedMovements = (
+        await ctx.stock.listMovements(orgId, {
+          documentType: "stock_count",
+          documentId: count.id,
+        })
+      ).filter((movement) => movement.movementType === "count_variance");
+      for (const movement of postedMovements) {
+        const balance = await ctx.stock.findBalance({
+          orgId,
+          productId: movement.productId,
+          locationId: movement.locationId,
+          lotId: movement.lotId,
+        });
+        if (Number(balance?.qtyOnHand ?? "0") - Number(movement.qty) < 0) {
+          throw new InsufficientStockError(
+            "Voiding stock count would create negative stock",
+          );
+        }
+      }
+
+      const movements: StockMovement[] = [];
+      for (const posted of postedMovements) {
+        const qty = signedQtyForMovement("count_variance_void", posted.qty);
+        const balanceKey = {
+          orgId,
+          productId: posted.productId,
+          locationId: posted.locationId,
+          lotId: posted.lotId,
+        };
+        const balance = await ctx.stock.findBalance(balanceKey);
+        movements.push(
+          await ctx.stock.insertMovement({
+            ...balanceKey,
+            documentType: "stock_count",
+            documentId: count.id,
+            documentLineId: posted.documentLineId,
+            movementType: "count_variance_void",
+            qty,
+          }),
+        );
+        await ctx.stock.setBalance(
+          balanceKey,
+          String(Number(balance?.qtyOnHand ?? "0") + Number(qty)),
+        );
+      }
+
+      const voided = await counts.updateStatus(
+        orgId,
+        count.id,
+        "void",
+        new Date(),
+      );
+      await enqueueCountEvents(
+        ctx,
+        orgId,
+        userId,
+        count.id,
+        "voided",
+        movements,
+      );
+      return { count: voided, movements };
+    });
+  }
+}
+
+async function enqueueCountEvents(
+  ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
+  orgId: string,
+  userId: string,
+  countId: string,
+  action: "posted" | "voided",
+  movements: StockMovement[],
+): Promise<void> {
+  await ctx.outbox.enqueue({
+    orgId,
+    eventType: action === "posted" ? "document.posted" : "document.voided",
+    aggregateType: "stock_count",
+    aggregateId: countId,
+    payload: { countId, userId },
+  });
+  if (movements.length > 0) {
+    await ctx.outbox.enqueue({
+      orgId,
+      eventType: "stock.changed",
+      aggregateType: "stock_count",
+      aggregateId: countId,
+      payload: { countId, movementIds: movements.map(({ id }) => id) },
+    });
+  }
+}

@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
+  ConflictError,
   DomainError,
   NotFoundError,
   UnauthorizedError,
@@ -35,6 +36,12 @@ export function registerErrorHandler(app: FastifyInstance): void {
     if (error instanceof UnauthorizedError) {
       return reply
         .status(401)
+        .send(envelope(request, error.code, error.message));
+    }
+
+    if (error instanceof ConflictError) {
+      return reply
+        .status(409)
         .send(envelope(request, error.code, error.message));
     }
 

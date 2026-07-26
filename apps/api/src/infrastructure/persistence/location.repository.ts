@@ -5,20 +5,20 @@ import type {
   UpdateLocationInput,
 } from "@stock-management/application";
 import type { Location } from "@stock-management/domain";
-import type { Db } from "../db/client.js";
+import type { DbClient } from "../db/client.js";
 import { locations } from "../db/schema/index.js";
 
 export class DrizzleLocationRepository implements LocationRepository {
-  constructor(private readonly db: Db) {}
+  constructor(private readonly db: DbClient) {}
 
   list(orgId: string, branchId?: string): Promise<Location[]> {
     if (branchId) {
       return this.db
         .select()
         .from(locations)
-        .where(and(eq(locations.orgId, orgId), eq(locations.branchId, branchId))) as Promise<
-        Location[]
-      >;
+        .where(
+          and(eq(locations.orgId, orgId), eq(locations.branchId, branchId)),
+        ) as Promise<Location[]>;
     }
     return this.db
       .select()

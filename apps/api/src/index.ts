@@ -4,6 +4,8 @@ import Fastify from "fastify";
 import { HealthResponseSchema } from "@stock-management/shared";
 import { loadEnv } from "./infrastructure/config/env.js";
 import { createDb } from "./infrastructure/db/client.js";
+import { DrizzleOutboxRepository } from "./infrastructure/persistence/outbox.repository.js";
+import { OutboxPoller } from "./infrastructure/workers/outbox-poller.js";
 import { createAppServices } from "./main/composition-root.js";
 import { registerErrorHandler } from "./interfaces/plugins/error-handler.js";
 import { contextPlugin } from "./interfaces/plugins/context.js";
@@ -14,7 +16,19 @@ import { locationsRoutes } from "./interfaces/http/locations.routes.js";
 import { categoriesRoutes } from "./interfaces/http/categories.routes.js";
 import { productsRoutes } from "./interfaces/http/products.routes.js";
 import { suppliersRoutes } from "./interfaces/http/suppliers.routes.js";
+import { customersRoutes } from "./interfaces/http/customers.routes.js";
 import { usersRoutes } from "./interfaces/http/users.routes.js";
+import { purchaseOrdersRoutes } from "./interfaces/http/purchase-orders.routes.js";
+import { goodsReceiptsRoutes } from "./interfaces/http/goods-receipts.routes.js";
+import { stockRoutes } from "./interfaces/http/stock.routes.js";
+import { stockIssuesRoutes } from "./interfaces/http/stock-issues.routes.js";
+import { stockTransfersRoutes } from "./interfaces/http/stock-transfers.routes.js";
+import { stockAdjustmentsRoutes } from "./interfaces/http/stock-adjustments.routes.js";
+import { stockCountsRoutes } from "./interfaces/http/stock-counts.routes.js";
+import { reservationsRoutes } from "./interfaces/http/reservations.routes.js";
+import { availabilityRoutes } from "./interfaces/http/availability.routes.js";
+import { supplierReturnsRoutes } from "./interfaces/http/supplier-returns.routes.js";
+import { customerReturnsRoutes } from "./interfaces/http/customer-returns.routes.js";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
@@ -62,9 +76,48 @@ await app.register(contextPlugin);
 await app.register(orgRoutes(services.org), { prefix: "/api/v1" });
 await app.register(branchesRoutes(services.branches), { prefix: "/api/v1" });
 await app.register(locationsRoutes(services.locations), { prefix: "/api/v1" });
-await app.register(categoriesRoutes(services.categories), { prefix: "/api/v1" });
+await app.register(categoriesRoutes(services.categories), {
+  prefix: "/api/v1",
+});
 await app.register(productsRoutes(services.products), { prefix: "/api/v1" });
 await app.register(suppliersRoutes(services.suppliers), { prefix: "/api/v1" });
+await app.register(customersRoutes(services.customers), { prefix: "/api/v1" });
 await app.register(usersRoutes(services.users), { prefix: "/api/v1" });
+await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
+  prefix: "/api/v1",
+});
+await app.register(goodsReceiptsRoutes(services), { prefix: "/api/v1" });
+await app.register(stockRoutes(services.stockInquiry), { prefix: "/api/v1" });
+await app.register(stockIssuesRoutes(services), { prefix: "/api/v1" });
+await app.register(stockTransfersRoutes(services), { prefix: "/api/v1" });
+await app.register(stockAdjustmentsRoutes(services), { prefix: "/api/v1" });
+await app.register(stockCountsRoutes(services), { prefix: "/api/v1" });
+await app.register(reservationsRoutes(services), { prefix: "/api/v1" });
+await app.register(availabilityRoutes(services.availability), {
+  prefix: "/api/v1",
+});
+await app.register(supplierReturnsRoutes(services), { prefix: "/api/v1" });
+await app.register(customerReturnsRoutes(services), { prefix: "/api/v1" });
+
+const outboxPoller = env.OUTBOX_POLLER_ENABLED
+  ? new OutboxPoller({
+      intervalMs: env.OUTBOX_POLLER_INTERVAL_MS,
+      log: app.log,
+      runInTransaction: (fn) =>
+        db.transaction(async (tx) => fn(new DrizzleOutboxRepository(tx))),
+    })
+  : null;
+
+if (outboxPoller) {
+  outboxPoller.start();
+  app.log.info(
+    { intervalMs: env.OUTBOX_POLLER_INTERVAL_MS },
+    "outbox poller started",
+  );
+  app.addHook("onClose", async () => {
+    outboxPoller.stop();
+    app.log.info("outbox poller stopped");
+  });
+}
 
 await app.listen({ port: env.PORT, host: "0.0.0.0" });

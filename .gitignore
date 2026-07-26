@@ -23,3 +23,7 @@ coverage/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Git worktrees / agent SDD scratch
+.worktrees/
+.superpowers/

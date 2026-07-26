@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const booleanFromEnv = z
+  .enum(["true", "false"])
+  .default("false")
+  .transform((value) => value === "true");
+
 const EnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -12,6 +17,8 @@ const EnvSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  OUTBOX_POLLER_ENABLED: booleanFromEnv,
+  OUTBOX_POLLER_INTERVAL_MS: z.coerce.number().int().positive().default(5_000),
 });
 
 export type ApiEnv = z.infer<typeof EnvSchema>;

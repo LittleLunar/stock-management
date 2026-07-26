@@ -1,6 +1,7 @@
 import type {
   Branch,
   Category,
+  Customer,
   Location,
   Membership,
   Organization,
@@ -12,6 +13,7 @@ import type {
 import type {
   CreateBranchInput,
   CreateCategoryInput,
+  CreateCustomerInput,
   CreateLocationInput,
   CreateMembershipInput,
   CreateOrganizationInput,
@@ -78,6 +80,12 @@ export interface SupplierRepository {
     id: string,
     input: UpdateSupplierInput,
   ): Promise<Supplier | null>;
+}
+
+export interface CustomerRepository {
+  list(orgId: string): Promise<Customer[]>;
+  findById(orgId: string, id: string): Promise<Customer | null>;
+  create(orgId: string, input: CreateCustomerInput): Promise<Customer>;
 }
 
 export interface UsersRepository {

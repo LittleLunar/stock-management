@@ -10,6 +10,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CreateBranchSchema,
+  CreateCustomerSchema,
   CreateOrganizationSchema,
   CreateProductSchema,
   CreateSupplierSchema,
@@ -24,13 +25,25 @@ import { formatApiError } from "./lib/errors";
 import {
   useBranches,
   useCreateBranch,
+  useCreateCustomer,
   useCreateLocation,
   useCreateProduct,
   useCreateSupplier,
+  useCustomers,
   useLocations,
   useProducts,
   useSuppliers,
 } from "./hooks/masters";
+import { CustomerReturnsPage } from "./pages/CustomerReturnsPage";
+import { GoodsReceiptsPage } from "./pages/GoodsReceiptsPage";
+import { PurchaseOrdersPage } from "./pages/PurchaseOrdersPage";
+import { ReservationsPage } from "./pages/ReservationsPage";
+import { StockAdjustmentsPage } from "./pages/StockAdjustmentsPage";
+import { StockCountsPage } from "./pages/StockCountsPage";
+import { StockIssuesPage } from "./pages/StockIssuesPage";
+import { StockPage } from "./pages/StockPage";
+import { StockTransfersPage } from "./pages/StockTransfersPage";
+import { SupplierReturnsPage } from "./pages/SupplierReturnsPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -90,24 +103,90 @@ function Shell() {
           <Link to="/branches" className="rounded px-2 py-1 hover:bg-slate-100">
             Branches
           </Link>
-          <Link to="/locations" className="rounded px-2 py-1 hover:bg-slate-100">
+          <Link
+            to="/locations"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
             Locations
           </Link>
           <Link to="/products" className="rounded px-2 py-1 hover:bg-slate-100">
             Products
           </Link>
-          <Link to="/suppliers" className="rounded px-2 py-1 hover:bg-slate-100">
+          <Link
+            to="/suppliers"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
             Suppliers
+          </Link>
+          <Link
+            to="/customers"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Customers
+          </Link>
+          <Link
+            to="/purchase-orders"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Purchase orders
+          </Link>
+          <Link
+            to="/goods-receipts"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Goods receipts
+          </Link>
+          <Link to="/stock" className="rounded px-2 py-1 hover:bg-slate-100">
+            Stock inquiry
+          </Link>
+          <Link
+            to="/reservations"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Reservations
+          </Link>
+          <Link
+            to="/stock-issues"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Stock issues
+          </Link>
+          <Link
+            to="/stock-transfers"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Stock transfers
+          </Link>
+          <Link
+            to="/stock-adjustments"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Stock adjustments
+          </Link>
+          <Link
+            to="/stock-counts"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Stock counts
+          </Link>
+          <Link
+            to="/supplier-returns"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Supplier returns
+          </Link>
+          <Link
+            to="/customer-returns"
+            className="rounded px-2 py-1 hover:bg-slate-100"
+          >
+            Customer returns
           </Link>
         </nav>
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
           {orgId ? (
             <p className="break-all">Org: {orgId}</p>
           ) : (
-            <form
-              className="space-y-2"
-              onSubmit={handleSubmit(bootstrap)}
-            >
+            <form className="space-y-2" onSubmit={handleSubmit(bootstrap)}>
               <input
                 className="w-full rounded border border-slate-300 px-2 py-1"
                 placeholder="Org name"
@@ -139,7 +218,8 @@ function DashboardPage() {
     <div>
       <h1 className="text-2xl font-semibold">Dashboard</h1>
       <p className="mt-2 text-slate-600">
-        Phase A shell — use the sidebar to manage masters.
+        Manage master data, purchasing, receipts, returns, reservations,
+        outbound documents, and stock from the sidebar.
       </p>
     </div>
   );
@@ -196,9 +276,7 @@ function BranchesPage() {
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && (
-        <p className="text-red-700">{formatApiError(error)}</p>
-      )}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((b) => (
           <li key={b.id} className="flex justify-between px-4 py-3 text-sm">
@@ -284,9 +362,7 @@ function LocationsPage() {
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && (
-        <p className="text-red-700">{formatApiError(error)}</p>
-      )}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((loc) => (
           <li key={loc.id} className="flex justify-between px-4 py-3 text-sm">
@@ -383,9 +459,7 @@ function ProductsPage() {
         </div>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && (
-        <p className="text-red-700">{formatApiError(error)}</p>
-      )}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((p) => (
           <li key={p.id} className="flex justify-between px-4 py-3 text-sm">
@@ -458,9 +532,7 @@ function SuppliersPage() {
         </button>
       </form>
       {isLoading && <p>Loading…</p>}
-      {error && (
-        <p className="text-red-700">{formatApiError(error)}</p>
-      )}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((s) => (
           <li key={s.id} className="flex justify-between px-4 py-3 text-sm">
@@ -468,6 +540,75 @@ function SuppliersPage() {
               <span className="font-medium">{s.code}</span> — {s.name}
             </span>
             <span className="text-slate-500">{s.status}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function CustomersPage() {
+  const { data, isLoading, error } = useCustomers();
+  const create = useCreateCustomer();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(CreateCustomerSchema),
+    defaultValues: { code: "", name: "" },
+  });
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">Customers</h1>
+      <form
+        className="flex flex-wrap items-start gap-2"
+        onSubmit={handleSubmit((values) => {
+          create.mutate(values, { onSuccess: () => reset() });
+        })}
+      >
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Code"
+            {...register("code")}
+          />
+          {errors.code && (
+            <p className="mt-1 text-xs text-red-700">{errors.code.message}</p>
+          )}
+        </div>
+        <div>
+          <input
+            className="rounded border border-slate-300 px-3 py-2"
+            placeholder="Name"
+            {...register("name")}
+          />
+          {errors.name && (
+            <p className="mt-1 text-xs text-red-700">{errors.name.message}</p>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="rounded bg-teal-800 px-4 py-2 text-white"
+        >
+          Add
+        </button>
+      </form>
+      {isLoading && <p>Loading…</p>}
+      {error && <p className="text-red-700">{formatApiError(error)}</p>}
+      <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
+        {(data ?? []).map((customer) => (
+          <li
+            key={customer.id}
+            className="flex justify-between px-4 py-3 text-sm"
+          >
+            <span>
+              <span className="font-medium">{customer.code}</span> —{" "}
+              {customer.name}
+            </span>
+            <span className="text-slate-500">{customer.status}</span>
           </li>
         ))}
       </ul>
@@ -509,12 +650,89 @@ const suppliersRoute = createRoute({
   component: SuppliersPage,
 });
 
+const customersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/customers",
+  component: CustomersPage,
+});
+
+const purchaseOrdersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/purchase-orders",
+  component: PurchaseOrdersPage,
+});
+
+const goodsReceiptsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/goods-receipts",
+  component: GoodsReceiptsPage,
+});
+
+const stockRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock",
+  component: StockPage,
+});
+
+const reservationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reservations",
+  component: ReservationsPage,
+});
+
+const stockIssuesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock-issues",
+  component: StockIssuesPage,
+});
+
+const stockTransfersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock-transfers",
+  component: StockTransfersPage,
+});
+
+const stockAdjustmentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock-adjustments",
+  component: StockAdjustmentsPage,
+});
+
+const stockCountsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stock-counts",
+  component: StockCountsPage,
+});
+
+const supplierReturnsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/supplier-returns",
+  component: SupplierReturnsPage,
+});
+
+const customerReturnsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/customer-returns",
+  component: CustomerReturnsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   branchesRoute,
   locationsRoute,
   productsRoute,
   suppliersRoute,
+  customersRoute,
+  purchaseOrdersRoute,
+  goodsReceiptsRoute,
+  stockRoute,
+  reservationsRoute,
+  stockIssuesRoute,
+  stockTransfersRoute,
+  stockAdjustmentsRoute,
+  stockCountsRoute,
+  supplierReturnsRoute,
+  customerReturnsRoute,
 ]);
 
 const router = createRouter({ routeTree });

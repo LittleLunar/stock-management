@@ -55,6 +55,14 @@ export const SupplierSchema = z.object({
 });
 export type Supplier = z.infer<typeof SupplierSchema>;
 
+export const CustomerSchema = z.object({
+  id: UuidSchema,
+  code: z.string(),
+  name: z.string(),
+  status: MasterStatusSchema.or(z.string()),
+});
+export type Customer = z.infer<typeof CustomerSchema>;
+
 export const CreateOrganizationSchema = z.object({
   name: z.string().min(1).max(256),
   currency: z.string().min(3).max(3).optional(),

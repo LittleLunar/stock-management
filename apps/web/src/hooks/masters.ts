@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateBranch,
+  CreateCustomer,
   CreateLocation,
   CreateProduct,
   CreateSupplier,
@@ -86,5 +87,23 @@ export function useCreateSupplier() {
   return useMutation({
     mutationFn: (body: CreateSupplier) => api.createSupplier(ctx, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+  });
+}
+
+export function useCustomers() {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["customers", ctx.orgId],
+    queryFn: () => api.listCustomers(ctx),
+    enabled: Boolean(ctx.orgId),
+  });
+}
+
+export function useCreateCustomer() {
+  const ctx = useApiContext();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateCustomer) => api.createCustomer(ctx, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
   });
 }
