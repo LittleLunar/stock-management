@@ -180,6 +180,86 @@ export type ReceiveStockTransferHeaders = z.infer<
   typeof ReceiveStockTransferHeadersSchema
 >;
 
+const SignedQuantitySchema = z
+  .string()
+  .regex(
+    /^-?\d{1,14}(?:\.\d{1,4})?$/,
+    "Must be a signed decimal with at most 4 places",
+  )
+  .refine((value) => Number(value) !== 0, "Must be non-zero");
+
+export const StockAdjustmentLineInputSchema = z.object({
+  id: UuidSchema.optional(),
+  productId: UuidSchema,
+  qty: SignedQuantitySchema,
+  lotId: UuidSchema.nullable().optional(),
+  serialNumbers: z.array(z.string().trim().min(1)).optional(),
+  lineNumber: z.number().int().positive(),
+});
+export type StockAdjustmentLineInput = z.infer<
+  typeof StockAdjustmentLineInputSchema
+>;
+
+export const CreateStockAdjustmentSchema = z.object({
+  branchId: UuidSchema,
+  locationId: UuidSchema,
+  documentNumber: z.string().trim().min(1).nullable().optional(),
+  reasonCode: z.string().trim().min(1),
+  reasonNote: z.string().trim().min(1).nullable().optional(),
+  lines: z.array(StockAdjustmentLineInputSchema).min(1),
+});
+export type CreateStockAdjustment = z.infer<typeof CreateStockAdjustmentSchema>;
+
+export const UpdateStockAdjustmentSchema =
+  CreateStockAdjustmentSchema.partial();
+export type UpdateStockAdjustment = z.infer<typeof UpdateStockAdjustmentSchema>;
+
+export const StockAdjustmentIdParamsSchema = z.object({
+  id: UuidSchema,
+});
+export type StockAdjustmentIdParams = z.infer<
+  typeof StockAdjustmentIdParamsSchema
+>;
+
+export const PostStockAdjustmentSchema = PostGoodsReceiptSchema;
+export type PostStockAdjustment = z.infer<typeof PostStockAdjustmentSchema>;
+
+export const PostStockAdjustmentHeadersSchema = PostGoodsReceiptHeadersSchema;
+export type PostStockAdjustmentHeaders = z.infer<
+  typeof PostStockAdjustmentHeadersSchema
+>;
+
+export const StockCountLineInputSchema = z.object({
+  id: UuidSchema.optional(),
+  productId: UuidSchema,
+  lotId: UuidSchema.nullable().optional(),
+  countedQty: NonNegativeAmountSchema.nullable(),
+  lineNumber: z.number().int().positive(),
+});
+export type StockCountLineInput = z.infer<typeof StockCountLineInputSchema>;
+
+export const CreateStockCountSchema = z.object({
+  branchId: UuidSchema,
+  locationId: UuidSchema,
+  documentNumber: z.string().trim().min(1).nullable().optional(),
+  lines: z.array(StockCountLineInputSchema).min(1),
+});
+export type CreateStockCount = z.infer<typeof CreateStockCountSchema>;
+
+export const UpdateStockCountSchema = CreateStockCountSchema.partial();
+export type UpdateStockCount = z.infer<typeof UpdateStockCountSchema>;
+
+export const StockCountIdParamsSchema = z.object({
+  id: UuidSchema,
+});
+export type StockCountIdParams = z.infer<typeof StockCountIdParamsSchema>;
+
+export const PostStockCountSchema = PostGoodsReceiptSchema;
+export type PostStockCount = z.infer<typeof PostStockCountSchema>;
+
+export const PostStockCountHeadersSchema = PostGoodsReceiptHeadersSchema;
+export type PostStockCountHeaders = z.infer<typeof PostStockCountHeadersSchema>;
+
 const OptionalBooleanQuerySchema = z
   .enum(["true", "false"])
   .transform((value) => value === "true")
