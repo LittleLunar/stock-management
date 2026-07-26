@@ -2,7 +2,6 @@
 
 ## Active
 
-- [ ] **Phase E2** — replenishment / reservations / approvals (plan ready) — after E1
 - [ ] **Phase E3** — webhooks / FEFO / barcode (plan ready) — after E2
 
 ## Waiting On
@@ -15,6 +14,7 @@
 
 ## Done
 
+- [x] ~~Phase E2 — replenishment / reservations / approvals~~ (2026-07-27)
 - [x] ~~Phase E1 — branch ACL / UX / attribution~~ (2026-07-27)
 - [x] ~~Phase E plans (design + master + E1–E3) written~~ (2026-07-26)
 - [x] ~~Phase D3 — reports / close checklist / thin web~~ (2026-07-26)

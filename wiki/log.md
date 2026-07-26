@@ -7,6 +7,16 @@ updated: 2026-07-27
 
 # Wiki Log
 
+## [2026-07-27] update | Phase E2 complete (ops / approvals)
+
+Shipped E2: transfer `purpose` (replenishment needs distinct branches),
+reservation FOR UPDATE + expire poller, `approval_policies` defaults on for
+PO + adjustments (submit/approve gates), thin web replenish wizard + approve
+actions + policies page. Verification green (domain/application/api tests +
+api/web typecheck). Marked [[Phase E]] E2 complete; updated
+[[Org Branch Location]], [[Feature Phases]], [[index]], `TASKS.md`. Next: E3.
+Manual browser smoke not run this gate — covered by automated tests.
+
 ## [2026-07-27] update | Phase E1 complete (branch hardening)
 
 Shipped E1: membership→context ACL (`branchIds`, `X-Branch-Id`), branch-filtered
