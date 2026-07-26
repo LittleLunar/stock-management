@@ -17,11 +17,13 @@ Starts as internal inventory for a solo shop; designed to scale to retail branch
 ## Repo layout (target)
 
 ```
-apps/api/          # Fastify API
-apps/web/          # Vite React SPA
-packages/shared/   # Zod schemas, shared types
-docs/              # Specs, plans, Diátaxis docs
-wiki/              # LLM / Obsidian knowledge wiki
+apps/api/                 # Fastify HTTP + infrastructure + composition root
+apps/web/                 # Vite React SPA (presentation only)
+packages/domain/          # Pure domain (entities, errors)
+packages/application/     # Use cases + ports
+packages/shared/          # Zod HTTP/API contracts
+docs/                     # Specs, plans, Diátaxis docs
+wiki/                     # LLM / Obsidian knowledge wiki
 ```
 
 ## Knowledge
@@ -37,7 +39,7 @@ wiki/              # LLM / Obsidian knowledge wiki
 
 ## Current status
 
-**Phase A in progress.** Monorepo scaffolded (`apps/api`, `apps/web`, `packages/shared`). SOLID standards documented. Masters API + UI landed; apply DB migration when Postgres is available.
+**Phase A in progress.** Full Clean Architecture in place (`packages/domain`, `packages/application`). Masters API + UI landed.
 
 Local setup: [docs/tutorials/local-setup.md](./docs/tutorials/local-setup.md)
 

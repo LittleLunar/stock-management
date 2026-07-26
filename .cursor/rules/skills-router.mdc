@@ -1,8 +1,3 @@
----
-description: Routes each task to the right agent skill(s). Read matched skills BEFORE acting.
-alwaysApply: true
----
-
 # Skill Router
 
 On every prompt, classify the task and READ + FOLLOW the matched skill file(s) before doing the work. Skills live at `/Users/lunar/.agents/skills/<name>/SKILL.md`.
@@ -22,10 +17,10 @@ On every prompt, classify the task and READ + FOLLOW the matched skill file(s) b
 
 ## Stack-specific
 
-- API under `apps/api/` → follow `stack-conventions.mdc` including **SOLID & design patterns (all phases)**
-- Web under `apps/web/` → follow `stack-conventions.mdc` SOLID section + React/TanStack thin UI (page → hook → API client)
-- Schema / migrations → Drizzle + Postgres; never mutate stock without movements
-- Any Phase A–F feature work → layered modules; see `docs/architecture/coding-standards.md`
+- API under `apps/api/` → follow `clean-architecture.mdc` + `stack-conventions.mdc` (Full CA)
+- Web under `apps/web/` → Full CA presentation only: page → hook → API client; never import domain/application
+- Schema / migrations → Drizzle under `apps/api/src/infrastructure/db`; never mutate stock without movements
+- Any Phase A–F feature work → Clean Architecture layers; see `docs/architecture/coding-standards.md`
 
 ## Rules
 

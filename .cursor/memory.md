@@ -14,6 +14,10 @@ Use global skills under `~/.agents/skills/`. Router: `.cursor/rules/skills-route
 
 Fastify + Drizzle + Postgres + Vite/React + TanStack + Tailwind. See `.cursor/rules/stack-conventions.mdc`.
 
+## Architecture lock
+
+Full Clean Architecture: `packages/domain`, `packages/application`, API infrastructure/HTTP, thin web. Rule: `.cursor/rules/clean-architecture.mdc`.
+
 ## Memory
 
 Hot cache: `CLAUDE.md`. Deep: `memory/`. Tasks: `TASKS.md`.

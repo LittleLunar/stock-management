@@ -12,6 +12,8 @@ Get the Phase A monorepo running on your machine.
 
 ```bash
 npx pnpm@9.15.0 install
+npx pnpm@9.15.0 --filter @stock-management/domain build
+npx pnpm@9.15.0 --filter @stock-management/application build
 npx pnpm@9.15.0 --filter @stock-management/shared build
 ```
 
@@ -47,4 +49,4 @@ API calls require headers `X-Org-Id` and `X-User-Id` (except `POST /api/v1/orgs`
 
 ## Coding standards
 
-All modules use routes → service → repository. See [architecture/coding-standards.md](../architecture/coding-standards.md).
+Full Clean Architecture: `packages/domain` → `packages/application` → API adapters; web is page → hook → API client. See [architecture/coding-standards.md](../architecture/coding-standards.md).

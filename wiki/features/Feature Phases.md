@@ -11,7 +11,7 @@ updated: 2026-07-26
 Roadmap for [[Stock Management System]]. Full checklist: `docs/FEATURES.md`.
 
 > [!important]
-> Implementation for **every** phase (A–F) must follow [[SOLID and Design Patterns]] (`docs/architecture/coding-standards.md`).
+> Implementation for **every** phase (A–F) must follow [[Clean Architecture]] (`docs/architecture/coding-standards.md`).
 
 | Phase | Focus | Page |
 |-------|--------|------|

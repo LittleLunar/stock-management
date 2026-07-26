@@ -1,10 +1,13 @@
 # Phase A Platform Skeleton Implementation Plan
 
+> [!warning]
+> **Architecture superseded (2026-07-26).** Target shape is Full Clean Architecture — see `docs/superpowers/specs/2026-07-26-clean-architecture-design.md` and `docs/superpowers/plans/2026-07-26-clean-architecture-migration.md`. This plan remains historical for Phase A feature scope only. Do not recreate `apps/api/src/modules/*/routes|service|repository`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Scaffold the monorepo and ship Phase A masters (org, branch, location, users/roles, products, categories, suppliers) with Postgres + Drizzle—no stock movements yet.
 
-**Architecture:** pnpm workspaces with `apps/api` (Fastify), `apps/web` (Vite React + TanStack), `packages/shared` (Zod). Single Postgres database; Drizzle schema owned by API. Layered modules: routes → service → repository.
+**Architecture (historical):** pnpm workspaces with `apps/api` (Fastify), `apps/web` (Vite React + TanStack), `packages/shared` (Zod). **Current target:** `packages/domain` + `packages/application` + API infrastructure/HTTP adapters ([[Clean Architecture]]).
 
 **Tech Stack:** Fastify, TypeScript, Drizzle, PostgreSQL, Vite, React, TanStack Router, TanStack Query, Tailwind, Zod
 

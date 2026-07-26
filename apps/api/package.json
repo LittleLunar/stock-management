@@ -7,12 +7,15 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src/",
     "start": "node dist/index.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@stock-management/application": "workspace:*",
+    "@stock-management/domain": "workspace:*",
     "@stock-management/shared": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.2.1",
