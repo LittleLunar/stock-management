@@ -15,14 +15,17 @@ Internal inventory loop — full quantity cycle across locations.
 **B1 complete (2026-07-26).** Purchase-order, goods-receipt, and stock-inquiry
 application/HTTP flows shipped, including transactional receipt post/void,
 idempotency, outbox enqueue, and a thin web UI for the inbound workflow.
-**B2 active:** stock-issue and stock-transfer HTTP slices are complete;
-adjustment, count, and thin web slices remain.
+**B2 complete (2026-07-26).** Stock issue, transfer (explicit transit location),
+adjustment, and count — REST lifecycles, transactional post/void (or
+ship/receive for transfers), idempotency, outbox enqueue, and thin web UI for
+all four outbound document types.
+**B3 active:** returns, reservations, availability APIs, and outbox poller.
 
 | Slice | Focus                                                                                    | Status / Plan                                                                         |
 | ----- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | B1    | PO → GR, ledger, lots/serials, UoW, idempotency, outbox enqueue, stock inquiry, thin web | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b1-po-goods-receipt.md`       |
-| B2    | Issue, transfer (explicit transit loc), adjustment, count                                | **Active** — `docs/superpowers/plans/2026-07-26-phase-b2-outbound-documents.md`       |
-| B3    | Returns, reservations, availability, outbox poller                                       | Planned — `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md` |
+| B2    | Issue, transfer (explicit transit loc), adjustment, count                                | **Complete** — `docs/superpowers/plans/2026-07-26-phase-b2-outbound-documents.md`     |
+| B3    | Returns, reservations, availability, outbox poller                                       | **Active** — `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md` |
 
 Master: `docs/superpowers/plans/2026-07-26-phase-b-inventory-loop.md`  
 Design: `docs/superpowers/specs/2026-07-26-phase-b-design.md`
@@ -47,6 +50,14 @@ Design: `docs/superpowers/specs/2026-07-26-phase-b-design.md`
 - Stock-transfer REST lifecycle: create, list, get, update, ship, receive, and
   void; transfers move stock through an explicit transit location, reject
   non-transit locations at ship, and cannot be voided after receipt
+- Stock-adjustment REST lifecycle: create, list, get, update, post, and void;
+  signed line quantities (+ increase / − decrease) with header reason code;
+  posting rejects negative on-hand and supports replay-safe idempotency keys
+- Stock-count REST lifecycle: create, list, get, update, post, and void;
+  snapshots `expectedQty` on draft line add/update; post applies variance
+  (counted − expected) as adjustment movements; expected qty visible in UI
+- Thin web pages for stock issues, transfers (ship/receive/void), adjustments,
+  and counts — same page → hook → API client pattern as B1
 - Supplier / customer returns structure
 - Low stock, lot/serial lookup
 - Reservations + availability APIs (POS stubs)

@@ -2,12 +2,11 @@
 
 ## Active
 
-- [ ] **Phase B2 — outbound documents** - executing: `docs/superpowers/plans/2026-07-26-phase-b2-outbound-documents.md`
+- [ ] **Phase B3 — returns, reservations, outbox** - executing: `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md`
 
 ## Waiting On
 
 - [ ] **Phase A polish** - categories UI optional; seed script
-- [ ] **Phase B3 — returns, reservations, outbox** - plan ready: `docs/superpowers/plans/2026-07-26-phase-b3-returns-reservations-outbox.md` (after B2)
 
 ## Someday
 
@@ -19,6 +18,7 @@
 
 ## Done
 
+- [x] ~~Phase B2 — outbound documents~~ (2026-07-26)
 - [x] ~~Phase B1 — PO → goods receipt~~ (2026-07-26)
 - [x] ~~Phase B plans (B1–B3) written~~ (2026-07-26)
 - [x] ~~Product vision + stack decision~~ (2026-07-25)

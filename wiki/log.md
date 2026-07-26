@@ -7,6 +7,13 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B2 complete
+
+Marked Phase B2 (issue, transfer, adjustment, count) complete in `TASKS.md`
+and [[Phase B]]. B3 returns, reservations, and outbox poller is now the
+active slice. Expanded [[Document Posting]] with B2 post/void and transfer
+ship/receive lifecycles. Updated [[index]].
+
 ## [2026-07-26] update | Phase B2 stock-transfer HTTP
 
 Added shared stock-transfer request schemas and the `/api/v1/stock-transfers`
