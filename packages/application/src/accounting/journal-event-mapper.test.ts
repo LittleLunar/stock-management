@@ -49,4 +49,22 @@ describe("mapOutboxEventToJournalPlan", () => {
       isVoid: true,
     });
   });
+
+  it("passes branchId from payload into journal plan", () => {
+    const plan = mapOutboxEventToJournalPlan({
+      id: "e1",
+      orgId: "org-1",
+      eventType: "document.posted",
+      aggregateType: "goods_receipt",
+      aggregateId: "gr-1",
+      payload: {
+        inventoryValueDelta: "10",
+        branchId: "branch-9",
+      },
+    });
+    expect(plan.kind).toBe("create");
+    if (plan.kind === "create") {
+      expect(plan.branchId).toBe("branch-9");
+    }
+  });
 });

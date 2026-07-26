@@ -186,6 +186,7 @@ export class PostGoodsReceipt {
         payload: {
           receiptId: receipt.id,
           userId,
+          branchId: receipt.branchId,
           ...costingOutboxFields({ inventoryValueDelta }),
         },
       });

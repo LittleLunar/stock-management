@@ -554,6 +554,16 @@ describe("VoidGoodsReceipt", () => {
     expect(voidEvt?.payload.inventoryValueDelta).toBe("30");
   });
 
+  it("includes branchId on document.posted outbox payload", async () => {
+    const { uow, outbox } = makeFake("3");
+    await new PostGoodsReceipt(uow).execute("org-1", "user-1", "gr-1");
+    const posted = outbox.find(
+      (e) =>
+        e.eventType === "document.posted" && e.aggregateType === "goods_receipt",
+    );
+    expect(posted?.payload.branchId).toBe("branch-1");
+  });
+
   it("void rejects when layer partially consumed", async () => {
     const { uow, partiallyConsumeLayer } = makeFake("3");
     await new PostGoodsReceipt(uow).execute("org-1", "user-1", "gr-1");

@@ -64,6 +64,13 @@
       "when": 1785083600000,
       "tag": "0008_phase_d2_ap",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785153600000,
+      "tag": "0009_phase_e1_branch_hardening",
+      "breakpoints": true
     }
   ]
 }

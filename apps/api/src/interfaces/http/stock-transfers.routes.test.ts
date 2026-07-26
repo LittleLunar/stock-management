@@ -127,6 +127,8 @@ function makeHarness(transitType: Location["type"] = "transit") {
         fromLocationId: input.fromLocationId,
         toLocationId: input.toLocationId,
         transitLocationId: input.transitLocationId,
+        fromBranchId: BRANCH_ID,
+        toBranchId: BRANCH_ID,
         documentNumber: input.documentNumber ?? null,
         status: "draft",
         createdAt: now,

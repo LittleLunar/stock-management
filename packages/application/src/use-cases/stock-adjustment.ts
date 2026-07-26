@@ -221,6 +221,7 @@ export class PostStockAdjustment {
         adjustment.id,
         "posted",
         movements,
+        adjustment.branchId,
       );
       if (idempotency) {
         await ctx.idempotency.save({
@@ -339,6 +340,7 @@ export class VoidStockAdjustment {
         adjustment.id,
         "voided",
         movements,
+        adjustment.branchId,
       );
       return { adjustment: voided, movements };
     });
@@ -399,6 +401,7 @@ async function enqueueAdjustmentEvents(
   adjustmentId: string,
   action: "posted" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
@@ -408,6 +411,7 @@ async function enqueueAdjustmentEvents(
       payload: {
       adjustmentId,
       userId,
+      branchId,
       ...costingFieldsFromMovements(movements),
     },
   });

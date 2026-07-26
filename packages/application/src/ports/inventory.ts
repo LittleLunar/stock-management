@@ -143,7 +143,7 @@ export type StockTransferWithLines = StockTransfer & {
 };
 
 export interface StockTransferPort {
-  list(orgId: string): Promise<StockTransfer[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<StockTransfer[]>;
   findById(orgId: string, id: string): Promise<StockTransferWithLines | null>;
   create(
     orgId: string,

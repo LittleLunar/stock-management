@@ -165,7 +165,15 @@ export async function postStockIssueInCtx(
     new Date(),
   );
   const result = { issue: postedIssue, movements };
-  await enqueueIssueEvents(ctx, orgId, userId, issue.id, "posted", movements);
+  await enqueueIssueEvents(
+    ctx,
+    orgId,
+    userId,
+    issue.id,
+    "posted",
+    movements,
+    issue.branchId,
+  );
   if (idempotency) {
     await ctx.idempotency.save({
       orgId,
@@ -276,6 +284,7 @@ export class VoidStockIssue {
         issue.id,
         "voided",
         movements,
+        issue.branchId,
       );
       return { issue: voidedIssue, movements };
     });
@@ -328,6 +337,7 @@ async function enqueueIssueEvents(
   issueId: string,
   action: "posted" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
@@ -337,6 +347,7 @@ async function enqueueIssueEvents(
       payload: {
       issueId,
       userId,
+      branchId,
       ...costingOutboxFields({
         cogsTotal: String(
           movements.reduce(

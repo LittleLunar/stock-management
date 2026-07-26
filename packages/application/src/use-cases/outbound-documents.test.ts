@@ -114,6 +114,8 @@ function makeFake(options: FakeOptions = {}) {
     fromLocationId,
     toLocationId,
     transitLocationId,
+    fromBranchId: "branch-1",
+    toBranchId: "branch-1",
     documentNumber: "TRF-1",
     status: "draft",
     createdAt: now,

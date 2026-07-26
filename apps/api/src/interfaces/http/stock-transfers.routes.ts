@@ -14,7 +14,10 @@ import {
   StockTransferIdParamsSchema,
   UpdateStockTransferSchema,
 } from "@stock-management/shared";
-import { assertCanPerform } from "./branch-scope.js";
+import {
+  assertCanPerform,
+  listFilterFromContext,
+} from "./branch-scope.js";
 
 export type StockTransferRouteUseCases = {
   stockTransfers: StockTransferUseCases;
@@ -23,13 +26,15 @@ export type StockTransferRouteUseCases = {
   voidStockTransfer: VoidStockTransfer;
 };
 
-/** List branch filter deferred to Task 4 (from_branch_id / to_branch_id). */
 export function stockTransfersRoutes(
   useCases: StockTransferRouteUseCases,
 ): FastifyPluginAsync {
   return async (app) => {
     app.get("/stock-transfers", async (request) =>
-      useCases.stockTransfers.list(request.ctx.orgId),
+      useCases.stockTransfers.list(
+        request.ctx.orgId,
+        listFilterFromContext(request.ctx),
+      ),
     );
 
     app.get<{ Params: { id: string } }>(

@@ -148,6 +148,7 @@ export class PostLandedCost {
         payload: {
           landedCostId: doc.id,
           userId,
+          branchId: doc.branchId,
           ...costingOutboxFields({ landedAmount: doc.totalAmount }),
         },
       });
@@ -246,6 +247,7 @@ export class VoidLandedCost {
         payload: {
           landedCostId: doc.id,
           userId,
+          branchId: doc.branchId,
           ...costingOutboxFields({ landedAmount: doc.totalAmount }),
         },
       });

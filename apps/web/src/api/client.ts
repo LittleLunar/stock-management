@@ -184,6 +184,8 @@ export type StockTransfer = {
   fromLocationId: string;
   toLocationId: string;
   transitLocationId: string;
+  fromBranchId: string;
+  toBranchId: string;
   documentNumber: string | null;
   status: "draft" | "in_transit" | "received" | "void";
   createdAt: string;

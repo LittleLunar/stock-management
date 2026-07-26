@@ -135,6 +135,7 @@ export class PostCostRevaluation {
         payload: {
           revaluationId: doc.id,
           userId,
+          branchId: doc.branchId,
           ...costingOutboxFields({
             revaluationValueDelta: String(valueDeltaTotal),
           }),
@@ -241,6 +242,7 @@ export class VoidCostRevaluation {
         payload: {
           revaluationId: doc.id,
           userId,
+          branchId: doc.branchId,
           ...costingOutboxFields({
             revaluationValueDelta: String(revaluationValueDelta),
           }),

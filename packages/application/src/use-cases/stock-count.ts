@@ -215,6 +215,7 @@ export class PostStockCount {
         count.id,
         "posted",
         movements,
+        count.branchId,
       );
       if (idempotency) {
         await ctx.idempotency.save({
@@ -332,6 +333,7 @@ export class VoidStockCount {
         count.id,
         "voided",
         movements,
+        count.branchId,
       );
       return { count: voided, movements };
     });
@@ -345,6 +347,7 @@ async function enqueueCountEvents(
   countId: string,
   action: "posted" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
@@ -354,6 +357,7 @@ async function enqueueCountEvents(
       payload: {
       countId,
       userId,
+      branchId,
       ...costingFieldsFromMovements(movements),
     },
   });

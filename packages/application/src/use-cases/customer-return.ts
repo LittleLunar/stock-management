@@ -170,6 +170,7 @@ export class PostCustomerReturn {
         "customer_return",
         "posted",
         movements,
+        doc.branchId,
       );
       if (idempotency) {
         await ctx.idempotency.save({
@@ -272,6 +273,7 @@ export class VoidCustomerReturn {
         "customer_return",
         "voided",
         movements,
+        doc.branchId,
       );
       return { doc: voided, movements };
     });
@@ -308,6 +310,7 @@ async function enqueueReturnEvents(
   aggregateType: string,
   action: "posted" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
@@ -317,6 +320,7 @@ async function enqueueReturnEvents(
       payload: {
       returnId,
       userId,
+      branchId,
       ...costingOutboxFields({
         inventoryValueDelta: String(
           movements.reduce(

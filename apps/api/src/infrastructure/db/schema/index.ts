@@ -870,6 +870,12 @@ export const stockTransfers = pgTable(
     transitLocationId: uuid("transit_location_id")
       .notNull()
       .references(() => locations.id),
+    fromBranchId: uuid("from_branch_id")
+      .notNull()
+      .references(() => branches.id),
+    toBranchId: uuid("to_branch_id")
+      .notNull()
+      .references(() => branches.id),
     documentNumber: text("document_number"),
     status: transferStatusEnum("status").notNull().default("draft"),
     shippedAt: timestamp("shipped_at", { withTimezone: true }),

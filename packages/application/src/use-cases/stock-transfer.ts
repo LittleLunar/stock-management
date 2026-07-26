@@ -16,6 +16,7 @@ import type {
   StockMovement,
   StockTransfer,
 } from "@stock-management/domain";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type {
   CreateStockTransferInput,
   IdempotencyInput,
@@ -39,8 +40,8 @@ export type StockTransferResult = {
 export class StockTransferUseCases {
   constructor(private readonly repo: StockTransferPort) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {
@@ -137,6 +138,7 @@ export class ShipStockTransfer {
         transfer.id,
         "shipped",
         movements,
+        transfer.fromBranchId,
       );
       await saveReplay(ctx, orgId, SHIP_OPERATION, idempotency, result);
       return result;
@@ -208,6 +210,7 @@ export class ReceiveStockTransfer {
         transfer.id,
         "received",
         movements,
+        transfer.fromBranchId,
       );
       await saveReplay(ctx, orgId, RECEIVE_OPERATION, idempotency, result);
       return result;
@@ -263,6 +266,7 @@ export class VoidStockTransfer {
         transfer.id,
         "voided",
         movements,
+        transfer.fromBranchId,
       );
       return { transfer: voided, movements };
     });
@@ -619,13 +623,14 @@ async function enqueueTransferEvents(
   transferId: string,
   action: "shipped" | "received" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
     eventType: action === "voided" ? "document.voided" : "document.posted",
     aggregateType: "stock_transfer",
     aggregateId: transferId,
-    payload: { transferId, userId, action },
+    payload: { transferId, userId, action, branchId },
   });
   if (movements.length > 0) {
     await ctx.outbox.enqueue({

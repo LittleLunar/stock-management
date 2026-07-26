@@ -319,6 +319,8 @@ export type StockTransfer = {
   fromLocationId: string;
   toLocationId: string;
   transitLocationId: string;
+  fromBranchId: string;
+  toBranchId: string;
   documentNumber: string | null;
   status: TransferStatus;
   createdAt: Date;
