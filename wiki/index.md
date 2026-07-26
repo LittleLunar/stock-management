@@ -38,7 +38,7 @@ updated: 2026-07-26
 - [[Feature Phases]] — Phase A–F roadmap summary
 - [[Phase A]] — platform skeleton
 - [[Phase B]] — internal inventory loop (**complete** B1–B3 qty loop)
-- [[Phase C]] — costing (C1 complete; C2–C3 next)
+- [[Phase C]] — costing (C1+C2 complete; C3 next)
 - [[Phase D]] — accounting
 - [[Phase E]] — multi-branch hardening
 - [[Phase F]] — POS and channels

@@ -19,16 +19,17 @@ draft ──post──► posted ──void──► void
                   ├── Stock Movements (immutable)
                   ├── Balance updates (same Unit of Work)
                   ├── Outbox enqueue ([[Phase B]])
-                  ├── Cost layers / consumptions ([[Phase C]] — C1 on GR; C2 all docs)
+                  ├── Cost layers / consumptions ([[Phase C]] — C1+C2 shipped; C3 next)
                   └── Outbox → Journal ([[Phase D]])
 ```
 
 > [!note]
-> **C1 shipped:** GR post creates layers and stamps movement costs; void closes
-> fully open layers (`LayerInUseError` if partially consumed). Inquiry:
-> `GET /api/v1/stock/cost-layers`. C2 plan covers consume/create on remaining
-> docs: `docs/superpowers/plans/2026-07-26-phase-c2-fifo-consumption.md`.
-> Design: `docs/superpowers/specs/2026-07-26-phase-c-costing-design.md`.
+> **C1 + C2 shipped:** Every inventory post/void updates cost layers and stamps
+> movement costs in the same UoW. GR creates/closes layers; outbound docs
+> consume FIFO; positive adjust/count/customer return create layers (`unitCost`
+> required); transfers move layers via transit preserving `received_at` /
+> `unit_cost`. Inquiry: `GET /api/v1/stock/cost-layers`. C3 covers landed,
+> reval, reports. Design: `docs/superpowers/specs/2026-07-26-phase-c-costing-design.md`.
 
 ## Transfer ship/receive (B2)
 

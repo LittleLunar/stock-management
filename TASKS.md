@@ -2,7 +2,6 @@
 
 ## Active
 
-- [ ] **Phase C2 — FIFO consumption on all inventory docs** - plan ready: `docs/superpowers/plans/2026-07-26-phase-c2-fifo-consumption.md` (after C1)
 - [ ] **Phase C3 — landed, reval, reports, web** - plan ready: `docs/superpowers/plans/2026-07-26-phase-c3-landed-reval-reports.md` (after C2)
 
 ## Waiting On
@@ -17,6 +16,7 @@
 
 ## Done
 
+- [x] ~~Phase C2 — FIFO consumption on all inventory docs~~ (2026-07-26)
 - [x] ~~Phase C1 — cost layers on goods receipt~~ (2026-07-26)
 - [x] ~~Phase C Pass 3 plan (deep C3)~~ (2026-07-26)
 - [x] ~~Phase C Pass 2 plan (deep C2)~~ (2026-07-26)

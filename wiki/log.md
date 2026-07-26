@@ -7,6 +7,14 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase C2 complete
+
+Shipped C2: FIFO consume/create on issue, transfer, adjust, count, supplier
+and customer returns; shared document costing applicator; `unitCost` on
+inbound-create lines; thin web fields. Marked C2 done in `TASKS.md`;
+[[Phase C]], [[FIFO Costing]], [[Document Posting]], [[Feature Phases]],
+[[index]] updated. Next: implement C3.
+
 ## [2026-07-26] update | Phase C1 complete
 
 Shipped C1: cost layers on GR post/void, movement unit/total cost, CostingPort
