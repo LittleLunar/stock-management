@@ -7,6 +7,12 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B1 purchase-order HTTP
+
+Added shared purchase-order request schemas and the `/api/v1/purchase-orders`
+draft and lifecycle-action endpoints. Updated [[Phase B]] and [[Purchase to Stock]];
+goods-receipt HTTP remains a separate follow-up.
+
 ## [2026-07-26] update | Phase B2/B3 deep plans approved
 
 Deepened B2 (outbound docs) and B3 (returns, reservations, availability, outbox poller) to B1-level implementation plans. Spec decisions appended in `docs/superpowers/specs/2026-07-26-phase-b-design.md`. Updated [[Phase B]].

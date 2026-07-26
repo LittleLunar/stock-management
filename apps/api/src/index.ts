@@ -15,6 +15,7 @@ import { categoriesRoutes } from "./interfaces/http/categories.routes.js";
 import { productsRoutes } from "./interfaces/http/products.routes.js";
 import { suppliersRoutes } from "./interfaces/http/suppliers.routes.js";
 import { usersRoutes } from "./interfaces/http/users.routes.js";
+import { purchaseOrdersRoutes } from "./interfaces/http/purchase-orders.routes.js";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
@@ -62,9 +63,14 @@ await app.register(contextPlugin);
 await app.register(orgRoutes(services.org), { prefix: "/api/v1" });
 await app.register(branchesRoutes(services.branches), { prefix: "/api/v1" });
 await app.register(locationsRoutes(services.locations), { prefix: "/api/v1" });
-await app.register(categoriesRoutes(services.categories), { prefix: "/api/v1" });
+await app.register(categoriesRoutes(services.categories), {
+  prefix: "/api/v1",
+});
 await app.register(productsRoutes(services.products), { prefix: "/api/v1" });
 await app.register(suppliersRoutes(services.suppliers), { prefix: "/api/v1" });
 await app.register(usersRoutes(services.users), { prefix: "/api/v1" });
+await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
+  prefix: "/api/v1",
+});
 
 await app.listen({ port: env.PORT, host: "0.0.0.0" });
