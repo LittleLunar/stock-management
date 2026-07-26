@@ -34,10 +34,10 @@
 | Report money | String decimals; compute with `Number()`; emit via `formatMoney(n)` = `(Math.round(n * 10000) / 10000).toFixed(4)` (same spirit as B/C) |
 | Account net | `net = debitTotal − creditTotal` (asset/expense normal debit; liability/equity/income normal credit → negative net means credit balance) |
 | Trial balance filter | Exactly one of `periodId` **or** `asOf` (YYYY-MM-DD). Optional `branchId` |
-| TB `periodId` | Sum lines on journals where `journal.periodId === periodId` (and optional `branchId`) |
-| TB `asOf` | Cumulative: sum lines on journals whose period `endsOn <= asOf` (and optional `branchId`) |
-| P&L | Requires `periodId` (+ optional `branchId`). Include only `income` + `expense` accounts from that period’s TB rows. `totalIncome` = Σ (−net) for income (credit-positive). `totalExpense` = Σ net for expense. `netIncome` = `totalIncome − totalExpense` |
-| Balance sheet | Requires `asOf` (+ optional `branchId`). Build from cumulative TB-as-of; include only `asset` / `liability` / `equity`. `totalAssets` = Σ net(asset). `totalLiabilities` = Σ (−net) liability. `totalEquity` = Σ (−net) equity. Soft-check: `totalAssets ≈ totalLiabilities + totalEquity` within `0.0001` (warn in response `balanced: boolean`, do not throw) |
+| TB / report `periodId` | Sum lines on journals where `journal.periodId === periodId` (period membership = within that period’s date bounds via D1 assignment). Optional `branchId` |
+| TB / report `asOf` | Cumulative through calendar day: sum lines on journals where UTC date of `journal.postedAt` (`YYYY-MM-DD`) `<= asOf`. **Do not** filter by `period.endsOn <= asOf` (that drops mid-month activity in the open period). Optional `branchId` |
+| P&L | Requires `periodId` (+ optional `branchId`). Include only `income` + `expense` accounts from that period’s rows. `totalIncome` = Σ (−net) for income (credit-positive). `totalExpense` = Σ net for expense. `netIncome` = `totalIncome − totalExpense` |
+| Balance sheet | Requires `asOf` (+ optional `branchId`). Build from as-of account aggregates (`postedAt` date `<= asOf`). Section rows: `asset` / `liability` / `equity` only. **Interim equity:** fold `netIncome` (from same as-of rows via `buildPnl`) into equity — `totalEquity = Σ(credit−debit of equity accounts) + netIncome`. Expose `netIncome` on the report. Soft `balanced`: `\|totalAssets − (totalLiabilities + totalEquity)\| < 0.0001` (boolean; do not throw). Without folding P&L, BS cannot balance while books are open |
 | Empty CoA sections | Default seed has **no income** accounts — P&L income may be empty/`"0.0000"`; still valid |
 | Branch filter | When `branchId` set: only journals with that `branchId`. When omitted: all journals (including `branchId: null`) |
 | Close checklist | Soft warnings only; returns `{ canCloseSuggested: boolean, warnings: Warning[] }`. `canCloseSuggested` is `warnings.length === 0`. Never calls `setPeriodStatus` |
@@ -53,8 +53,11 @@
 
 ```text
 TB row:   debitTotal = Σ line.debit; creditTotal = Σ line.credit; net = debit − credit
-P&L:      netIncome = totalIncome − totalExpense   (period)
-BS:       assets = liabilities + equity            (as-of; soft balanced flag)
+P&L:      netIncome = totalIncome − totalExpense   (period via periodId)
+BS:       totalEquity = equityAccounts + netIncome (as-of; interim)
+          assets ≈ liabilities + totalEquity       (soft balanced flag)
+asOf:     filter journal.postedAt UTC day <= asOf  (not period.endsOn)
+periodId: filter journal.periodId === periodId
 ```
 
 ## Out of scope (D3)
@@ -159,16 +162,20 @@ export function buildPnl(rows: AccountBalanceRow[]): PnlReport;
 export type BalanceSheetReport = {
   assets: Array<AccountBalanceRow & { net: string }>;
   liabilities: Array<AccountBalanceRow & { net: string }>;
-  equity: Array<AccountBalanceRow & { net: string }>;
+  equity: Array<AccountBalanceRow & { net: string }>; // equity-type accounts only
+  netIncome: string; // from buildPnl(rows).netIncome — folded into totalEquity
   totalAssets: string;
   totalLiabilities: string;
-  totalEquity: string;
+  totalEquity: string; // equityAccountsTotal + netIncome
   balanced: boolean;
 };
 
 export function buildBalanceSheet(rows: AccountBalanceRow[]): BalanceSheetReport;
-// assets: type asset; amount = debit-credit
-// liabilities/equity: amount = credit-debit
+// assets: type asset; amount = debit - credit
+// liabilities: type liability; amount = credit - debit
+// equity section rows: type equity; amount = credit - debit (accounts only)
+// netIncome = buildPnl(rows).netIncome
+// totalEquity = Σ equity amounts + Number(netIncome)   // interim fold
 // balanced = |totalAssets - (totalLiabilities + totalEquity)| < 0.0001
 ```
 
@@ -182,17 +189,26 @@ import {
   buildBalanceSheet,
 } from "./financial-reports";
 
+/** Balanced books: Inv 90 + GRNI 50 + AP 50 + Reval 30 + COGS 40 */
 const rows = [
   {
     accountId: "a1",
     code: "1300",
     name: "Inventory",
     type: "asset" as const,
-    debitTotal: "100.0000",
-    creditTotal: "20.0000",
+    debitTotal: "130.0000",
+    creditTotal: "40.0000",
   },
   {
     accountId: "a2",
+    code: "2100",
+    name: "GRNI",
+    type: "liability" as const,
+    debitTotal: "50.0000",
+    creditTotal: "100.0000",
+  },
+  {
+    accountId: "a3",
     code: "2000",
     name: "AP",
     type: "liability" as const,
@@ -200,7 +216,7 @@ const rows = [
     creditTotal: "50.0000",
   },
   {
-    accountId: "a3",
+    accountId: "a4",
     code: "3900",
     name: "Reval",
     type: "equity" as const,
@@ -208,7 +224,7 @@ const rows = [
     creditTotal: "30.0000",
   },
   {
-    accountId: "a4",
+    accountId: "a5",
     code: "5000",
     name: "COGS",
     type: "expense" as const,
@@ -220,9 +236,9 @@ const rows = [
 describe("financial reports", () => {
   it("builds trial balance nets and totals", () => {
     const tb = buildTrialBalance(rows);
-    expect(tb.totalDebit).toBe("140.0000");
-    expect(tb.totalCredit).toBe("100.0000");
-    expect(tb.rows.find((r) => r.code === "1300")!.net).toBe("80.0000");
+    expect(tb.totalDebit).toBe("220.0000");
+    expect(tb.totalCredit).toBe("220.0000");
+    expect(tb.rows.find((r) => r.code === "1300")!.net).toBe("90.0000");
   });
 
   it("builds P&L from income and expense only", () => {
@@ -232,11 +248,14 @@ describe("financial reports", () => {
     expect(pnl.netIncome).toBe("-40.0000");
   });
 
-  it("builds balanced balance sheet", () => {
+  it("folds netIncome into equity for interim balanced BS", () => {
     const bs = buildBalanceSheet(rows);
-    expect(bs.totalAssets).toBe("80.0000");
-    expect(bs.totalLiabilities).toBe("50.0000");
-    expect(bs.totalEquity).toBe("30.0000");
+    expect(bs.totalAssets).toBe("90.0000");
+    expect(bs.totalLiabilities).toBe("100.0000");
+    expect(bs.netIncome).toBe("-40.0000");
+    // equity accounts 30 + netIncome -40 = -10
+    expect(bs.totalEquity).toBe("-10.0000");
+    expect(bs.equity.find((r) => r.code === "3900")).toBeTruthy();
     expect(bs.balanced).toBe(true);
   });
 });
@@ -290,22 +309,25 @@ sumLinesByAccount(
   orgId: string,
   filter: {
     periodId?: string;
-    asOf?: string; // YYYY-MM-DD cumulative through periods ending on/before
+    asOf?: string; // YYYY-MM-DD — UTC date of journal.postedAt <= asOf
     branchId?: string;
   },
 ): Promise<AccountBalanceRow[]>;
 // SQL sketch:
 // SELECT a.id, a.code, a.name, a.type,
 //   COALESCE(SUM(jl.debit),0), COALESCE(SUM(jl.credit),0)
-// FROM accounts a
-// LEFT JOIN journal_lines jl ON jl.account_id = a.id AND jl.org_id = a.org_id
-// LEFT JOIN journal_entries je ON je.id = jl.journal_entry_id
-// LEFT JOIN accounting_periods p ON p.id = je.period_id
-// WHERE a.org_id = $org
-//   AND (periodId ? je.period_id = $periodId : p.ends_on <= $asOf)
+// FROM journal_lines jl
+// JOIN journal_entries je ON je.id = jl.journal_entry_id AND je.org_id = jl.org_id
+// JOIN accounts a ON a.id = jl.account_id AND a.org_id = jl.org_id
+// WHERE jl.org_id = $org
+//   AND (
+//     periodId ? je.period_id = $periodId
+//             : (je.posted_at AT TIME ZONE 'UTC')::date <= $asOf::date
+//   )
 //   AND ($branchId IS NULL OR je.branch_id = $branchId)
 // GROUP BY a.id
-// Prefer returning only accounts with non-zero activity OR all active accounts — lock: **non-zero only**
+// HAVING SUM(jl.debit) <> 0 OR SUM(jl.credit) <> 0
+// Lock: **non-zero activity only**. Never filter asOf via period.ends_on.
 
 export type TrialBalanceQuery =
   | { periodId: string; asOf?: never; branchId?: string }
@@ -353,25 +375,170 @@ export class BalanceSheetUseCase {
       asOf: input.asOf,
       branchId: input.branchId,
     });
-    return buildBalanceSheet(rows);
+    return buildBalanceSheet(rows); // folds netIncome into totalEquity
   }
 }
 ```
 
-- [ ] **Step 1: Write failing application tests** with in-memory fake `AccountingPort`
+**Test harness (put in each test file or a shared `report-test-fakes.ts` next to the use cases):**
+
+```ts
+import type { Account, AccountType } from "@stock-management/domain";
+import type { AccountingPort } from "../ports/accounting";
+import { formatMoney } from "@stock-management/domain";
+
+type FakeLine = {
+  orgId: string;
+  periodId: string;
+  postedAt: Date; // used for asOf: UTC YYYY-MM-DD
+  branchId: string | null;
+  account: Pick<Account, "id" | "code" | "name" | "type">;
+  debit: string;
+  credit: string;
+};
+
+function utcDay(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function makeAccount(
+  id: string,
+  code: string,
+  name: string,
+  type: AccountType,
+): Pick<Account, "id" | "code" | "name" | "type"> {
+  return { id, code, name, type };
+}
+
+/** Concrete fake: only sumLinesByAccount is exercised by report use cases. */
+function makeFakeAccountingWithLines(lines: FakeLine[]): AccountingPort {
+  return {
+    // unused stubs — throw if called so tests stay honest
+    async listAccounts() {
+      throw new Error("not used");
+    },
+    async findAccountByCode() {
+      throw new Error("not used");
+    },
+    async insertAccount() {
+      throw new Error("not used");
+    },
+    async updateAccount() {
+      throw new Error("not used");
+    },
+    async listMappings() {
+      throw new Error("not used");
+    },
+    async findMapping() {
+      throw new Error("not used");
+    },
+    async upsertMapping() {
+      throw new Error("not used");
+    },
+    async listPeriods() {
+      throw new Error("not used");
+    },
+    async findPeriodByYearMonth() {
+      throw new Error("not used");
+    },
+    async findPeriodCoveringDate() {
+      throw new Error("not used");
+    },
+    async insertPeriod() {
+      throw new Error("not used");
+    },
+    async setPeriodStatus() {
+      throw new Error("not used");
+    },
+    async findJournalByOutboxEventId() {
+      throw new Error("not used");
+    },
+    async findJournalById() {
+      throw new Error("not used");
+    },
+    async listJournalsBySourceDocument() {
+      throw new Error("not used");
+    },
+    async insertJournal() {
+      throw new Error("not used");
+    },
+
+    async sumLinesByAccount(orgId, filter) {
+      const matched = lines.filter((l) => {
+        if (l.orgId !== orgId) return false;
+        if (filter.branchId !== undefined && l.branchId !== filter.branchId) {
+          return false;
+        }
+        if (filter.periodId !== undefined) {
+          return l.periodId === filter.periodId;
+        }
+        if (filter.asOf !== undefined) {
+          return utcDay(l.postedAt) <= filter.asOf;
+        }
+        return false;
+      });
+      const byAccount = new Map<
+        string,
+        {
+          accountId: string;
+          code: string;
+          name: string;
+          type: AccountType;
+          debit: number;
+          credit: number;
+        }
+      >();
+      for (const l of matched) {
+        const cur = byAccount.get(l.account.id) ?? {
+          accountId: l.account.id,
+          code: l.account.code,
+          name: l.account.name,
+          type: l.account.type,
+          debit: 0,
+          credit: 0,
+        };
+        cur.debit += Number(l.debit);
+        cur.credit += Number(l.credit);
+        byAccount.set(l.account.id, cur);
+      }
+      return [...byAccount.values()]
+        .filter((r) => r.debit !== 0 || r.credit !== 0)
+        .map((r) => ({
+          accountId: r.accountId,
+          code: r.code,
+          name: r.name,
+          type: r.type,
+          debitTotal: formatMoney(r.debit),
+          creditTotal: formatMoney(r.credit),
+        }));
+    },
+  } as AccountingPort;
+}
+
+const inv = makeAccount("acc-inv", "1300", "Inventory", "asset");
+const cogs = makeAccount("acc-cogs", "5000", "COGS", "expense");
+const ap = makeAccount("acc-ap", "2000", "AP", "liability");
+const equity = makeAccount("acc-eq", "3900", "Reval", "equity");
+```
+
+- [ ] **Step 1: Write failing application tests** with the concrete fake above
 
 ```ts
 it("trial balance filters by periodId via port", async () => {
   const accounting = makeFakeAccountingWithLines([
     {
+      orgId: "org-1",
       periodId: "p1",
+      postedAt: new Date("2026-07-10T12:00:00.000Z"),
       branchId: null,
       account: inv,
       debit: "10",
       credit: "0",
     },
     {
+      orgId: "org-1",
       periodId: "p2",
+      postedAt: new Date("2026-08-05T12:00:00.000Z"),
       branchId: null,
       account: inv,
       debit: "5",
@@ -383,22 +550,121 @@ it("trial balance filters by periodId via port", async () => {
   expect(report.totalDebit).toBe("10.0000");
 });
 
-it("P&L uses only the requested period", async () => {
-  const uc = new PnlReportUseCase(accountingWithCogsInPeriod);
-  const report = await uc.execute("org-1", { periodId: "p1" });
-  expect(report.totalExpense).toBe("40.0000");
+it("asOf includes mid-period postedAt on or before asOf", async () => {
+  const accounting = makeFakeAccountingWithLines([
+    {
+      orgId: "org-1",
+      periodId: "p-july", // period ends 2026-07-31
+      postedAt: new Date("2026-07-15T08:00:00.000Z"),
+      branchId: null,
+      account: inv,
+      debit: "25",
+      credit: "0",
+    },
+    {
+      orgId: "org-1",
+      periodId: "p-july",
+      postedAt: new Date("2026-07-20T08:00:00.000Z"),
+      branchId: null,
+      account: inv,
+      debit: "0",
+      credit: "25",
+    },
+  ]);
+  const uc = new TrialBalanceUseCase(accounting);
+  // Mid-month asOf must include 2026-07-15 activity (endsOn filter would wrongly drop it
+  // if the period were still open and we keyed on endsOn <= asOf)
+  const report = await uc.execute("org-1", { asOf: "2026-07-15" });
+  expect(report.totalDebit).toBe("25.0000");
+  expect(report.totalCredit).toBe("0.0000");
 });
 
-it("balance sheet uses asOf cumulative rows", async () => {
-  const uc = new BalanceSheetUseCase(accountingCumulative);
+it("P&L uses only the requested period", async () => {
+  const accounting = makeFakeAccountingWithLines([
+    {
+      orgId: "org-1",
+      periodId: "p1",
+      postedAt: new Date("2026-07-10T12:00:00.000Z"),
+      branchId: null,
+      account: cogs,
+      debit: "40",
+      credit: "0",
+    },
+    {
+      orgId: "org-1",
+      periodId: "p2",
+      postedAt: new Date("2026-08-01T12:00:00.000Z"),
+      branchId: null,
+      account: cogs,
+      debit: "99",
+      credit: "0",
+    },
+  ]);
+  const uc = new PnlReportUseCase(accounting);
+  const report = await uc.execute("org-1", { periodId: "p1" });
+  expect(report.totalExpense).toBe("40.0000");
+  expect(report.netIncome).toBe("-40.0000");
+});
+
+it("balance sheet folds netIncome and uses postedAt asOf", async () => {
+  const accounting = makeFakeAccountingWithLines([
+    {
+      orgId: "org-1",
+      periodId: "p1",
+      postedAt: new Date("2026-07-10T12:00:00.000Z"),
+      branchId: null,
+      account: inv,
+      debit: "130",
+      credit: "40",
+    },
+    {
+      orgId: "org-1",
+      periodId: "p1",
+      postedAt: new Date("2026-07-10T12:00:00.000Z"),
+      branchId: null,
+      account: ap,
+      debit: "0",
+      credit: "50",
+    },
+    {
+      orgId: "org-1",
+      periodId: "p1",
+      postedAt: new Date("2026-07-10T12:00:00.000Z"),
+      branchId: null,
+      account: makeAccount("acc-grni", "2100", "GRNI", "liability"),
+      debit: "50",
+      credit: "100",
+    },
+    {
+      orgId: "org-1",
+      periodId: "p1",
+      postedAt: new Date("2026-07-10T12:00:00.000Z"),
+      branchId: null,
+      account: equity,
+      debit: "0",
+      credit: "30",
+    },
+    {
+      orgId: "org-1",
+      periodId: "p1",
+      postedAt: new Date("2026-07-10T12:00:00.000Z"),
+      branchId: null,
+      account: cogs,
+      debit: "40",
+      credit: "0",
+    },
+  ]);
+  const uc = new BalanceSheetUseCase(accounting);
   const report = await uc.execute("org-1", { asOf: "2026-07-31" });
+  expect(report.netIncome).toBe("-40.0000");
+  expect(report.totalEquity).toBe("-10.0000");
   expect(report.balanced).toBe(true);
 });
 ```
 
 - [ ] **Step 2: Run** `pnpm --filter @stock-management/application test -- src/use-cases/trial-balance.test.ts src/use-cases/pnl-report.test.ts src/use-cases/balance-sheet.test.ts` — FAIL
 
-- [ ] **Step 3: Implement** port method signature + three use cases (fake implements `sumLinesByAccount` in tests)
+- [ ] **Step 3: Implement** port method signature + three use cases (tests use `makeFakeAccountingWithLines` above as-is)
 
 - [ ] **Step 4: PASS**
 
@@ -630,9 +896,28 @@ EOF
 - Modify: `apps/api/src/main/composition-root.ts`, `apps/api/src/index.ts`
 
 **Interfaces:**
-- Produces (shared Zod):
+- Produces (shared Zod — query **and** response shapes):
 
 ```ts
+const MoneyStringSchema = z.string().regex(/^-?\d+\.\d{4}$/);
+const AccountTypeSchema = z.enum([
+  "asset",
+  "liability",
+  "equity",
+  "income",
+  "expense",
+]);
+
+export const AccountBalanceRowSchema = z.object({
+  accountId: UuidSchema,
+  code: z.string(),
+  name: z.string(),
+  type: AccountTypeSchema,
+  debitTotal: MoneyStringSchema,
+  creditTotal: MoneyStringSchema,
+  net: MoneyStringSchema.optional(), // present on TB rows
+});
+
 export const TrialBalanceQuerySchema = z
   .object({
     periodId: UuidSchema.optional(),
@@ -644,9 +929,25 @@ export const TrialBalanceQuerySchema = z
     { message: "Provide exactly one of periodId or asOf" },
   );
 
+export const TrialBalanceResponseSchema = z.object({
+  rows: z.array(
+    AccountBalanceRowSchema.extend({ net: MoneyStringSchema }),
+  ),
+  totalDebit: MoneyStringSchema,
+  totalCredit: MoneyStringSchema,
+});
+
 export const PnlQuerySchema = z.object({
   periodId: UuidSchema,
   branchId: UuidSchema.optional(),
+});
+
+export const PnlResponseSchema = z.object({
+  income: z.array(AccountBalanceRowSchema.extend({ net: MoneyStringSchema })),
+  expense: z.array(AccountBalanceRowSchema.extend({ net: MoneyStringSchema })),
+  totalIncome: MoneyStringSchema,
+  totalExpense: MoneyStringSchema,
+  netIncome: MoneyStringSchema,
 });
 
 export const BalanceSheetQuerySchema = z.object({
@@ -654,8 +955,44 @@ export const BalanceSheetQuerySchema = z.object({
   branchId: UuidSchema.optional(),
 });
 
+export const BalanceSheetResponseSchema = z.object({
+  assets: z.array(AccountBalanceRowSchema.extend({ net: MoneyStringSchema })),
+  liabilities: z.array(
+    AccountBalanceRowSchema.extend({ net: MoneyStringSchema }),
+  ),
+  equity: z.array(AccountBalanceRowSchema.extend({ net: MoneyStringSchema })),
+  netIncome: MoneyStringSchema,
+  totalAssets: MoneyStringSchema,
+  totalLiabilities: MoneyStringSchema,
+  totalEquity: MoneyStringSchema,
+  balanced: z.boolean(),
+});
+
 export const AccountingPeriodIdParamsSchema = z.object({ id: UuidSchema });
+
+export const CloseChecklistWarningSchema = z.object({
+  code: z.enum([
+    "UNPOSTED_INVENTORY_DOCS",
+    "OUTBOX_PENDING_OR_FAILED",
+    "UNMATCHED_GRNI",
+    "DRAFT_SUPPLIER_INVOICES",
+  ]),
+  message: z.string(),
+  count: z.number().int().optional(),
+  amount: MoneyStringSchema.optional(),
+  documentType: z.string().optional(),
+});
+
+export const CloseChecklistResponseSchema = z.object({
+  periodId: UuidSchema,
+  startsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  warnings: z.array(CloseChecklistWarningSchema),
+  canCloseSuggested: z.boolean(),
+});
 ```
+
+Parse query with the Query schemas; optionally assert response with Response schemas in route tests (`Schema.parse(res.json())`).
 
 **Routes:**
 
@@ -672,14 +1009,15 @@ export const AccountingPeriodIdParamsSchema = z.object({ id: UuidSchema });
 
 ```ts
 it("GET /reports/trial-balance?periodId= returns rows", async () => {
-  // seed org, open period, account, balanced journal in period
+  // seed org, open period, accounts, balanced journal in period
   const res = await app.inject({
     method: "GET",
     url: `/api/v1/reports/trial-balance?periodId=${periodId}`,
     headers: { "x-org-id": orgId, "x-user-id": userId },
   });
   expect(res.statusCode).toBe(200);
-  expect(res.json().totalDebit).toBeDefined();
+  const body = TrialBalanceResponseSchema.parse(res.json());
+  expect(body.totalDebit).toBeDefined();
 });
 
 it("GET /reports/trial-balance without periodId or asOf is 400", async () => {
@@ -691,6 +1029,33 @@ it("GET /reports/trial-balance without periodId or asOf is 400", async () => {
   expect(res.statusCode).toBe(400);
 });
 
+it("GET /reports/pnl?periodId= returns netIncome", async () => {
+  // seed: period with COGS journal line debit 40 (and balancing credit)
+  const res = await app.inject({
+    method: "GET",
+    url: `/api/v1/reports/pnl?periodId=${periodId}`,
+    headers: { "x-org-id": orgId, "x-user-id": userId },
+  });
+  expect(res.statusCode).toBe(200);
+  const body = PnlResponseSchema.parse(res.json());
+  expect(body.totalExpense).toBe("40.0000");
+  expect(body.netIncome).toBe("-40.0000");
+});
+
+it("GET /reports/balance-sheet?asOf= folds netIncome and sets balanced", async () => {
+  // seed: as-of dataset matching Task 1 balanced books (Inv/GRNI/AP/Reval/COGS)
+  const res = await app.inject({
+    method: "GET",
+    url: `/api/v1/reports/balance-sheet?asOf=2026-07-31`,
+    headers: { "x-org-id": orgId, "x-user-id": userId },
+  });
+  expect(res.statusCode).toBe(200);
+  const body = BalanceSheetResponseSchema.parse(res.json());
+  expect(body.netIncome).toBe("-40.0000");
+  expect(body.totalEquity).toBe("-10.0000");
+  expect(body.balanced).toBe(true);
+});
+
 it("GET /accounting-periods/:id/close-checklist returns warnings shape", async () => {
   const res = await app.inject({
     method: "GET",
@@ -698,7 +1063,8 @@ it("GET /accounting-periods/:id/close-checklist returns warnings shape", async (
     headers: { "x-org-id": orgId, "x-user-id": userId },
   });
   expect(res.statusCode).toBe(200);
-  expect(res.json()).toMatchObject({
+  const body = CloseChecklistResponseSchema.parse(res.json());
+  expect(body).toMatchObject({
     periodId,
     warnings: expect.any(Array),
     canCloseSuggested: expect.any(Boolean),
@@ -711,9 +1077,9 @@ it("GET /accounting-periods/:id/close-checklist returns warnings shape", async (
 - [ ] **Step 3: Implement** Zod, Drizzle `sumLinesByAccount`, `DrizzleCloseChecklistRepository`, routes, composition wiring
 
 `sumLinesByAccount` notes:
-- Join `journal_lines` → `journal_entries` → `accounting_periods` → `accounts`
+- Join `journal_lines` → `journal_entries` → `accounts` (period join optional; not used for asOf)
 - `periodId` filter: `je.period_id = $periodId`
-- `asOf` filter: `p.ends_on <= $asOf`
+- `asOf` filter: `(je.posted_at AT TIME ZONE 'UTC')::date <= $asOf::date` — **not** `period.ends_on`
 - `branchId`: `je.branch_id = $branchId`
 - Group by account; `HAVING` non-zero debit or credit sums
 - Always `org_id` on every table predicate
@@ -968,7 +1334,7 @@ EOF
 **UX (mirror `CostValuationPage` filters + table):**
 - **TB:** toggle/select exactly one of period dropdown **or** asOf date; optional branch; table code/name/debit/credit/net; footer totals
 - **P&L:** required period; optional branch; income section, expense section, net income
-- **BS:** required asOf; optional branch; assets / liabilities / equity sections; show `balanced` flag
+- **BS:** required asOf; optional branch; assets / liabilities / equity sections; show `netIncome` (folded into equity total) and `balanced` flag
 
 - [ ] **Step 1: Implement pages + nav** (`Trial balance`, `P&L`, `Balance sheet`)
 
@@ -976,7 +1342,7 @@ EOF
 
 1. With journals in an open period, TB by `periodId` shows balancing totals
 2. P&L for same period shows expense (COGS) when issues posted
-3. BS asOf period end shows assets/liabilities/equity and `balanced`
+3. BS asOf mid-month or period end shows assets/liabilities/equity, `netIncome`, folded `totalEquity`, and `balanced`
 
 - [ ] **Step 3: `pnpm --filter @stock-management/web typecheck` PASS**
 
@@ -1013,9 +1379,9 @@ EOF
 - [ ] **Step 1: Read** `wiki/index.md` + affected pages
 
 - [ ] **Step 2: Update** pages with D3 facts:
-  - TB: period **or** as-of cumulative; optional branch
+  - TB: periodId **or** asOf via `postedAt` UTC day; optional branch
   - P&L: period income − expense
-  - BS: as-of A/L/E with soft `balanced`
+  - BS: as-of A/L/E with interim `netIncome` folded into `totalEquity`; soft `balanced`
   - Checklist: soft warnings only; hard close remains D1 API
   - Thin web routes listed above
   - AP aging web consumes D2 API (not reimplemented)
@@ -1059,11 +1425,12 @@ EOF
 
 1. **Spec coverage:** Design D3 items (TB, P&L, BS optional branch, close checklist soft warnings, thin web CoA/periods/journals/invoices/aging/reports) map to Tasks 1–8; Phase D DoD Task 9.
 2. **No AP aging rebuild:** Task 7 web calls D2 `listApAging` / `/reports/ap-aging` only.
-3. **Equations locked:** TB period vs as-of cumulative; P&L income−expense; BS A/L/E as-of with soft `balanced`.
+3. **Equations locked:** `periodId` = journal.periodId; `asOf` = `postedAt` UTC day `<= asOf` (not `period.endsOn`); P&L income−expense; interim BS folds `netIncome` into `totalEquity` for soft `balanced`.
 4. **Hard close unchanged:** Checklist never calls `setPeriodStatus`; Close button still D1 HTTP.
-5. **Type consistency:** `AccountBalanceRow`, `TrialBalanceQuery`, `CloseChecklistWarningCode`, client method names match across tasks.
-6. **Placeholder scan:** No TBD/TODO; concrete files, routes, test snippets, commit messages.
+5. **Type consistency:** `AccountBalanceRow`, `TrialBalanceQuery`, `CloseChecklistWarningCode`, response Zod (`TrialBalanceResponseSchema`, `PnlResponseSchema`, `BalanceSheetResponseSchema`, `CloseChecklistResponseSchema`), client method names match across tasks.
+6. **Placeholder scan:** No TBD/TODO; concrete files, routes, full fake harness, test snippets, commit messages.
 7. **CA layers:** Domain pure builders; application use cases + ports; infra Drizzle; HTTP thin; web page→hook→client only.
+8. **Route coverage:** Task 4 includes TB, P&L (`periodId`), BS (`asOf` + `netIncome`/`balanced`), checklist.
 
 ---
 
