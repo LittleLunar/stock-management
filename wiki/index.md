@@ -37,7 +37,7 @@ updated: 2026-07-26
 
 - [[Feature Phases]] — Phase A–F roadmap summary
 - [[Phase A]] — platform skeleton
-- [[Phase B]] — internal inventory loop (B1 PO, goods-receipt, stock inquiry, and thin web UI complete)
+- [[Phase B]] — internal inventory loop (B1 complete; B2 outbound docs active)
 - [[Phase C]] — costing
 - [[Phase D]] — accounting
 - [[Phase E]] — multi-branch hardening

@@ -7,6 +7,12 @@ updated: 2026-07-26
 
 # Wiki Log
 
+## [2026-07-26] update | Phase B1 complete
+
+Marked Phase B1 (PO → goods receipt) complete in `TASKS.md` and [[Phase B]].
+B2 outbound documents (issue, transfer, adjustment, count) is now the active
+slice. Updated [[index]].
+
 ## [2026-07-26] update | Phase B1 thin web UI
 
 Added thin React pages and TanStack Query hooks for purchase-order
