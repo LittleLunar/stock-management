@@ -431,6 +431,64 @@ export const stockMovements = pgTable("stock_movements", {
   documentLineId: uuid("document_line_id"),
   movementType: movementTypeEnum("movement_type").notNull(),
   qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+  unitCost: numeric("unit_cost", { precision: 18, scale: 4 }),
+  totalCost: numeric("total_cost", { precision: 18, scale: 4 }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const costLayers = pgTable(
+  "cost_layers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    lotId: uuid("lot_id").references(() => lots.id),
+    sourceDocumentType: text("source_document_type").notNull(),
+    sourceDocumentId: uuid("source_document_id").notNull(),
+    sourceDocumentLineId: uuid("source_document_line_id"),
+    sourceMovementId: uuid("source_movement_id")
+      .notNull()
+      .references(() => stockMovements.id),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    unitCost: numeric("unit_cost", { precision: 18, scale: 4 }).notNull(),
+    qtyOriginal: numeric("qty_original", { precision: 18, scale: 4 }).notNull(),
+    qtyRemaining: numeric("qty_remaining", { precision: 18, scale: 4 }).notNull(),
+  },
+  (t) => [
+    index("cost_layers_fifo_idx").on(
+      t.orgId,
+      t.productId,
+      t.locationId,
+      t.lotId,
+      t.receivedAt,
+    ),
+  ],
+);
+
+export const costConsumptions = pgTable("cost_consumptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id")
+    .notNull()
+    .references(() => organizations.id),
+  costLayerId: uuid("cost_layer_id")
+    .notNull()
+    .references(() => costLayers.id),
+  movementId: uuid("movement_id")
+    .notNull()
+    .references(() => stockMovements.id),
+  qty: numeric("qty", { precision: 18, scale: 4 }).notNull(),
+  unitCost: numeric("unit_cost", { precision: 18, scale: 4 }).notNull(),
+  totalCost: numeric("total_cost", { precision: 18, scale: 4 }).notNull(),
+  isReversal: boolean("is_reversal").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
