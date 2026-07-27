@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  Link,
   Outlet,
   RouterProvider,
   createRootRoute,
@@ -23,6 +22,7 @@ import { z } from "zod";
 import { api } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
+import { SidebarNav } from "./components/SidebarNav";
 import { formatApiError } from "./lib/errors";
 import {
   useBranches,
@@ -116,7 +116,7 @@ function BranchSwitcher() {
 }
 
 function Shell() {
-  const { t } = useTranslation(["common", "nav"]);
+  const { t } = useTranslation("common");
   const orgId = localStorage.getItem("orgId") ?? "";
   const {
     register,
@@ -143,173 +143,13 @@ function Shell() {
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <aside className="w-56 shrink-0 border-r border-slate-200 bg-white px-4 py-6">
         <p className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-teal-800">
-          {t("common:brand.name")}
+          {t("brand.name")}
         </p>
-        <nav className="flex flex-col gap-2 text-sm">
-          <Link to="/" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.dashboard")}
-          </Link>
-          <Link to="/branches" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.branches")}
-          </Link>
-          <Link
-            to="/locations"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.locations")}
-          </Link>
-          <Link to="/products" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.products")}
-          </Link>
-          <Link
-            to="/suppliers"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.suppliers")}
-          </Link>
-          <Link
-            to="/customers"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.customers")}
-          </Link>
-          <Link
-            to="/purchase-orders"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.purchaseOrders")}
-          </Link>
-          <Link
-            to="/goods-receipts"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.goodsReceipts")}
-          </Link>
-          <Link to="/stock" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.stock")}
-          </Link>
-          <Link
-            to="/cost-valuation"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.costValuation")}
-          </Link>
-          <Link to="/cogs" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.cogs")}
-          </Link>
-          <Link
-            to="/landed-costs"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.landedCosts")}
-          </Link>
-          <Link
-            to="/cost-revaluations"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.costRevaluations")}
-          </Link>
-          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            {t("nav:nav.accounting")}
-          </p>
-          <Link to="/accounts" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.accounts")}
-          </Link>
-          <Link
-            to="/accounting-periods"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.periods")}
-          </Link>
-          <Link to="/journals" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.journals")}
-          </Link>
-          <Link
-            to="/supplier-invoices"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.supplierInvoices")}
-          </Link>
-          <Link to="/ap-aging" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.apAging")}
-          </Link>
-          <Link
-            to="/reports/trial-balance"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.trialBalance")}
-          </Link>
-          <Link to="/reports/pnl" className="rounded px-2 py-1 hover:bg-slate-100">
-            {t("nav:nav.pnl")}
-          </Link>
-          <Link
-            to="/reports/balance-sheet"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.balanceSheet")}
-          </Link>
-          <Link
-            to="/reservations"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.reservations")}
-          </Link>
-          <Link
-            to="/stock-issues"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.stockIssues")}
-          </Link>
-          <Link
-            to="/stock-transfers"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.stockTransfers")}
-          </Link>
-          <Link
-            to="/stock-adjustments"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.stockAdjustments")}
-          </Link>
-          <Link
-            to="/stock-counts"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.stockCounts")}
-          </Link>
-          <Link
-            to="/supplier-returns"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.supplierReturns")}
-          </Link>
-          <Link
-            to="/customer-returns"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.customerReturns")}
-          </Link>
-          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            {t("nav:nav.orgSettings")}
-          </p>
-          <Link
-            to="/approval-policies"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.approvalPolicies")}
-          </Link>
-          <Link
-            to="/webhooks"
-            className="rounded px-2 py-1 hover:bg-slate-100"
-          >
-            {t("nav:nav.webhooks")}
-          </Link>
-        </nav>
+        <SidebarNav />
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
           {orgId ? (
             <>
-              <p className="break-all">{t("common:org.label", { orgId })}</p>
+              <p className="break-all">{t("org.label", { orgId })}</p>
               <BranchSwitcher />
               <LanguageSwitcher />
             </>
@@ -317,7 +157,7 @@ function Shell() {
             <form className="space-y-2" onSubmit={handleSubmit(bootstrap)}>
               <input
                 className="w-full rounded border border-slate-300 px-2 py-1"
-                placeholder={t("common:org.namePlaceholder")}
+                placeholder={t("org.namePlaceholder")}
                 {...register("name")}
               />
               {errors.name && (
@@ -328,7 +168,7 @@ function Shell() {
                 disabled={isSubmitting}
                 className="w-full rounded bg-teal-800 px-2 py-1 text-white disabled:opacity-50"
               >
-                {t("common:org.create")}
+                {t("org.create")}
               </button>
               <LanguageSwitcher />
             </form>

@@ -12,6 +12,10 @@
   "nav.cogs": "ต้นทุนขาย",
   "nav.landedCosts": "ต้นทุนนำเข้า",
   "nav.costRevaluations": "ปรับปรุงต้นทุน",
+  "nav.masters": "ข้อมูลหลัก",
+  "nav.purchasing": "จัดซื้อ",
+  "nav.inventory": "สินค้าคงคลัง",
+  "nav.costing": "ต้นทุน",
   "nav.accounting": "บัญชี",
   "nav.accounts": "ผังบัญชี",
   "nav.periods": "งวดบัญชี",
@@ -29,6 +33,7 @@
   "nav.supplierReturns": "คืนผู้จำหน่าย",
   "nav.customerReturns": "รับคืนจากลูกค้า",
   "nav.orgSettings": "ตั้งค่าองค์กร",
+  "nav.settings": "ตั้งค่า",
   "nav.approvalPolicies": "นโยบายอนุมัติ",
   "nav.webhooks": "เว็บฮุก"
 }

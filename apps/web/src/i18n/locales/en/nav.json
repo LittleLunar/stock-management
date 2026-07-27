@@ -12,6 +12,10 @@
   "nav.cogs": "COGS",
   "nav.landedCosts": "Landed costs",
   "nav.costRevaluations": "Revaluations",
+  "nav.masters": "Masters",
+  "nav.purchasing": "Purchasing",
+  "nav.inventory": "Inventory",
+  "nav.costing": "Costing",
   "nav.accounting": "Accounting",
   "nav.accounts": "Accounts",
   "nav.periods": "Periods",
@@ -29,6 +33,7 @@
   "nav.supplierReturns": "Supplier returns",
   "nav.customerReturns": "Customer returns",
   "nav.orgSettings": "Org settings",
+  "nav.settings": "Settings",
   "nav.approvalPolicies": "Approval policies",
   "nav.webhooks": "Webhooks"
 }
