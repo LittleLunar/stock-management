@@ -67,6 +67,34 @@ export default [
   },
   {
     files: ["apps/web/src/**/*.{ts,tsx}"],
+    ignores: ["apps/web/src/ui/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@stock-management/domain",
+                "@stock-management/application",
+                "drizzle-orm",
+                "drizzle-orm/*",
+              ],
+              message:
+                "Web is presentation only — use HTTP + @stock-management/shared DTOs.",
+            },
+            {
+              group: ["@heroui/*", "@hugeicons/*"],
+              message:
+                "Import UI libs only via apps/web/src/ui adapters (DIP).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["apps/web/src/ui/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
         "error",
