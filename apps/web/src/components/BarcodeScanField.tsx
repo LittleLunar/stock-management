@@ -1,4 +1,4 @@
-import { useState, type FocusEvent, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { useProductByBarcode } from "../hooks/masters";
 import { formatApiError } from "../lib/errors";
@@ -34,7 +34,7 @@ export function BarcodeScanField({ onProduct, placeholder }: Props) {
     void lookupCode();
   }
 
-  function onBlur(_event: FocusEvent<HTMLInputElement>) {
+  function onBlur() {
     void lookupCode();
   }
 
