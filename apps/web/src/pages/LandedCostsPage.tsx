@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CreateLandedCost } from "@stock-management/shared";
 import { useBranches } from "../hooks/masters";
 import {
@@ -18,6 +19,7 @@ type Doc = {
 };
 
 export function LandedCostsPage() {
+  const { t } = useTranslation("costing");
   const { data: branches } = useBranches();
   const list = useLandedCosts();
   const create = useCreateLandedCost();
@@ -34,9 +36,11 @@ export function LandedCostsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Landed costs</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("costing.landedCosts.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Allocate freight/duty to open cost layers.
+          {t("costing.landedCosts.description")}
         </p>
       </div>
       <form
@@ -60,7 +64,7 @@ export function LandedCostsPage() {
             onChange={(e) => setBranchId(e.target.value)}
             required
           >
-            <option value="">Branch</option>
+            <option value="">{t("costing.landedCosts.branch")}</option>
             {(branches ?? []).map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -74,20 +78,26 @@ export function LandedCostsPage() {
               setCostType(e.target.value as "freight" | "duty" | "other")
             }
           >
-            <option value="freight">Freight</option>
-            <option value="duty">Duty</option>
-            <option value="other">Other</option>
+            <option value="freight">
+              {t("costing.landedCosts.costType.freight")}
+            </option>
+            <option value="duty">
+              {t("costing.landedCosts.costType.duty")}
+            </option>
+            <option value="other">
+              {t("costing.landedCosts.costType.other")}
+            </option>
           </select>
           <input
             className="rounded border px-3 py-2"
-            placeholder="Total amount"
+            placeholder={t("costing.landedCosts.totalAmountPlaceholder")}
             value={totalAmount}
             onChange={(e) => setTotalAmount(e.target.value)}
             required
           />
           <input
             className="rounded border px-3 py-2"
-            placeholder="Cost layer ID"
+            placeholder={t("costing.landedCosts.costLayerIdPlaceholder")}
             value={costLayerId}
             onChange={(e) => setCostLayerId(e.target.value)}
             required
@@ -96,7 +106,7 @@ export function LandedCostsPage() {
             type="submit"
             className="rounded bg-slate-900 px-3 py-2 text-white"
           >
-            Create draft
+            {t("costing.landedCosts.createDraft")}
           </button>
         </div>
       </form>
@@ -117,7 +127,7 @@ export function LandedCostsPage() {
                 className="rounded border px-2 py-1"
                 onClick={() => post.mutate(doc.id)}
               >
-                Post
+                {t("costing.landedCosts.post")}
               </button>
             ) : null}
             {doc.status === "posted" ? (
@@ -125,7 +135,7 @@ export function LandedCostsPage() {
                 className="rounded border px-2 py-1"
                 onClick={() => voidDoc.mutate(doc.id)}
               >
-                Void
+                {t("costing.landedCosts.void")}
               </button>
             ) : null}
           </li>

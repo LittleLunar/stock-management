@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   useAvailability,
@@ -12,9 +13,11 @@ import {
   useLocations,
   useProducts,
 } from "../hooks/masters";
+import { formatDateTime } from "../i18n/format";
 import { formatApiError } from "../lib/errors";
 
 export function ReservationsPage() {
+  const { t } = useTranslation("inventory");
   const { data: branches } = useBranches();
   const { data: products } = useProducts();
   const [branchId, setBranchId] = useState("");
@@ -47,7 +50,7 @@ export function ReservationsPage() {
   function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!branchId || !locationId || !productId) {
-      toast.error("Select branch, location, and product");
+      toast.error(t("inventory.reservations.selectRequired"));
       return;
     }
     create.mutate(
@@ -61,7 +64,7 @@ export function ReservationsPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Reservation created");
+          toast.success(t("inventory.reservations.createSuccess"));
           setQty("1");
           setLotId("");
           setExpiresAt("");
@@ -84,10 +87,11 @@ export function ReservationsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Reservations</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("inventory.reservations.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Soft-hold stock at a location. Commit posts a stock issue; release
-          frees reserved qty.
+          {t("inventory.reservations.description")}
         </p>
       </div>
 
@@ -95,7 +99,9 @@ export function ReservationsPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">Create reservation</h2>
+        <h2 className="font-semibold">
+          {t("inventory.reservations.createTitle")}
+        </h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <select
             required
@@ -106,7 +112,7 @@ export function ReservationsPage() {
               setLocationId("");
             }}
           >
-            <option value="">Branch</option>
+            <option value="">{t("inventory.reservations.branch")}</option>
             {(branches ?? []).map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.code} — {branch.name}
@@ -119,7 +125,7 @@ export function ReservationsPage() {
             value={locationId}
             onChange={(event) => setLocationId(event.target.value)}
           >
-            <option value="">Location</option>
+            <option value="">{t("inventory.reservations.location")}</option>
             {(locations ?? []).map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -132,7 +138,7 @@ export function ReservationsPage() {
             value={productId}
             onChange={(event) => setProductId(event.target.value)}
           >
-            <option value="">Product</option>
+            <option value="">{t("inventory.reservations.product")}</option>
             {(products ?? []).map((product) => (
               <option key={product.id} value={product.id}>
                 {product.sku} — {product.name}
@@ -143,13 +149,13 @@ export function ReservationsPage() {
             required
             inputMode="decimal"
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Quantity"
+            placeholder={t("inventory.reservations.qtyPlaceholder")}
             value={qty}
             onChange={(event) => setQty(event.target.value)}
           />
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Lot id (optional)"
+            placeholder={t("inventory.reservations.lotIdPlaceholder")}
             value={lotId}
             onChange={(event) => setLotId(event.target.value)}
           />
@@ -158,16 +164,16 @@ export function ReservationsPage() {
             className="rounded border border-slate-300 px-3 py-2"
             value={expiresAt}
             onChange={(event) => setExpiresAt(event.target.value)}
-            aria-label="Expires at (optional)"
+            aria-label={t("inventory.reservations.expiresAtAria")}
           />
         </div>
         {availability.data ? (
           <p className="text-sm text-slate-600">
-            Branch availability — on hand {availability.data.onHand}, reserved{" "}
-            {availability.data.reserved}, available{" "}
-            <span className="font-medium text-teal-900">
-              {availability.data.available}
-            </span>
+            {t("inventory.reservations.availability", {
+              onHand: availability.data.onHand,
+              reserved: availability.data.reserved,
+              available: availability.data.available,
+            })}
           </p>
         ) : null}
         <button
@@ -175,13 +181,17 @@ export function ReservationsPage() {
           disabled={create.isPending}
           className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
         >
-          {create.isPending ? "Reserving…" : "Reserve"}
+          {create.isPending
+            ? t("inventory.reservations.reserving")
+            : t("inventory.reservations.reserve")}
         </button>
       </form>
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold">Reservations</h2>
+          <h2 className="font-semibold">
+            {t("inventory.reservations.listTitle")}
+          </h2>
           <select
             className="rounded border border-slate-300 px-3 py-2 text-sm"
             value={statusFilter}
@@ -191,24 +201,42 @@ export function ReservationsPage() {
               )
             }
           >
-            <option value="open">Open</option>
-            <option value="committed">Committed</option>
-            <option value="released">Released</option>
-            <option value="">All statuses</option>
+            <option value="open">
+              {t("inventory.reservations.statusOpen")}
+            </option>
+            <option value="committed">
+              {t("inventory.reservations.statusCommitted")}
+            </option>
+            <option value="released">
+              {t("inventory.reservations.statusReleased")}
+            </option>
+            <option value="">{t("inventory.reservations.allStatuses")}</option>
           </select>
         </div>
-        {isLoading ? <p>Loading…</p> : null}
+        {isLoading ? <p>{t("inventory.reservations.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3 text-right">Qty</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Expires</th>
+                <th className="px-4 py-3">
+                  {t("inventory.reservations.col.product")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.reservations.col.branch")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.reservations.col.location")}
+                </th>
+                <th className="px-4 py-3 text-right">
+                  {t("inventory.reservations.col.qty")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.reservations.col.status")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.reservations.col.expires")}
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -230,7 +258,7 @@ export function ReservationsPage() {
                   <td className="px-4 py-3">{reservation.status}</td>
                   <td className="px-4 py-3">
                     {reservation.expiresAt
-                      ? new Date(reservation.expiresAt).toLocaleString()
+                      ? formatDateTime(reservation.expiresAt)
                       : "—"}
                   </td>
                   <td className="space-x-2 px-4 py-3 text-right">
@@ -243,11 +271,13 @@ export function ReservationsPage() {
                           onClick={() =>
                             commit.mutate(reservation.id, {
                               onSuccess: () =>
-                                toast.success("Reservation committed"),
+                                toast.success(
+                                  t("inventory.reservations.commitSuccess"),
+                                ),
                             })
                           }
                         >
-                          Commit
+                          {t("inventory.reservations.commit")}
                         </button>
                         <button
                           type="button"
@@ -256,11 +286,13 @@ export function ReservationsPage() {
                           onClick={() =>
                             release.mutate(reservation.id, {
                               onSuccess: () =>
-                                toast.success("Reservation released"),
+                                toast.success(
+                                  t("inventory.reservations.releaseSuccess"),
+                                ),
                             })
                           }
                         >
-                          Release
+                          {t("inventory.reservations.release")}
                         </button>
                       </>
                     ) : null}
@@ -271,7 +303,7 @@ export function ReservationsPage() {
           </table>
           {!isLoading && (reservations?.length ?? 0) === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-500">
-              No reservations match these filters.
+              {t("inventory.reservations.empty")}
             </p>
           ) : null}
         </div>

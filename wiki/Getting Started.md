@@ -2,7 +2,7 @@
 tags:
   - wiki/onboarding
 created: 2026-07-25
-updated: 2026-07-26
+updated: 2026-07-27
 ---
 
 # Getting Started
@@ -15,6 +15,7 @@ updated: 2026-07-26
 4. CA migration plan: `docs/superpowers/plans/2026-07-26-clean-architecture-migration.md`
 5. Phase A plan (historical): `docs/superpowers/plans/2026-07-25-phase-a-platform-skeleton.md`
 6. DX foundation (logging, errors, Vitest, Prettier, CI): `docs/superpowers/plans/2026-07-26-dx-foundation-tooling.md`
+7. Web i18n (EN/TH): `docs/superpowers/specs/2026-07-27-web-i18n-design.md` — language switcher in the shell footer; catalogs in `apps/web/src/i18n/`
 
 ## Local scripts
 

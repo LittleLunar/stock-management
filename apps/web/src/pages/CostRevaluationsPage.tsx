@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CreateCostRevaluation } from "@stock-management/shared";
 import { useBranches } from "../hooks/masters";
 import {
@@ -17,6 +18,7 @@ type Doc = {
 };
 
 export function CostRevaluationsPage() {
+  const { t } = useTranslation("costing");
   const { data: branches } = useBranches();
   const list = useCostRevaluations();
   const create = useCreateCostRevaluation();
@@ -31,9 +33,11 @@ export function CostRevaluationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Cost revaluations</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("costing.costRevaluations.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Write down or revalue open cost layers (no qty change).
+          {t("costing.costRevaluations.description")}
         </p>
       </div>
       <form
@@ -56,7 +60,7 @@ export function CostRevaluationsPage() {
             onChange={(e) => setBranchId(e.target.value)}
             required
           >
-            <option value="">Branch</option>
+            <option value="">{t("costing.costRevaluations.branch")}</option>
             {(branches ?? []).map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -65,21 +69,21 @@ export function CostRevaluationsPage() {
           </select>
           <input
             className="rounded border px-3 py-2"
-            placeholder="Reason code"
+            placeholder={t("costing.costRevaluations.reasonCodePlaceholder")}
             value={reasonCode}
             onChange={(e) => setReasonCode(e.target.value)}
             required
           />
           <input
             className="rounded border px-3 py-2"
-            placeholder="Cost layer ID"
+            placeholder={t("costing.costRevaluations.costLayerIdPlaceholder")}
             value={costLayerId}
             onChange={(e) => setCostLayerId(e.target.value)}
             required
           />
           <input
             className="rounded border px-3 py-2"
-            placeholder="New unit cost"
+            placeholder={t("costing.costRevaluations.newUnitCostPlaceholder")}
             value={newUnitCost}
             onChange={(e) => setNewUnitCost(e.target.value)}
             required
@@ -88,7 +92,7 @@ export function CostRevaluationsPage() {
             type="submit"
             className="rounded bg-slate-900 px-3 py-2 text-white"
           >
-            Create draft
+            {t("costing.costRevaluations.createDraft")}
           </button>
         </div>
       </form>
@@ -109,7 +113,7 @@ export function CostRevaluationsPage() {
                 className="rounded border px-2 py-1"
                 onClick={() => post.mutate(doc.id)}
               >
-                Post
+                {t("costing.costRevaluations.post")}
               </button>
             ) : null}
             {doc.status === "posted" ? (
@@ -117,7 +121,7 @@ export function CostRevaluationsPage() {
                 className="rounded border px-2 py-1"
                 onClick={() => voidDoc.mutate(doc.id)}
               >
-                Void
+                {t("costing.costRevaluations.void")}
               </button>
             ) : null}
           </li>

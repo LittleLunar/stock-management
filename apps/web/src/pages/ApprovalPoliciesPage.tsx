@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   useApprovalPolicies,
@@ -6,24 +7,26 @@ import {
 import { formatApiError } from "../lib/errors";
 
 const DOCUMENT_TYPE_LABEL: Record<string, string> = {
-  purchase_order: "Purchase order",
-  stock_adjustment: "Stock adjustment",
+  purchase_order: "settings.approvalPolicies.documentType.purchaseOrder",
+  stock_adjustment: "settings.approvalPolicies.documentType.stockAdjustment",
 };
 
 export function ApprovalPoliciesPage() {
+  const { t } = useTranslation("settings");
   const { data, isLoading, error } = useApprovalPolicies();
   const upsert = useUpsertApprovalPolicy();
 
-  if (isLoading) return <p>Loading…</p>;
+  if (isLoading) return <p>{t("settings.approvalPolicies.loading")}</p>;
   if (error) return <p className="text-red-700">{formatApiError(error)}</p>;
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Approval policies</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("settings.approvalPolicies.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Require approval before receiving POs or posting stock adjustments.
-          Only org admins can change these settings.
+          {t("settings.approvalPolicies.description")}
         </p>
       </div>
 
@@ -45,20 +48,27 @@ export function ApprovalPoliciesPage() {
                     required: e.target.checked,
                   },
                   {
-                    onSuccess: () => toast.success("Policy updated"),
+                    onSuccess: () =>
+                      toast.success(t("settings.approvalPolicies.updateSuccess")),
                     onError: (err) => toast.error(formatApiError(err)),
                   },
                 )
               }
             />
             <span>
-              {DOCUMENT_TYPE_LABEL[policy.documentType] ?? policy.documentType}{" "}
-              requires approval
+              {t("settings.approvalPolicies.requiresApproval", {
+                documentType:
+                  DOCUMENT_TYPE_LABEL[policy.documentType] != null
+                    ? t(DOCUMENT_TYPE_LABEL[policy.documentType])
+                    : policy.documentType,
+              })}
             </span>
           </label>
         ))}
         {(data ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500">No policies found.</p>
+          <p className="text-sm text-slate-500">
+            {t("settings.approvalPolicies.empty")}
+          </p>
         ) : null}
       </div>
     </div>

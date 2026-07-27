@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAccountingPeriods, usePnl } from "../hooks/accounting";
 import { useBranches } from "../hooks/masters";
 import { formatApiError } from "../lib/errors";
@@ -12,6 +13,7 @@ type BalanceRow = {
 type Period = { id: string; year: number; month: number };
 
 export function PnlReportPage() {
+  const { t } = useTranslation("accounting");
   const { data: periods } = useAccountingPeriods();
   const { data: branches } = useBranches();
   const [periodId, setPeriodId] = useState("");
@@ -32,12 +34,17 @@ export function PnlReportPage() {
       }
     | undefined;
 
+  const sectionTitle = {
+    income: t("accounting.pnl.section.income"),
+    expense: t("accounting.pnl.section.expense"),
+  } as const;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Profit &amp; loss</h1>
+        <h1 className="text-2xl font-semibold">{t("accounting.pnl.title")}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Income and expense accounts for a single period.
+          {t("accounting.pnl.description")}
         </p>
       </div>
       <div className="flex flex-wrap gap-3 rounded border bg-white p-4">
@@ -46,7 +53,7 @@ export function PnlReportPage() {
           value={periodId}
           onChange={(e) => setPeriodId(e.target.value)}
         >
-          <option value="">Select period</option>
+          <option value="">{t("accounting.pnl.selectPeriod")}</option>
           {((periods ?? []) as Period[]).map((p) => (
             <option key={p.id} value={p.id}>
               {p.year}-{String(p.month).padStart(2, "0")}
@@ -58,7 +65,7 @@ export function PnlReportPage() {
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
         >
-          <option value="">All branches</option>
+          <option value="">{t("accounting.pnl.allBranches")}</option>
           {(branches ?? []).map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
@@ -70,19 +77,22 @@ export function PnlReportPage() {
         <p className="text-red-700">{formatApiError(report.error)}</p>
       ) : null}
       <p className="font-medium">
-        Income: {data?.totalIncome ?? "—"} · Expense:{" "}
-        {data?.totalExpense ?? "—"} · Net: {data?.netIncome ?? "—"}
+        {t("accounting.pnl.summary", {
+          income: data?.totalIncome ?? "—",
+          expense: data?.totalExpense ?? "—",
+          net: data?.netIncome ?? "—",
+        })}
       </p>
       {(["income", "expense"] as const).map((section) => (
         <div key={section}>
-          <h2 className="mb-2 text-lg font-medium capitalize">{section}</h2>
+          <h2 className="mb-2 text-lg font-medium">{sectionTitle[section]}</h2>
           <div className="overflow-x-auto rounded border bg-white">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="p-2">Code</th>
-                  <th className="p-2">Name</th>
-                  <th className="p-2">Net</th>
+                  <th className="p-2">{t("accounting.pnl.col.code")}</th>
+                  <th className="p-2">{t("accounting.pnl.col.name")}</th>
+                  <th className="p-2">{t("accounting.pnl.col.net")}</th>
                 </tr>
               </thead>
               <tbody>

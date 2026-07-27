@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useApprovalPolicies } from "../hooks/approvals";
 import {
@@ -29,6 +30,7 @@ const emptyLine = (): AdjustmentLineDraft => ({
 });
 
 export function StockAdjustmentsPage() {
+  const { t } = useTranslation("inventory");
   const { data: adjustments, isLoading, error } = useStockAdjustments();
   const { data: policies } = useApprovalPolicies();
   const { data: branches } = useBranches();
@@ -70,9 +72,7 @@ export function StockAdjustmentsPage() {
       !reasonCode.trim() ||
       lines.some((line) => !line.productId || !line.qty || Number(line.qty) === 0)
     ) {
-      toast.error(
-        "Select branch, location, reason code, and a non-zero signed qty for every line",
-      );
+      toast.error(t("inventory.stockAdjustments.selectRequired"));
       return;
     }
     create.mutate(
@@ -97,7 +97,7 @@ export function StockAdjustmentsPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Stock adjustment created");
+          toast.success(t("inventory.stockAdjustments.createSuccess"));
           setDocumentNumber("");
           setReasonCode("");
           setReasonNote("");
@@ -115,10 +115,11 @@ export function StockAdjustmentsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Stock adjustments</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("inventory.stockAdjustments.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Correct on-hand quantity with a signed line qty (positive adds,
-          negative removes).
+          {t("inventory.stockAdjustments.description")}
         </p>
       </div>
 
@@ -126,7 +127,9 @@ export function StockAdjustmentsPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">New stock adjustment</h2>
+        <h2 className="font-semibold">
+          {t("inventory.stockAdjustments.newTitle")}
+        </h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <select
             required
@@ -137,7 +140,7 @@ export function StockAdjustmentsPage() {
               setLocationId("");
             }}
           >
-            <option value="">Branch</option>
+            <option value="">{t("inventory.stockAdjustments.branch")}</option>
             {(branches ?? []).map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.code} — {branch.name}
@@ -150,7 +153,9 @@ export function StockAdjustmentsPage() {
             value={locationId}
             onChange={(event) => setLocationId(event.target.value)}
           >
-            <option value="">Location</option>
+            <option value="">
+              {t("inventory.stockAdjustments.location")}
+            </option>
             {(locations ?? []).map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -160,20 +165,22 @@ export function StockAdjustmentsPage() {
           <input
             required
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Reason code"
+            placeholder={t("inventory.stockAdjustments.reasonCodePlaceholder")}
             value={reasonCode}
             onChange={(event) => setReasonCode(event.target.value)}
           />
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Document number (optional)"
+            placeholder={t(
+              "inventory.stockAdjustments.documentNumberPlaceholder",
+            )}
             value={documentNumber}
             onChange={(event) => setDocumentNumber(event.target.value)}
           />
         </div>
         <input
           className="w-full rounded border border-slate-300 px-3 py-2"
-          placeholder="Reason note (optional)"
+          placeholder={t("inventory.stockAdjustments.reasonNotePlaceholder")}
           value={reasonNote}
           onChange={(event) => setReasonNote(event.target.value)}
         />
@@ -190,7 +197,9 @@ export function StockAdjustmentsPage() {
                     updateLine(index, "productId", event.target.value)
                   }
                 >
-                  <option value="">Product</option>
+                  <option value="">
+                    {t("inventory.stockAdjustments.product")}
+                  </option>
                   {(products ?? []).map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.sku} — {product.name}
@@ -201,8 +210,12 @@ export function StockAdjustmentsPage() {
                   required
                   inputMode="decimal"
                   className="rounded border border-slate-300 px-3 py-2"
-                  aria-label={`Line ${index + 1} signed quantity`}
-                  placeholder="Signed qty (+/−)"
+                  aria-label={t("inventory.stockAdjustments.signedQtyAria", {
+                    n: index + 1,
+                  })}
+                  placeholder={t(
+                    "inventory.stockAdjustments.signedQtyPlaceholder",
+                  )}
                   value={line.qty}
                   onChange={(event) =>
                     updateLine(index, "qty", event.target.value)
@@ -213,8 +226,12 @@ export function StockAdjustmentsPage() {
                     required
                     inputMode="decimal"
                     className="rounded border border-slate-300 px-3 py-2"
-                    aria-label={`Line ${index + 1} unit cost`}
-                    placeholder="Unit cost"
+                    aria-label={t("inventory.stockAdjustments.unitCostAria", {
+                      n: index + 1,
+                    })}
+                    placeholder={t(
+                      "inventory.stockAdjustments.unitCostPlaceholder",
+                    )}
                     value={line.unitCost}
                     onChange={(event) =>
                       updateLine(index, "unitCost", event.target.value)
@@ -233,13 +250,15 @@ export function StockAdjustmentsPage() {
                     )
                   }
                 >
-                  Remove
+                  {t("inventory.stockAdjustments.remove")}
                 </button>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Lot id (optional)"
+                  placeholder={t(
+                    "inventory.stockAdjustments.lotIdPlaceholder",
+                  )}
                   value={line.lotId}
                   onChange={(event) =>
                     updateLine(index, "lotId", event.target.value)
@@ -247,7 +266,9 @@ export function StockAdjustmentsPage() {
                 />
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Serials, comma separated"
+                  placeholder={t(
+                    "inventory.stockAdjustments.serialsPlaceholder",
+                  )}
                   value={line.serialNumbers}
                   onChange={(event) =>
                     updateLine(index, "serialNumbers", event.target.value)
@@ -264,31 +285,45 @@ export function StockAdjustmentsPage() {
             className="rounded border border-slate-300 px-4 py-2 text-sm"
             onClick={() => setLines((current) => [...current, emptyLine()])}
           >
-            Add line
+            {t("inventory.stockAdjustments.addLine")}
           </button>
           <button
             type="submit"
             disabled={create.isPending}
             className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {create.isPending ? "Creating…" : "Create draft"}
+            {create.isPending
+              ? t("inventory.stockAdjustments.creating")
+              : t("inventory.stockAdjustments.createDraft")}
           </button>
         </div>
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Adjustments</h2>
-        {isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">
+          {t("inventory.stockAdjustments.listTitle")}
+        </h2>
+        {isLoading ? <p>{t("inventory.stockAdjustments.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Document</th>
-                <th className="px-4 py-3">Reason</th>
-                <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockAdjustments.col.document")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockAdjustments.col.reason")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockAdjustments.col.branch")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockAdjustments.col.location")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockAdjustments.col.status")}
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -316,12 +351,14 @@ export function StockAdjustmentsPage() {
                         onClick={() =>
                           submit.mutate(adjustment.id, {
                             onSuccess: () =>
-                              toast.success("Submitted for approval"),
+                              toast.success(
+                                t("inventory.stockAdjustments.submitSuccess"),
+                              ),
                             onError: (err) => toast.error(formatApiError(err)),
                           })
                         }
                       >
-                        Submit for approval
+                        {t("inventory.stockAdjustments.submitForApproval")}
                       </button>
                     ) : null}
                     {adjustment.status === "draft" &&
@@ -335,12 +372,14 @@ export function StockAdjustmentsPage() {
                             { id: adjustment.id },
                             {
                               onSuccess: () =>
-                                toast.success("Stock adjustment posted"),
+                                toast.success(
+                                  t("inventory.stockAdjustments.postSuccess"),
+                                ),
                             },
                           )
                         }
                       >
-                        Post
+                        {t("inventory.stockAdjustments.post")}
                       </button>
                     ) : null}
                     {adjustment.status === "pending_approval" ? (
@@ -351,12 +390,14 @@ export function StockAdjustmentsPage() {
                         onClick={() =>
                           approve.mutate(adjustment.id, {
                             onSuccess: () =>
-                              toast.success("Stock adjustment approved"),
+                              toast.success(
+                                t("inventory.stockAdjustments.approveSuccess"),
+                              ),
                             onError: (err) => toast.error(formatApiError(err)),
                           })
                         }
                       >
-                        Approve
+                        {t("inventory.stockAdjustments.approve")}
                       </button>
                     ) : null}
                     {adjustment.status === "approved" ? (
@@ -369,12 +410,14 @@ export function StockAdjustmentsPage() {
                             { id: adjustment.id },
                             {
                               onSuccess: () =>
-                                toast.success("Stock adjustment posted"),
+                                toast.success(
+                                  t("inventory.stockAdjustments.postSuccess"),
+                                ),
                             },
                           )
                         }
                       >
-                        Post
+                        {t("inventory.stockAdjustments.post")}
                       </button>
                     ) : null}
                     {adjustment.status === "posted" ? (
@@ -385,11 +428,13 @@ export function StockAdjustmentsPage() {
                         onClick={() =>
                           voidAdjustment.mutate(adjustment.id, {
                             onSuccess: () =>
-                              toast.success("Stock adjustment voided"),
+                              toast.success(
+                                t("inventory.stockAdjustments.voidSuccess"),
+                              ),
                           })
                         }
                       >
-                        Void
+                        {t("inventory.stockAdjustments.void")}
                       </button>
                     ) : null}
                   </td>

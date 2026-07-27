@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useBranches } from "../hooks/masters";
 import {
@@ -7,9 +8,11 @@ import {
   useWebhookDeliveries,
   useWebhookSubscriptions,
 } from "../hooks/webhooks";
+import { formatDateTime } from "../i18n/format";
 import { formatApiError } from "../lib/errors";
 
 export function WebhookSubscriptionsPage() {
+  const { t } = useTranslation("settings");
   const { data: branches } = useBranches();
   const { data: subscriptions, isLoading, error } = useWebhookSubscriptions();
   const { data: deliveries, isLoading: deliveriesLoading } =
@@ -27,10 +30,10 @@ export function WebhookSubscriptionsPage() {
     event.preventDefault();
     const types = eventTypes
       .split(",")
-      .map((t) => t.trim())
+      .map((item) => item.trim())
       .filter(Boolean);
     if (!url || !secret || types.length === 0) {
-      toast.error("URL, secret (min 8), and at least one event type required");
+      toast.error(t("settings.webhooks.selectRequired"));
       return;
     }
     create.mutate(
@@ -43,7 +46,7 @@ export function WebhookSubscriptionsPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Webhook subscription created");
+          toast.success(t("settings.webhooks.createSuccess"));
           setUrl("");
           setSecret("");
           setEventTypes("document.posted");
@@ -58,13 +61,9 @@ export function WebhookSubscriptionsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Webhook subscriptions</h1>
+        <h1 className="text-2xl font-semibold">{t("settings.webhooks.title")}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Org admins only. Deliver signed outbox events to an HTTPS endpoint.
-          Common event types:{" "}
-          <code className="text-xs">document.posted</code>,{" "}
-          <code className="text-xs">document.voided</code>,{" "}
-          <code className="text-xs">stock.changed</code>.
+          {t("settings.webhooks.description")}
         </p>
       </div>
 
@@ -72,13 +71,13 @@ export function WebhookSubscriptionsPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">New subscription</h2>
+        <h2 className="font-semibold">{t("settings.webhooks.newTitle")}</h2>
         <div className="grid gap-3 md:grid-cols-2">
           <input
             required
             type="url"
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="https://example.com/hooks"
+            placeholder={t("settings.webhooks.urlPlaceholder")}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
           />
@@ -86,14 +85,14 @@ export function WebhookSubscriptionsPage() {
             required
             minLength={8}
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Signing secret (min 8)"
+            placeholder={t("settings.webhooks.secretPlaceholder")}
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
           />
           <input
             required
             className="rounded border border-slate-300 px-3 py-2 md:col-span-2"
-            placeholder="Event types (comma-separated)"
+            placeholder={t("settings.webhooks.eventTypesPlaceholder")}
             value={eventTypes}
             onChange={(e) => setEventTypes(e.target.value)}
           />
@@ -102,7 +101,7 @@ export function WebhookSubscriptionsPage() {
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
           >
-            <option value="">All branches</option>
+            <option value="">{t("settings.webhooks.allBranches")}</option>
             {(branches ?? []).map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.code} — {branch.name}
@@ -116,7 +115,7 @@ export function WebhookSubscriptionsPage() {
               checked={active}
               onChange={(e) => setActive(e.target.checked)}
             />
-            Active
+            {t("settings.webhooks.active")}
           </label>
         </div>
         <button
@@ -124,22 +123,24 @@ export function WebhookSubscriptionsPage() {
           disabled={create.isPending}
           className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
         >
-          {create.isPending ? "Creating…" : "Create subscription"}
+          {create.isPending
+            ? t("settings.webhooks.creating")
+            : t("settings.webhooks.create")}
         </button>
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Subscriptions</h2>
-        {isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">{t("settings.webhooks.listTitle")}</h2>
+        {isLoading ? <p>{t("settings.webhooks.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">URL</th>
-                <th className="px-4 py-3">Events</th>
-                <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Active</th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.url")}</th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.events")}</th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.branch")}</th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.active")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -155,7 +156,7 @@ export function WebhookSubscriptionsPage() {
                     {sub.branchId
                       ? (branches?.find((b) => b.id === sub.branchId)?.code ??
                         sub.branchId.slice(0, 8))
-                      : "All"}
+                      : t("settings.webhooks.branchAll")}
                   </td>
                   <td className="px-4 py-3">
                     <label className="inline-flex items-center gap-2">
@@ -171,8 +172,8 @@ export function WebhookSubscriptionsPage() {
                               onSuccess: () =>
                                 toast.success(
                                   e.target.checked
-                                    ? "Subscription activated"
-                                    : "Subscription deactivated",
+                                    ? t("settings.webhooks.activateSuccess")
+                                    : t("settings.webhooks.deactivateSuccess"),
                                 ),
                               onError: (err) =>
                                 toast.error(formatApiError(err)),
@@ -180,7 +181,9 @@ export function WebhookSubscriptionsPage() {
                           )
                         }
                       />
-                      {sub.active ? "On" : "Off"}
+                      {sub.active
+                        ? t("settings.webhooks.on")
+                        : t("settings.webhooks.off")}
                     </label>
                   </td>
                 </tr>
@@ -191,7 +194,7 @@ export function WebhookSubscriptionsPage() {
                     colSpan={4}
                     className="px-4 py-6 text-center text-slate-500"
                   >
-                    No subscriptions yet.
+                    {t("settings.webhooks.emptySubscriptions")}
                   </td>
                 </tr>
               ) : null}
@@ -201,18 +204,20 @@ export function WebhookSubscriptionsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Recent deliveries</h2>
-        {deliveriesLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">{t("settings.webhooks.deliveriesTitle")}</h2>
+        {deliveriesLoading ? <p>{t("settings.webhooks.loading")}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Delivery</th>
-                <th className="px-4 py-3">Subscription</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">HTTP</th>
-                <th className="px-4 py-3">Error</th>
-                <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.delivery")}</th>
+                <th className="px-4 py-3">
+                  {t("settings.webhooks.col.subscription")}
+                </th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.status")}</th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.http")}</th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.error")}</th>
+                <th className="px-4 py-3">{t("settings.webhooks.col.created")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -230,9 +235,11 @@ export function WebhookSubscriptionsPage() {
                     {d.error ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
-                    {typeof d.createdAt === "string"
-                      ? d.createdAt
-                      : String(d.createdAt)}
+                    {formatDateTime(
+                      typeof d.createdAt === "string"
+                        ? d.createdAt
+                        : String(d.createdAt),
+                    )}
                   </td>
                 </tr>
               ))}
@@ -242,7 +249,7 @@ export function WebhookSubscriptionsPage() {
                     colSpan={6}
                     className="px-4 py-6 text-center text-slate-500"
                   >
-                    No deliveries yet.
+                    {t("settings.webhooks.emptyDeliveries")}
                   </td>
                 </tr>
               ) : null}

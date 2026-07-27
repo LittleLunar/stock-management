@@ -1,9 +1,11 @@
 import { Link, useParams } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import {
   usePostSupplierInvoice,
   useSupplierInvoice,
   useVoidSupplierInvoice,
 } from "../hooks/accounting";
+import { formatDate } from "../i18n/format";
 import { formatApiError } from "../lib/errors";
 
 type InvoiceLine = {
@@ -27,6 +29,7 @@ type InvoiceDetail = {
 };
 
 export function SupplierInvoiceDetailPage() {
+  const { t } = useTranslation("accounting");
   const { invoiceId } = useParams({ from: "/supplier-invoices/$invoiceId" });
   const detail = useSupplierInvoice(invoiceId);
   const post = usePostSupplierInvoice();
@@ -36,15 +39,21 @@ export function SupplierInvoiceDetailPage() {
   return (
     <div className="space-y-6">
       <Link to="/supplier-invoices" className="text-sm text-teal-800 underline">
-        ← Back to invoices
+        {t("accounting.supplierInvoiceDetail.back")}
       </Link>
       <div>
         <h1 className="text-2xl font-semibold">
-          Invoice {data?.invoice.invoiceNumber ?? invoiceId}
+          {t("accounting.supplierInvoiceDetail.title", {
+            number: data?.invoice.invoiceNumber ?? invoiceId,
+          })}
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Status: {data?.invoice.status ?? "—"} · Date:{" "}
-          {data?.invoice.invoiceDate ?? "—"}
+          {t("accounting.supplierInvoiceDetail.meta", {
+            status: data?.invoice.status ?? "—",
+            date: data?.invoice.invoiceDate
+              ? formatDate(data.invoice.invoiceDate)
+              : "—",
+          })}
         </p>
       </div>
       {detail.error ? (
@@ -57,7 +66,7 @@ export function SupplierInvoiceDetailPage() {
           disabled={post.isPending || data?.invoice.status !== "draft"}
           onClick={() => post.mutate(invoiceId)}
         >
-          Post
+          {t("accounting.supplierInvoiceDetail.post")}
         </button>
         <button
           type="button"
@@ -65,19 +74,19 @@ export function SupplierInvoiceDetailPage() {
           disabled={voidInvoice.isPending || data?.invoice.status !== "posted"}
           onClick={() => voidInvoice.mutate(invoiceId)}
         >
-          Void
+          {t("accounting.supplierInvoiceDetail.void")}
         </button>
       </div>
       <div className="overflow-x-auto rounded border bg-white">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2">Line</th>
-              <th className="p-2">Qty</th>
-              <th className="p-2">Unit cost</th>
-              <th className="p-2">Amount</th>
-              <th className="p-2">PO line</th>
-              <th className="p-2">GR line</th>
+              <th className="p-2">{t("accounting.supplierInvoiceDetail.col.line")}</th>
+              <th className="p-2">{t("accounting.supplierInvoiceDetail.col.qty")}</th>
+              <th className="p-2">{t("accounting.supplierInvoiceDetail.col.unitCost")}</th>
+              <th className="p-2">{t("accounting.supplierInvoiceDetail.col.amount")}</th>
+              <th className="p-2">{t("accounting.supplierInvoiceDetail.col.poLine")}</th>
+              <th className="p-2">{t("accounting.supplierInvoiceDetail.col.grLine")}</th>
             </tr>
           </thead>
           <tbody>

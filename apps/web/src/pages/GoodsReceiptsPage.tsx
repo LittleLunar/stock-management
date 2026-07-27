@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BarcodeScanField } from "../components/BarcodeScanField";
 import {
@@ -37,6 +38,7 @@ const emptyLine = (): ReceiptLineDraft => ({
 });
 
 export function GoodsReceiptsPage() {
+  const { t } = useTranslation("purchasing");
   const { data: receipts, isLoading, error } = useGoodsReceipts();
   const { data: purchaseOrders } = usePurchaseOrders();
   const { data: suppliers } = useSuppliers();
@@ -80,7 +82,7 @@ export function GoodsReceiptsPage() {
       }))
       .filter((line) => Number(line.qty) > 0);
     if (openLines.length === 0) {
-      toast.error("This purchase order has no quantity left to receive");
+      toast.error(t("purchasing.goodsReceipts.noQtyLeft"));
       return;
     }
     setSupplierId(selectedPurchaseOrder.supplierId);
@@ -92,7 +94,7 @@ export function GoodsReceiptsPage() {
   function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!branchId || !locationId || lines.some((line) => !line.productId)) {
-      toast.error("Select a branch, location, and product for every line");
+      toast.error(t("purchasing.goodsReceipts.selectRequired"));
       return;
     }
     create.mutate(
@@ -119,7 +121,7 @@ export function GoodsReceiptsPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Goods receipt created");
+          toast.success(t("purchasing.goodsReceipts.createSuccess"));
           setPurchaseOrderId("");
           setSupplierId("");
           setBranchId("");
@@ -138,10 +140,11 @@ export function GoodsReceiptsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Goods receipts</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("purchasing.goodsReceipts.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Receive against a submitted purchase order or create an ad-hoc
-          receipt.
+          {t("purchasing.goodsReceipts.description")}
         </p>
       </div>
 
@@ -149,7 +152,9 @@ export function GoodsReceiptsPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">New receipt</h2>
+        <h2 className="font-semibold">
+          {t("purchasing.goodsReceipts.newTitle")}
+        </h2>
         <div className="flex flex-wrap items-center gap-2">
           <select
             className="min-w-64 rounded border border-slate-300 px-3 py-2"
@@ -162,7 +167,7 @@ export function GoodsReceiptsPage() {
               }
             }}
           >
-            <option value="">Ad-hoc receipt</option>
+            <option value="">{t("purchasing.goodsReceipts.adhocReceipt")}</option>
             {(purchaseOrders ?? [])
               .filter((order) =>
                 ["submitted", "partially_received"].includes(order.status),
@@ -181,7 +186,9 @@ export function GoodsReceiptsPage() {
               className="rounded border border-teal-800 px-3 py-2 text-sm text-teal-800 disabled:opacity-50"
               onClick={loadPurchaseOrder}
             >
-              {isLoadingPo ? "Loading…" : "Load PO lines"}
+              {isLoadingPo
+                ? t("purchasing.goodsReceipts.loading")
+                : t("purchasing.goodsReceipts.loadPoLines")}
             </button>
           ) : null}
         </div>
@@ -193,7 +200,9 @@ export function GoodsReceiptsPage() {
             disabled={Boolean(purchaseOrderId)}
             onChange={(event) => setSupplierId(event.target.value)}
           >
-            <option value="">Supplier (optional)</option>
+            <option value="">
+              {t("purchasing.goodsReceipts.supplierOptional")}
+            </option>
             {(suppliers ?? []).map((supplier) => (
               <option key={supplier.id} value={supplier.id}>
                 {supplier.code} — {supplier.name}
@@ -210,7 +219,7 @@ export function GoodsReceiptsPage() {
               setLocationId("");
             }}
           >
-            <option value="">Branch</option>
+            <option value="">{t("purchasing.goodsReceipts.branch")}</option>
             {(branches ?? []).map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.code} — {branch.name}
@@ -223,7 +232,9 @@ export function GoodsReceiptsPage() {
             value={locationId}
             onChange={(event) => setLocationId(event.target.value)}
           >
-            <option value="">Receiving location</option>
+            <option value="">
+              {t("purchasing.goodsReceipts.receivingLocation")}
+            </option>
             {(locations ?? []).map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -255,7 +266,7 @@ export function GoodsReceiptsPage() {
                     updateLine(index, "productId", event.target.value)
                   }
                 >
-                  <option value="">Product</option>
+                  <option value="">{t("purchasing.goodsReceipts.product")}</option>
                   {(products ?? []).map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.sku} — {product.name}
@@ -266,8 +277,10 @@ export function GoodsReceiptsPage() {
                   required
                   inputMode="decimal"
                   className="rounded border border-slate-300 px-3 py-2"
-                  aria-label={`Line ${index + 1} quantity`}
-                  placeholder="Quantity"
+                  aria-label={t("purchasing.goodsReceipts.qtyAria", {
+                    n: index + 1,
+                  })}
+                  placeholder={t("purchasing.goodsReceipts.qtyPlaceholder")}
                   value={line.qty}
                   onChange={(event) =>
                     updateLine(index, "qty", event.target.value)
@@ -276,8 +289,10 @@ export function GoodsReceiptsPage() {
                 <input
                   inputMode="decimal"
                   className="rounded border border-slate-300 px-3 py-2"
-                  aria-label={`Line ${index + 1} unit cost`}
-                  placeholder="Unit cost"
+                  aria-label={t("purchasing.goodsReceipts.unitCostAria", {
+                    n: index + 1,
+                  })}
+                  placeholder={t("purchasing.goodsReceipts.unitCostPlaceholder")}
                   value={line.unitCost}
                   onChange={(event) =>
                     updateLine(index, "unitCost", event.target.value)
@@ -293,13 +308,13 @@ export function GoodsReceiptsPage() {
                     )
                   }
                 >
-                  Remove
+                  {t("purchasing.goodsReceipts.remove")}
                 </button>
               </div>
               <div className="grid gap-2 md:grid-cols-3">
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Lot code"
+                  placeholder={t("purchasing.goodsReceipts.lotCodePlaceholder")}
                   value={line.lotCode}
                   onChange={(event) =>
                     updateLine(index, "lotCode", event.target.value)
@@ -307,7 +322,9 @@ export function GoodsReceiptsPage() {
                 />
                 <input
                   type="date"
-                  aria-label={`Line ${index + 1} expiry date`}
+                  aria-label={t("purchasing.goodsReceipts.expiryAria", {
+                    n: index + 1,
+                  })}
                   className="rounded border border-slate-300 px-3 py-2"
                   value={line.expiryDate}
                   onChange={(event) =>
@@ -316,7 +333,7 @@ export function GoodsReceiptsPage() {
                 />
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Serials, comma separated"
+                  placeholder={t("purchasing.goodsReceipts.serialsPlaceholder")}
                   value={line.serialNumbers}
                   onChange={(event) =>
                     updateLine(index, "serialNumbers", event.target.value)
@@ -339,7 +356,7 @@ export function GoodsReceiptsPage() {
               className="rounded border border-slate-300 px-4 py-2 text-sm"
               onClick={() => setLines((current) => [...current, emptyLine()])}
             >
-              Add line
+              {t("purchasing.goodsReceipts.addLine")}
             </button>
           ) : null}
           <button
@@ -347,23 +364,35 @@ export function GoodsReceiptsPage() {
             disabled={create.isPending}
             className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {create.isPending ? "Creating…" : "Create draft"}
+            {create.isPending
+              ? t("purchasing.goodsReceipts.creating")
+              : t("purchasing.goodsReceipts.createDraft")}
           </button>
         </div>
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Receipts</h2>
-        {isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">
+          {t("purchasing.goodsReceipts.listTitle")}
+        </h2>
+        {isLoading ? <p>{t("purchasing.goodsReceipts.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Receipt</th>
-                <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">
+                  {t("purchasing.goodsReceipts.col.receipt")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("purchasing.goodsReceipts.col.source")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("purchasing.goodsReceipts.col.location")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("purchasing.goodsReceipts.col.status")}
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -375,8 +404,10 @@ export function GoodsReceiptsPage() {
                   </td>
                   <td className="px-4 py-3">
                     {receipt.purchaseOrderId
-                      ? `PO ${receipt.purchaseOrderId.slice(0, 8)}`
-                      : "Ad-hoc"}
+                      ? t("purchasing.goodsReceipts.sourcePo", {
+                          id: receipt.purchaseOrderId.slice(0, 8),
+                        })
+                      : t("purchasing.goodsReceipts.sourceAdhoc")}
                   </td>
                   <td className="px-4 py-3">
                     {locations?.find(
@@ -395,12 +426,14 @@ export function GoodsReceiptsPage() {
                             { id: receipt.id },
                             {
                               onSuccess: () =>
-                                toast.success("Goods receipt posted"),
+                                toast.success(
+                                  t("purchasing.goodsReceipts.postSuccess"),
+                                ),
                             },
                           )
                         }
                       >
-                        Post
+                        {t("purchasing.goodsReceipts.post")}
                       </button>
                     ) : null}
                     {receipt.status === "posted" ? (
@@ -411,11 +444,13 @@ export function GoodsReceiptsPage() {
                         onClick={() =>
                           voidReceipt.mutate(receipt.id, {
                             onSuccess: () =>
-                              toast.success("Goods receipt voided"),
+                              toast.success(
+                                t("purchasing.goodsReceipts.voidSuccess"),
+                              ),
                           })
                         }
                       >
-                        Void
+                        {t("purchasing.goodsReceipts.void")}
                       </button>
                     ) : null}
                   </td>

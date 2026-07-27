@@ -1,4 +1,5 @@
 import { ErrorEnvelopeSchema, type ErrorBody } from "@stock-management/shared";
+import i18n from "../i18n";
 
 export class ApiError extends Error {
   readonly code: string;
@@ -31,13 +32,21 @@ export function parseApiError(status: number, raw: unknown): ApiError {
   });
 }
 
+function localizedErrorMessage(code: string, fallback: string): string {
+  const key = `errors.${code}`;
+  const translated = i18n.t(key, { ns: "errors", defaultValue: "" });
+  if (translated && translated !== key) return translated;
+  return fallback;
+}
+
 export function formatApiError(error: unknown): string {
   if (error instanceof ApiError) {
+    const message = localizedErrorMessage(error.code, error.message);
     const suffix =
       import.meta.env.DEV && error.requestId !== "unknown"
         ? ` (${error.requestId})`
         : "";
-    return `${error.message}${suffix}`;
+    return `${message}${suffix}`;
   }
   if (error instanceof Error) return error.message;
   return String(error);

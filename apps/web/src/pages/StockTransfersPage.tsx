@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BarcodeScanField } from "../components/BarcodeScanField";
 import {
@@ -26,6 +27,7 @@ const emptyLine = (): TransferLineDraft => ({
 });
 
 function ReplenishWizard() {
+  const { t } = useTranslation("inventory");
   const { data: branches } = useBranches();
   const { data: locations } = useLocations();
   const { data: products } = useProducts();
@@ -50,11 +52,11 @@ function ReplenishWizard() {
       !transitLocationId ||
       !productId
     ) {
-      toast.error("Select destination branch, locations, and a product");
+      toast.error(t("inventory.stockTransfers.replenishSelectRequired"));
       return;
     }
     if (fromLocationId === toLocationId) {
-      toast.error("From and to locations must be different");
+      toast.error(t("inventory.stockTransfers.locationsMustDiffer"));
       return;
     }
     create.mutate(
@@ -67,7 +69,7 @@ function ReplenishWizard() {
       },
       {
         onSuccess: () => {
-          toast.success("Replenishment transfer created");
+          toast.success(t("inventory.stockTransfers.replenishSuccess"));
           setProductId("");
           setQty("1");
         },
@@ -81,10 +83,11 @@ function ReplenishWizard() {
       className="space-y-4 rounded border border-slate-200 bg-white p-5"
       onSubmit={handleReplenish}
     >
-      <h2 className="font-semibold">Replenish branch</h2>
+      <h2 className="font-semibold">
+        {t("inventory.stockTransfers.replenishTitle")}
+      </h2>
       <p className="text-sm text-slate-600">
-        Cross-branch transfer with purpose{" "}
-        <span className="font-medium">replenishment</span>.
+        {t("inventory.stockTransfers.replenishDescription")}
       </p>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <select
@@ -96,7 +99,9 @@ function ReplenishWizard() {
             setToLocationId("");
           }}
         >
-          <option value="">Destination branch</option>
+          <option value="">
+            {t("inventory.stockTransfers.destinationBranch")}
+          </option>
           {(branches ?? []).map((b) => (
             <option key={b.id} value={b.id}>
               {b.code} — {b.name}
@@ -109,7 +114,7 @@ function ReplenishWizard() {
           value={fromLocationId}
           onChange={(e) => setFromLocationId(e.target.value)}
         >
-          <option value="">From location</option>
+          <option value="">{t("inventory.stockTransfers.fromLocation")}</option>
           {(locations ?? [])
             .filter((l) => l.type !== "transit")
             .map((l) => (
@@ -124,7 +129,7 @@ function ReplenishWizard() {
           value={toLocationId}
           onChange={(e) => setToLocationId(e.target.value)}
         >
-          <option value="">To location</option>
+          <option value="">{t("inventory.stockTransfers.toLocation")}</option>
           {toLocations.map((l) => (
             <option key={l.id} value={l.id}>
               {l.code} — {l.name}
@@ -137,7 +142,7 @@ function ReplenishWizard() {
           value={transitLocationId}
           onChange={(e) => setTransitLocationId(e.target.value)}
         >
-          <option value="">Transit</option>
+          <option value="">{t("inventory.stockTransfers.transit")}</option>
           {(locations ?? [])
             .filter((l) => l.type === "transit")
             .map((l) => (
@@ -154,7 +159,7 @@ function ReplenishWizard() {
             value={productId}
             onChange={(e) => setProductId(e.target.value)}
           >
-            <option value="">Product</option>
+            <option value="">{t("inventory.stockTransfers.product")}</option>
             {(products ?? []).map((product) => (
               <option key={product.id} value={product.id}>
                 {product.sku} — {product.name}
@@ -166,7 +171,7 @@ function ReplenishWizard() {
           required
           inputMode="decimal"
           className="rounded border border-slate-300 px-3 py-2"
-          placeholder="Quantity"
+          placeholder={t("inventory.stockTransfers.qtyPlaceholder")}
           value={qty}
           onChange={(e) => setQty(e.target.value)}
         />
@@ -176,13 +181,16 @@ function ReplenishWizard() {
         disabled={create.isPending}
         className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
       >
-        {create.isPending ? "Creating…" : "Create replenishment"}
+        {create.isPending
+          ? t("inventory.stockTransfers.creating")
+          : t("inventory.stockTransfers.createReplenishment")}
       </button>
     </form>
   );
 }
 
 export function StockTransfersPage() {
+  const { t } = useTranslation("inventory");
   const { data: transfers, isLoading, error } = useStockTransfers();
   const { data: locations } = useLocations();
   const { data: products } = useProducts();
@@ -223,11 +231,11 @@ export function StockTransfersPage() {
       !transitLocationId ||
       lines.some((line) => !line.productId)
     ) {
-      toast.error("Select from, to, transit, and a product for every line");
+      toast.error(t("inventory.stockTransfers.selectRequired"));
       return;
     }
     if (fromLocationId === toLocationId) {
-      toast.error("From and to locations must be different");
+      toast.error(t("inventory.stockTransfers.locationsMustDiffer"));
       return;
     }
     create.mutate(
@@ -250,7 +258,7 @@ export function StockTransfersPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Stock transfer created");
+          toast.success(t("inventory.stockTransfers.createSuccess"));
           setDocumentNumber("");
           setLines([emptyLine()]);
         },
@@ -266,10 +274,11 @@ export function StockTransfersPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Stock transfers</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("inventory.stockTransfers.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Move stock between locations via a transit location. Ship then
-          receive.
+          {t("inventory.stockTransfers.description")}
         </p>
       </div>
 
@@ -279,7 +288,9 @@ export function StockTransfersPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">New stock transfer</h2>
+        <h2 className="font-semibold">
+          {t("inventory.stockTransfers.newTitle")}
+        </h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <select
             required
@@ -287,7 +298,9 @@ export function StockTransfersPage() {
             value={fromLocationId}
             onChange={(event) => setFromLocationId(event.target.value)}
           >
-            <option value="">From location</option>
+            <option value="">
+              {t("inventory.stockTransfers.fromLocation")}
+            </option>
             {storageLocations.map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -300,7 +313,7 @@ export function StockTransfersPage() {
             value={toLocationId}
             onChange={(event) => setToLocationId(event.target.value)}
           >
-            <option value="">To location</option>
+            <option value="">{t("inventory.stockTransfers.toLocation")}</option>
             {storageLocations.map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -313,7 +326,9 @@ export function StockTransfersPage() {
             value={transitLocationId}
             onChange={(event) => setTransitLocationId(event.target.value)}
           >
-            <option value="">Transit location</option>
+            <option value="">
+              {t("inventory.stockTransfers.transitLocation")}
+            </option>
             {transitLocations.map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -322,16 +337,16 @@ export function StockTransfersPage() {
           </select>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Document number (optional)"
+            placeholder={t(
+              "inventory.stockTransfers.documentNumberPlaceholder",
+            )}
             value={documentNumber}
             onChange={(event) => setDocumentNumber(event.target.value)}
           />
         </div>
         {transitLocations.length === 0 ? (
           <p className="text-sm text-amber-800">
-            Create a location with type{" "}
-            <span className="font-medium">transit</span> before shipping
-            transfers.
+            {t("inventory.stockTransfers.transitRequiredHint")}
           </p>
         ) : null}
 
@@ -352,7 +367,9 @@ export function StockTransfersPage() {
                     updateLine(index, "productId", event.target.value)
                   }
                 >
-                  <option value="">Product</option>
+                  <option value="">
+                    {t("inventory.stockTransfers.product")}
+                  </option>
                   {(products ?? []).map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.sku} — {product.name}
@@ -363,8 +380,10 @@ export function StockTransfersPage() {
                   required
                   inputMode="decimal"
                   className="rounded border border-slate-300 px-3 py-2"
-                  aria-label={`Line ${index + 1} quantity`}
-                  placeholder="Quantity"
+                  aria-label={t("inventory.stockTransfers.qtyAria", {
+                    n: index + 1,
+                  })}
+                  placeholder={t("inventory.stockTransfers.qtyPlaceholder")}
                   value={line.qty}
                   onChange={(event) =>
                     updateLine(index, "qty", event.target.value)
@@ -380,13 +399,13 @@ export function StockTransfersPage() {
                     )
                   }
                 >
-                  Remove
+                  {t("inventory.stockTransfers.remove")}
                 </button>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Lot id (optional)"
+                  placeholder={t("inventory.stockTransfers.lotIdPlaceholder")}
                   value={line.lotId}
                   onChange={(event) =>
                     updateLine(index, "lotId", event.target.value)
@@ -394,7 +413,7 @@ export function StockTransfersPage() {
                 />
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Serials, comma separated"
+                  placeholder={t("inventory.stockTransfers.serialsPlaceholder")}
                   value={line.serialNumbers}
                   onChange={(event) =>
                     updateLine(index, "serialNumbers", event.target.value)
@@ -411,32 +430,48 @@ export function StockTransfersPage() {
             className="rounded border border-slate-300 px-4 py-2 text-sm"
             onClick={() => setLines((current) => [...current, emptyLine()])}
           >
-            Add line
+            {t("inventory.stockTransfers.addLine")}
           </button>
           <button
             type="submit"
             disabled={create.isPending}
             className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {create.isPending ? "Creating…" : "Create draft"}
+            {create.isPending
+              ? t("inventory.stockTransfers.creating")
+              : t("inventory.stockTransfers.createDraft")}
           </button>
         </div>
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Transfers</h2>
-        {isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">
+          {t("inventory.stockTransfers.listTitle")}
+        </h2>
+        {isLoading ? <p>{t("inventory.stockTransfers.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Document</th>
-                <th className="px-4 py-3">From</th>
-                <th className="px-4 py-3">Transit</th>
-                <th className="px-4 py-3">To</th>
-                <th className="px-4 py-3">Purpose</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockTransfers.col.document")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockTransfers.col.from")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockTransfers.col.transit")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockTransfers.col.to")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockTransfers.col.purpose")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockTransfers.col.status")}
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -463,7 +498,9 @@ export function StockTransfersPage() {
                           : "rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
                       }
                     >
-                      {transfer.purpose ?? "standard"}
+                      {transfer.purpose === "replenishment"
+                        ? transfer.purpose
+                        : t("inventory.stockTransfers.purposeStandard")}
                     </span>
                   </td>
                   <td className="px-4 py-3">{transfer.status}</td>
@@ -478,12 +515,14 @@ export function StockTransfersPage() {
                             { id: transfer.id },
                             {
                               onSuccess: () =>
-                                toast.success("Transfer shipped"),
+                                toast.success(
+                                  t("inventory.stockTransfers.shipSuccess"),
+                                ),
                             },
                           )
                         }
                       >
-                        Ship
+                        {t("inventory.stockTransfers.ship")}
                       </button>
                     ) : null}
                     {transfer.status === "in_transit" ? (
@@ -496,12 +535,14 @@ export function StockTransfersPage() {
                             { id: transfer.id },
                             {
                               onSuccess: () =>
-                                toast.success("Transfer received"),
+                                toast.success(
+                                  t("inventory.stockTransfers.receiveSuccess"),
+                                ),
                             },
                           )
                         }
                       >
-                        Receive
+                        {t("inventory.stockTransfers.receive")}
                       </button>
                     ) : null}
                     {transfer.status === "draft" ||
@@ -513,11 +554,13 @@ export function StockTransfersPage() {
                         onClick={() =>
                           voidTransfer.mutate(transfer.id, {
                             onSuccess: () =>
-                              toast.success("Transfer voided"),
+                              toast.success(
+                                t("inventory.stockTransfers.voidSuccess"),
+                              ),
                           })
                         }
                       >
-                        Void
+                        {t("inventory.stockTransfers.void")}
                       </button>
                     ) : null}
                   </td>

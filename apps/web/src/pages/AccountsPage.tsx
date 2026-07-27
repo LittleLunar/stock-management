@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   useAccountMappings,
   useAccounts,
@@ -21,6 +22,7 @@ type Mapping = {
 };
 
 export function AccountsPage() {
+  const { t } = useTranslation("accounting");
   const accounts = useAccounts();
   const mappings = useAccountMappings();
   const ensureDefaults = useEnsureDefaultAccounts();
@@ -31,9 +33,11 @@ export function AccountsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Chart of accounts</h1>
+          <h1 className="text-2xl font-semibold">
+            {t("accounting.accounts.title")}
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Default inventory GL accounts and event mappings.
+            {t("accounting.accounts.description")}
           </p>
         </div>
         <button
@@ -42,7 +46,7 @@ export function AccountsPage() {
           disabled={ensureDefaults.isPending}
           onClick={() => ensureDefaults.mutate()}
         >
-          Ensure defaults
+          {t("accounting.accounts.ensureDefaults")}
         </button>
       </div>
       {accounts.error ? (
@@ -52,10 +56,10 @@ export function AccountsPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2">Code</th>
-              <th className="p-2">Name</th>
-              <th className="p-2">Type</th>
-              <th className="p-2">Active</th>
+              <th className="p-2">{t("accounting.accounts.col.code")}</th>
+              <th className="p-2">{t("accounting.accounts.col.name")}</th>
+              <th className="p-2">{t("accounting.accounts.col.type")}</th>
+              <th className="p-2">{t("accounting.accounts.col.active")}</th>
             </tr>
           </thead>
           <tbody>
@@ -64,21 +68,31 @@ export function AccountsPage() {
                 <td className="p-2 font-medium">{row.code}</td>
                 <td className="p-2">{row.name}</td>
                 <td className="p-2">{row.type}</td>
-                <td className="p-2">{row.active ? "yes" : "no"}</td>
+                <td className="p-2">
+                  {row.active
+                    ? t("accounting.accounts.activeYes")
+                    : t("accounting.accounts.activeNo")}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <div>
-        <h2 className="mb-2 text-lg font-medium">Account mappings</h2>
+        <h2 className="mb-2 text-lg font-medium">
+          {t("accounting.accounts.mappingsTitle")}
+        </h2>
         <div className="overflow-x-auto rounded border bg-white">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b">
-                <th className="p-2">Event type</th>
-                <th className="p-2">Debit account</th>
-                <th className="p-2">Credit account</th>
+                <th className="p-2">{t("accounting.accounts.col.eventType")}</th>
+                <th className="p-2">
+                  {t("accounting.accounts.col.debitAccount")}
+                </th>
+                <th className="p-2">
+                  {t("accounting.accounts.col.creditAccount")}
+                </th>
               </tr>
             </thead>
             <tbody>

@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useProductByBarcode } from "../hooks/masters";
 import { formatApiError } from "../lib/errors";
@@ -13,6 +14,7 @@ type Props = {
  * Uses a div (not form) so it can sit inside document create forms.
  */
 export function BarcodeScanField({ onProduct, placeholder }: Props) {
+  const { t } = useTranslation("inventory");
   const [code, setCode] = useState("");
   const lookup = useProductByBarcode();
 
@@ -41,10 +43,10 @@ export function BarcodeScanField({ onProduct, placeholder }: Props) {
   return (
     <div className="flex gap-2">
       <input
-        aria-label="Scan barcode"
+        aria-label={t("inventory.barcode.aria")}
         className="min-w-0 flex-1 rounded border border-slate-300 px-3 py-2"
         value={code}
-        placeholder={placeholder ?? "Scan barcode…"}
+        placeholder={placeholder ?? t("inventory.barcode.placeholder")}
         onChange={(e) => setCode(e.target.value)}
         onKeyDown={onKeyDown}
         onBlur={onBlur}
@@ -56,7 +58,7 @@ export function BarcodeScanField({ onProduct, placeholder }: Props) {
         disabled={lookup.isPending}
         onClick={() => void lookupCode()}
       >
-        Find
+        {t("inventory.barcode.find")}
       </button>
     </div>
   );

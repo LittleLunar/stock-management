@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useBranches } from "../hooks/masters";
 import { useCogs } from "../hooks/costing";
 import { formatApiError } from "../lib/errors";
@@ -21,6 +22,7 @@ function defaultRange() {
 }
 
 export function CogsReportPage() {
+  const { t } = useTranslation("costing");
   const { data: branches } = useBranches();
   const defaults = defaultRange();
   const [from, setFrom] = useState(defaults.from);
@@ -38,9 +40,9 @@ export function CogsReportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">COGS report</h1>
+        <h1 className="text-2xl font-semibold">{t("costing.cogs.title")}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Posted outbound COGS by period (excludes transfers).
+          {t("costing.cogs.description")}
         </p>
       </div>
       <div className="flex flex-wrap gap-3 rounded border bg-white p-4">
@@ -61,7 +63,7 @@ export function CogsReportPage() {
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
         >
-          <option value="">All branches</option>
+          <option value="">{t("costing.cogs.allBranches")}</option>
           {(branches ?? []).map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
@@ -72,15 +74,19 @@ export function CogsReportPage() {
       {cogs.error ? (
         <p className="text-red-700">{formatApiError(cogs.error)}</p>
       ) : null}
-      <p className="font-medium">Total COGS: {cogs.data?.totalCogs ?? "—"}</p>
+      <p className="font-medium">
+        {t("costing.cogs.totalCogs", {
+          value: cogs.data?.totalCogs ?? "—",
+        })}
+      </p>
       <div className="overflow-x-auto rounded border bg-white">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2">Branch</th>
-              <th className="p-2">Movement</th>
-              <th className="p-2">Document</th>
-              <th className="p-2">Cost</th>
+              <th className="p-2">{t("costing.cogs.col.branch")}</th>
+              <th className="p-2">{t("costing.cogs.col.movement")}</th>
+              <th className="p-2">{t("costing.cogs.col.document")}</th>
+              <th className="p-2">{t("costing.cogs.col.cost")}</th>
             </tr>
           </thead>
           <tbody>

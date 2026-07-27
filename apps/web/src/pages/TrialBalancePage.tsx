@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAccountingPeriods, useTrialBalance } from "../hooks/accounting";
 import { useBranches } from "../hooks/masters";
 import { formatApiError } from "../lib/errors";
@@ -14,6 +15,7 @@ type BalanceRow = {
 type Period = { id: string; year: number; month: number };
 
 export function TrialBalancePage() {
+  const { t } = useTranslation("accounting");
   const { data: periods } = useAccountingPeriods();
   const { data: branches } = useBranches();
   const [mode, setMode] = useState<"period" | "asOf">("period");
@@ -34,9 +36,11 @@ export function TrialBalancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Trial balance</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("accounting.trialBalance.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Account debits and credits by period or as-of date.
+          {t("accounting.trialBalance.description")}
         </p>
       </div>
       <div className="flex flex-wrap gap-3 rounded border bg-white p-4">
@@ -45,8 +49,8 @@ export function TrialBalancePage() {
           value={mode}
           onChange={(e) => setMode(e.target.value as "period" | "asOf")}
         >
-          <option value="period">By period</option>
-          <option value="asOf">By as-of date</option>
+          <option value="period">{t("accounting.trialBalance.modePeriod")}</option>
+          <option value="asOf">{t("accounting.trialBalance.modeAsOf")}</option>
         </select>
         {mode === "period" ? (
           <select
@@ -54,7 +58,7 @@ export function TrialBalancePage() {
             value={periodId}
             onChange={(e) => setPeriodId(e.target.value)}
           >
-            <option value="">Select period</option>
+            <option value="">{t("accounting.trialBalance.selectPeriod")}</option>
             {((periods ?? []) as Period[]).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.year}-{String(p.month).padStart(2, "0")}
@@ -74,7 +78,7 @@ export function TrialBalancePage() {
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
         >
-          <option value="">All branches</option>
+          <option value="">{t("accounting.trialBalance.allBranches")}</option>
           {(branches ?? []).map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
@@ -86,18 +90,20 @@ export function TrialBalancePage() {
         <p className="text-red-700">{formatApiError(report.error)}</p>
       ) : null}
       <p className="font-medium">
-        Totals — Debit: {data?.totalDebit ?? "—"} · Credit:{" "}
-        {data?.totalCredit ?? "—"}
+        {t("accounting.trialBalance.totals", {
+          debit: data?.totalDebit ?? "—",
+          credit: data?.totalCredit ?? "—",
+        })}
       </p>
       <div className="overflow-x-auto rounded border bg-white">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2">Code</th>
-              <th className="p-2">Name</th>
-              <th className="p-2">Debit</th>
-              <th className="p-2">Credit</th>
-              <th className="p-2">Net</th>
+              <th className="p-2">{t("accounting.trialBalance.col.code")}</th>
+              <th className="p-2">{t("accounting.trialBalance.col.name")}</th>
+              <th className="p-2">{t("accounting.trialBalance.col.debit")}</th>
+              <th className="p-2">{t("accounting.trialBalance.col.credit")}</th>
+              <th className="p-2">{t("accounting.trialBalance.col.net")}</th>
             </tr>
           </thead>
           <tbody>

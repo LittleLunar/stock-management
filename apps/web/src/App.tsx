@@ -17,10 +17,12 @@ import {
 } from "@stock-management/shared";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Toaster, toast } from "sonner";
 import { z } from "zod";
 import { api } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { formatApiError } from "./lib/errors";
 import {
   useBranches,
@@ -83,13 +85,14 @@ const LocationFormSchema = z.object({
 });
 
 function BranchSwitcher() {
+  const { t } = useTranslation("common");
   const { data: branches } = useBranches();
   const [active, setActive] = useState(
     () => localStorage.getItem("activeBranchId") ?? "",
   );
   return (
     <label className="mt-4 block text-xs text-slate-500">
-      Branch
+      {t("branch.label")}
       <select
         className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
         value={active}
@@ -101,7 +104,7 @@ function BranchSwitcher() {
           window.location.reload(); // simplest cache bust for query keys
         }}
       >
-        <option value="">All branches</option>
+        <option value="">{t("branch.all")}</option>
         {(branches ?? []).map((b) => (
           <option key={b.id} value={b.id}>
             {b.code} — {b.name}
@@ -113,6 +116,7 @@ function BranchSwitcher() {
 }
 
 function Shell() {
+  const { t } = useTranslation(["common", "nav"]);
   const orgId = localStorage.getItem("orgId") ?? "";
   const {
     register,
@@ -139,180 +143,181 @@ function Shell() {
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <aside className="w-56 shrink-0 border-r border-slate-200 bg-white px-4 py-6">
         <p className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-teal-800">
-          Stock Mgmt
+          {t("common:brand.name")}
         </p>
         <nav className="flex flex-col gap-2 text-sm">
           <Link to="/" className="rounded px-2 py-1 hover:bg-slate-100">
-            Dashboard
+            {t("nav:nav.dashboard")}
           </Link>
           <Link to="/branches" className="rounded px-2 py-1 hover:bg-slate-100">
-            Branches
+            {t("nav:nav.branches")}
           </Link>
           <Link
             to="/locations"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Locations
+            {t("nav:nav.locations")}
           </Link>
           <Link to="/products" className="rounded px-2 py-1 hover:bg-slate-100">
-            Products
+            {t("nav:nav.products")}
           </Link>
           <Link
             to="/suppliers"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Suppliers
+            {t("nav:nav.suppliers")}
           </Link>
           <Link
             to="/customers"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Customers
+            {t("nav:nav.customers")}
           </Link>
           <Link
             to="/purchase-orders"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Purchase orders
+            {t("nav:nav.purchaseOrders")}
           </Link>
           <Link
             to="/goods-receipts"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Goods receipts
+            {t("nav:nav.goodsReceipts")}
           </Link>
           <Link to="/stock" className="rounded px-2 py-1 hover:bg-slate-100">
-            Stock inquiry
+            {t("nav:nav.stock")}
           </Link>
           <Link
             to="/cost-valuation"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Valuation
+            {t("nav:nav.costValuation")}
           </Link>
           <Link to="/cogs" className="rounded px-2 py-1 hover:bg-slate-100">
-            COGS
+            {t("nav:nav.cogs")}
           </Link>
           <Link
             to="/landed-costs"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Landed costs
+            {t("nav:nav.landedCosts")}
           </Link>
           <Link
             to="/cost-revaluations"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Revaluations
+            {t("nav:nav.costRevaluations")}
           </Link>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Accounting
+            {t("nav:nav.accounting")}
           </p>
           <Link to="/accounts" className="rounded px-2 py-1 hover:bg-slate-100">
-            Accounts
+            {t("nav:nav.accounts")}
           </Link>
           <Link
             to="/accounting-periods"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Periods
+            {t("nav:nav.periods")}
           </Link>
           <Link to="/journals" className="rounded px-2 py-1 hover:bg-slate-100">
-            Journals
+            {t("nav:nav.journals")}
           </Link>
           <Link
             to="/supplier-invoices"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Supplier invoices
+            {t("nav:nav.supplierInvoices")}
           </Link>
           <Link to="/ap-aging" className="rounded px-2 py-1 hover:bg-slate-100">
-            AP aging
+            {t("nav:nav.apAging")}
           </Link>
           <Link
             to="/reports/trial-balance"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Trial balance
+            {t("nav:nav.trialBalance")}
           </Link>
           <Link to="/reports/pnl" className="rounded px-2 py-1 hover:bg-slate-100">
-            P&amp;L
+            {t("nav:nav.pnl")}
           </Link>
           <Link
             to="/reports/balance-sheet"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Balance sheet
+            {t("nav:nav.balanceSheet")}
           </Link>
           <Link
             to="/reservations"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Reservations
+            {t("nav:nav.reservations")}
           </Link>
           <Link
             to="/stock-issues"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Stock issues
+            {t("nav:nav.stockIssues")}
           </Link>
           <Link
             to="/stock-transfers"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Stock transfers
+            {t("nav:nav.stockTransfers")}
           </Link>
           <Link
             to="/stock-adjustments"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Stock adjustments
+            {t("nav:nav.stockAdjustments")}
           </Link>
           <Link
             to="/stock-counts"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Stock counts
+            {t("nav:nav.stockCounts")}
           </Link>
           <Link
             to="/supplier-returns"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Supplier returns
+            {t("nav:nav.supplierReturns")}
           </Link>
           <Link
             to="/customer-returns"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Customer returns
+            {t("nav:nav.customerReturns")}
           </Link>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Org settings
+            {t("nav:nav.orgSettings")}
           </p>
           <Link
             to="/approval-policies"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Approval policies
+            {t("nav:nav.approvalPolicies")}
           </Link>
           <Link
             to="/webhooks"
             className="rounded px-2 py-1 hover:bg-slate-100"
           >
-            Webhooks
+            {t("nav:nav.webhooks")}
           </Link>
         </nav>
         <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
           {orgId ? (
             <>
-              <p className="break-all">Org: {orgId}</p>
+              <p className="break-all">{t("common:org.label", { orgId })}</p>
               <BranchSwitcher />
+              <LanguageSwitcher />
             </>
           ) : (
             <form className="space-y-2" onSubmit={handleSubmit(bootstrap)}>
               <input
                 className="w-full rounded border border-slate-300 px-2 py-1"
-                placeholder="Org name"
+                placeholder={t("common:org.namePlaceholder")}
                 {...register("name")}
               />
               {errors.name && (
@@ -323,8 +328,9 @@ function Shell() {
                 disabled={isSubmitting}
                 className="w-full rounded bg-teal-800 px-2 py-1 text-white disabled:opacity-50"
               >
-                Create org
+                {t("common:org.create")}
               </button>
+              <LanguageSwitcher />
             </form>
           )}
         </div>
@@ -337,18 +343,17 @@ function Shell() {
 }
 
 function DashboardPage() {
+  const { t } = useTranslation("masters");
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="mt-2 text-slate-600">
-        Manage master data, purchasing, receipts, returns, reservations,
-        outbound documents, and stock from the sidebar.
-      </p>
+      <h1 className="text-2xl font-semibold">{t("masters.dashboard.title")}</h1>
+      <p className="mt-2 text-slate-600">{t("masters.dashboard.description")}</p>
     </div>
   );
 }
 
 function BranchesPage() {
+  const { t } = useTranslation("masters");
   const { data, isLoading, error } = useBranches();
   const create = useCreateBranch();
   const {
@@ -363,7 +368,7 @@ function BranchesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Branches</h1>
+      <h1 className="text-2xl font-semibold">{t("masters.branches.title")}</h1>
       <form
         className="flex flex-wrap items-start gap-2"
         onSubmit={handleSubmit((values) => {
@@ -373,7 +378,7 @@ function BranchesPage() {
         <div>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Code"
+            placeholder={t("masters.form.code")}
             {...register("code")}
           />
           {errors.code && (
@@ -383,7 +388,7 @@ function BranchesPage() {
         <div>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Name"
+            placeholder={t("masters.form.name")}
             {...register("name")}
           />
           {errors.name && (
@@ -395,10 +400,10 @@ function BranchesPage() {
           className="rounded bg-teal-800 px-4 py-2 text-white"
           disabled={create.isPending}
         >
-          Add
+          {t("masters.form.add")}
         </button>
       </form>
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t("masters.form.loading")}</p>}
       {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((b) => (
@@ -415,6 +420,7 @@ function BranchesPage() {
 }
 
 function LocationsPage() {
+  const { t } = useTranslation(["masters", "common"]);
   const { data: branches } = useBranches();
   const [branchId, setBranchId] = useState("");
   const { data, isLoading, error } = useLocations(branchId || undefined);
@@ -431,13 +437,13 @@ function LocationsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Locations</h1>
+      <h1 className="text-2xl font-semibold">{t("masters:masters.locations.title")}</h1>
       <select
         className="rounded border border-slate-300 px-3 py-2"
         value={branchId}
         onChange={(e) => setBranchId(e.target.value)}
       >
-        <option value="">All branches</option>
+        <option value="">{t("common:branch.all")}</option>
         {(branches ?? []).map((b) => (
           <option key={b.id} value={b.id}>
             {b.code} — {b.name}
@@ -448,7 +454,7 @@ function LocationsPage() {
         className="flex flex-wrap items-start gap-2"
         onSubmit={handleSubmit((values) => {
           if (!branchId) {
-            toast.error("Select a branch");
+            toast.error(t("masters:masters.form.selectBranch"));
             return;
           }
           create.mutate(
@@ -460,7 +466,7 @@ function LocationsPage() {
         <div>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Code"
+            placeholder={t("masters:masters.form.code")}
             {...register("code")}
           />
           {errors.code && (
@@ -470,7 +476,7 @@ function LocationsPage() {
         <div>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Name"
+            placeholder={t("masters:masters.form.name")}
             {...register("name")}
           />
           {errors.name && (
@@ -481,10 +487,10 @@ function LocationsPage() {
           type="submit"
           className="rounded bg-teal-800 px-4 py-2 text-white"
         >
-          Add
+          {t("masters:masters.form.add")}
         </button>
       </form>
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t("masters:masters.form.loading")}</p>}
       {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((loc) => (
@@ -502,6 +508,7 @@ function LocationsPage() {
 }
 
 function ProductsPage() {
+  const { t } = useTranslation("masters");
   const { data, isLoading, error } = useProducts();
   const create = useCreateProduct();
   const {
@@ -522,7 +529,7 @@ function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Products</h1>
+      <h1 className="text-2xl font-semibold">{t("masters.products.title")}</h1>
       <form
         className="flex flex-col gap-3"
         onSubmit={handleSubmit((values) => {
@@ -542,7 +549,7 @@ function ProductsPage() {
           <div>
             <input
               className="rounded border border-slate-300 px-3 py-2"
-              placeholder="SKU"
+              placeholder={t("masters.form.sku")}
               {...register("sku")}
             />
             {errors.sku && (
@@ -552,7 +559,7 @@ function ProductsPage() {
           <div>
             <input
               className="rounded border border-slate-300 px-3 py-2"
-              placeholder="Name"
+              placeholder={t("masters.form.name")}
               {...register("name")}
             />
             {errors.name && (
@@ -563,25 +570,25 @@ function ProductsPage() {
             type="submit"
             className="rounded bg-teal-800 px-4 py-2 text-white"
           >
-            Add
+            {t("masters.form.add")}
           </button>
         </div>
         <div className="flex gap-4 text-sm">
           <label className="flex items-center gap-2">
             <input type="checkbox" {...register("trackLot")} />
-            Lot
+            {t("masters.products.trackLot")}
           </label>
           <label className="flex items-center gap-2">
             <input type="checkbox" {...register("trackSerial")} />
-            Serial
+            {t("masters.products.trackSerial")}
           </label>
           <label className="flex items-center gap-2">
             <input type="checkbox" {...register("trackExpiry")} />
-            Expiry
+            {t("masters.products.trackExpiry")}
           </label>
         </div>
       </form>
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t("masters.form.loading")}</p>}
       {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((p) => (
@@ -591,12 +598,12 @@ function ProductsPage() {
             </span>
             <span className="text-slate-500">
               {[
-                p.trackLot && "lot",
-                p.trackSerial && "serial",
-                p.trackExpiry && "expiry",
+                p.trackLot && t("masters.products.trackLot").toLowerCase(),
+                p.trackSerial && t("masters.products.trackSerial").toLowerCase(),
+                p.trackExpiry && t("masters.products.trackExpiry").toLowerCase(),
               ]
                 .filter(Boolean)
-                .join(", ") || "no tracking"}
+                .join(", ") || t("masters.products.noTracking")}
             </span>
           </li>
         ))}
@@ -606,6 +613,7 @@ function ProductsPage() {
 }
 
 function SuppliersPage() {
+  const { t } = useTranslation("masters");
   const { data, isLoading, error } = useSuppliers();
   const create = useCreateSupplier();
   const {
@@ -620,7 +628,7 @@ function SuppliersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Suppliers</h1>
+      <h1 className="text-2xl font-semibold">{t("masters.suppliers.title")}</h1>
       <form
         className="flex flex-wrap items-start gap-2"
         onSubmit={handleSubmit((values) => {
@@ -630,7 +638,7 @@ function SuppliersPage() {
         <div>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Code"
+            placeholder={t("masters.form.code")}
             {...register("code")}
           />
           {errors.code && (
@@ -640,7 +648,7 @@ function SuppliersPage() {
         <div>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Name"
+            placeholder={t("masters.form.name")}
             {...register("name")}
           />
           {errors.name && (
@@ -651,10 +659,10 @@ function SuppliersPage() {
           type="submit"
           className="rounded bg-teal-800 px-4 py-2 text-white"
         >
-          Add
+          {t("masters.form.add")}
         </button>
       </form>
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t("masters.form.loading")}</p>}
       {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((s) => (
@@ -671,6 +679,7 @@ function SuppliersPage() {
 }
 
 function CustomersPage() {
+  const { t } = useTranslation("masters");
   const { data, isLoading, error } = useCustomers();
   const create = useCreateCustomer();
   const {
@@ -685,7 +694,7 @@ function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Customers</h1>
+      <h1 className="text-2xl font-semibold">{t("masters.customers.title")}</h1>
       <form
         className="flex flex-wrap items-start gap-2"
         onSubmit={handleSubmit((values) => {
@@ -695,7 +704,7 @@ function CustomersPage() {
         <div>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Code"
+            placeholder={t("masters.form.code")}
             {...register("code")}
           />
           {errors.code && (
@@ -705,7 +714,7 @@ function CustomersPage() {
         <div>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Name"
+            placeholder={t("masters.form.name")}
             {...register("name")}
           />
           {errors.name && (
@@ -716,10 +725,10 @@ function CustomersPage() {
           type="submit"
           className="rounded bg-teal-800 px-4 py-2 text-white"
         >
-          Add
+          {t("masters.form.add")}
         </button>
       </form>
-      {isLoading && <p>Loading…</p>}
+      {isLoading && <p>{t("masters.form.loading")}</p>}
       {error && <p className="text-red-700">{formatApiError(error)}</p>}
       <ul className="divide-y divide-slate-200 rounded border border-slate-200 bg-white">
         {(data ?? []).map((customer) => (

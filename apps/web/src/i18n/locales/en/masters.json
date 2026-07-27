@@ -1,0 +1,19 @@
+{
+  "masters.dashboard.title": "Dashboard",
+  "masters.dashboard.description": "Manage master data, purchasing, receipts, returns, reservations, outbound documents, and stock from the sidebar.",
+  "masters.branches.title": "Branches",
+  "masters.locations.title": "Locations",
+  "masters.products.title": "Products",
+  "masters.suppliers.title": "Suppliers",
+  "masters.customers.title": "Customers",
+  "masters.form.code": "Code",
+  "masters.form.name": "Name",
+  "masters.form.sku": "SKU",
+  "masters.form.add": "Add",
+  "masters.form.loading": "Loading…",
+  "masters.form.selectBranch": "Select a branch",
+  "masters.products.trackLot": "Lot",
+  "masters.products.trackSerial": "Serial",
+  "masters.products.trackExpiry": "Expiry",
+  "masters.products.noTracking": "no tracking"
+}

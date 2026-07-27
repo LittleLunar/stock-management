@@ -7,6 +7,13 @@ updated: 2026-07-27
 
 # Wiki Log
 
+## [2026-07-27] update | Web app i18n (EN/TH)
+
+Added i18next + react-i18next to `apps/web`: flat dotted keys, `en`/`th`
+catalogs, shell language switcher (`localStorage`), client API error `code`
+mapping, locale-aware date helpers. Updated [[Tech Stack]], [[Getting Started]],
+[[index]]. Spec: `docs/superpowers/specs/2026-07-27-web-i18n-design.md`.
+
 ## [2026-07-27] update | Phase E3 complete (webhooks / FEFO / barcode)
 
 Shipped E3: webhook subscriptions + HMAC-SHA256 deliveries after journals in

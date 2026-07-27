@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   useCreateCustomerReturn,
@@ -31,6 +32,7 @@ const emptyLine = (): ReturnLineDraft => ({
 });
 
 export function CustomerReturnsPage() {
+  const { t } = useTranslation("inventory");
   const { data: returns, isLoading, error } = useCustomerReturns();
   const { data: branches } = useBranches();
   const { data: customers } = useCustomers();
@@ -65,9 +67,7 @@ export function CustomerReturnsPage() {
       !customerId ||
       lines.some((line) => !line.productId)
     ) {
-      toast.error(
-        "Select branch, location, customer, and product for every line",
-      );
+      toast.error(t("inventory.customerReturns.selectRequired"));
       return;
     }
     create.mutate(
@@ -90,7 +90,7 @@ export function CustomerReturnsPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Customer return created");
+          toast.success(t("inventory.customerReturns.createSuccess"));
           setDocumentNumber("");
           setLines([emptyLine()]);
         },
@@ -108,9 +108,11 @@ export function CustomerReturnsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Customer returns</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("inventory.customerReturns.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Restock returned goods into a location. Posting increases on-hand.
+          {t("inventory.customerReturns.description")}
         </p>
       </div>
 
@@ -118,7 +120,9 @@ export function CustomerReturnsPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">New customer return</h2>
+        <h2 className="font-semibold">
+          {t("inventory.customerReturns.newTitle")}
+        </h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <select
             required
@@ -129,7 +133,7 @@ export function CustomerReturnsPage() {
               setLocationId("");
             }}
           >
-            <option value="">Branch</option>
+            <option value="">{t("inventory.customerReturns.branch")}</option>
             {(branches ?? []).map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.code} — {branch.name}
@@ -142,7 +146,7 @@ export function CustomerReturnsPage() {
             value={locationId}
             onChange={(event) => setLocationId(event.target.value)}
           >
-            <option value="">Location</option>
+            <option value="">{t("inventory.customerReturns.location")}</option>
             {(locations ?? []).map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -155,7 +159,7 @@ export function CustomerReturnsPage() {
             value={customerId}
             onChange={(event) => setCustomerId(event.target.value)}
           >
-            <option value="">Customer</option>
+            <option value="">{t("inventory.customerReturns.customer")}</option>
             {(customers ?? []).map((customer) => (
               <option key={customer.id} value={customer.id}>
                 {customer.code} — {customer.name}
@@ -164,7 +168,9 @@ export function CustomerReturnsPage() {
           </select>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Document number (optional)"
+            placeholder={t(
+              "inventory.customerReturns.documentNumberPlaceholder",
+            )}
             value={documentNumber}
             onChange={(event) => setDocumentNumber(event.target.value)}
           />
@@ -182,7 +188,9 @@ export function CustomerReturnsPage() {
                     updateLine(index, "productId", event.target.value)
                   }
                 >
-                  <option value="">Product</option>
+                  <option value="">
+                    {t("inventory.customerReturns.product")}
+                  </option>
                   {(products ?? []).map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.sku} — {product.name}
@@ -193,8 +201,10 @@ export function CustomerReturnsPage() {
                   required
                   inputMode="decimal"
                   className="rounded border border-slate-300 px-3 py-2"
-                  aria-label={`Line ${index + 1} quantity`}
-                  placeholder="Quantity"
+                  aria-label={t("inventory.customerReturns.qtyAria", {
+                    n: index + 1,
+                  })}
+                  placeholder={t("inventory.customerReturns.qtyPlaceholder")}
                   value={line.qty}
                   onChange={(event) =>
                     updateLine(index, "qty", event.target.value)
@@ -204,8 +214,12 @@ export function CustomerReturnsPage() {
                   required
                   inputMode="decimal"
                   className="rounded border border-slate-300 px-3 py-2"
-                  aria-label={`Line ${index + 1} unit cost`}
-                  placeholder="Unit cost"
+                  aria-label={t("inventory.customerReturns.unitCostAria", {
+                    n: index + 1,
+                  })}
+                  placeholder={t(
+                    "inventory.customerReturns.unitCostPlaceholder",
+                  )}
                   value={line.unitCost}
                   onChange={(event) =>
                     updateLine(index, "unitCost", event.target.value)
@@ -221,13 +235,15 @@ export function CustomerReturnsPage() {
                     )
                   }
                 >
-                  Remove
+                  {t("inventory.customerReturns.remove")}
                 </button>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Lot id (optional)"
+                  placeholder={t(
+                    "inventory.customerReturns.lotIdPlaceholder",
+                  )}
                   value={line.lotId}
                   onChange={(event) =>
                     updateLine(index, "lotId", event.target.value)
@@ -235,7 +251,9 @@ export function CustomerReturnsPage() {
                 />
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Serials, comma separated"
+                  placeholder={t(
+                    "inventory.customerReturns.serialsPlaceholder",
+                  )}
                   value={line.serialNumbers}
                   onChange={(event) =>
                     updateLine(index, "serialNumbers", event.target.value)
@@ -252,31 +270,45 @@ export function CustomerReturnsPage() {
             className="rounded border border-slate-300 px-4 py-2 text-sm"
             onClick={() => setLines((current) => [...current, emptyLine()])}
           >
-            Add line
+            {t("inventory.customerReturns.addLine")}
           </button>
           <button
             type="submit"
             disabled={create.isPending}
             className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {create.isPending ? "Creating…" : "Create draft"}
+            {create.isPending
+              ? t("inventory.customerReturns.creating")
+              : t("inventory.customerReturns.createDraft")}
           </button>
         </div>
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Returns</h2>
-        {isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">
+          {t("inventory.customerReturns.listTitle")}
+        </h2>
+        {isLoading ? <p>{t("inventory.customerReturns.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Document</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">
+                  {t("inventory.customerReturns.col.document")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.customerReturns.col.customer")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.customerReturns.col.branch")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.customerReturns.col.location")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.customerReturns.col.status")}
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -303,12 +335,14 @@ export function CustomerReturnsPage() {
                             { id: doc.id },
                             {
                               onSuccess: () =>
-                                toast.success("Customer return posted"),
+                                toast.success(
+                                  t("inventory.customerReturns.postSuccess"),
+                                ),
                             },
                           )
                         }
                       >
-                        Post
+                        {t("inventory.customerReturns.post")}
                       </button>
                     ) : null}
                     {doc.status === "posted" ? (
@@ -319,11 +353,13 @@ export function CustomerReturnsPage() {
                         onClick={() =>
                           voidReturn.mutate(doc.id, {
                             onSuccess: () =>
-                              toast.success("Customer return voided"),
+                              toast.success(
+                                t("inventory.customerReturns.voidSuccess"),
+                              ),
                           })
                         }
                       >
-                        Void
+                        {t("inventory.customerReturns.void")}
                       </button>
                     ) : null}
                   </td>

@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCostLayers } from "../hooks/costing";
 import { useStockBalances, useStockMovements } from "../hooks/inventory";
 import { useLocations, useProducts } from "../hooks/masters";
+import { formatDateTime } from "../i18n/format";
 import { formatApiError } from "../lib/errors";
 
 type CostLayerRow = {
@@ -14,6 +16,7 @@ type CostLayerRow = {
 };
 
 export function StockPage() {
+  const { t } = useTranslation("inventory");
   const { data: products } = useProducts();
   const { data: locations } = useLocations();
   const [productId, setProductId] = useState("");
@@ -40,10 +43,9 @@ export function StockPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Stock inquiry</h1>
+        <h1 className="text-2xl font-semibold">{t("inventory.stock.title")}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Inspect balances (on hand, reserved, available) and the immutable
-          movement ledger.
+          {t("inventory.stock.description")}
         </p>
       </div>
 
@@ -53,7 +55,7 @@ export function StockPage() {
           value={productId}
           onChange={(event) => setProductId(event.target.value)}
         >
-          <option value="">All products</option>
+          <option value="">{t("inventory.stock.allProducts")}</option>
           {(products ?? []).map((product) => (
             <option key={product.id} value={product.id}>
               {product.sku} — {product.name}
@@ -65,7 +67,7 @@ export function StockPage() {
           value={locationId}
           onChange={(event) => setLocationId(event.target.value)}
         >
-          <option value="">All locations</option>
+          <option value="">{t("inventory.stock.allLocations")}</option>
           {(locations ?? []).map((location) => (
             <option key={location.id} value={location.id}>
               {location.code} — {location.name}
@@ -78,13 +80,13 @@ export function StockPage() {
             checked={lowStock}
             onChange={(event) => setLowStock(event.target.checked)}
           />
-          Low stock only
+          {t("inventory.stock.lowStockOnly")}
         </label>
       </div>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Balances</h2>
-        {balances.isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">{t("inventory.stock.balances")}</h2>
+        {balances.isLoading ? <p>{t("inventory.stock.loading")}</p> : null}
         {balances.error ? (
           <p className="text-red-700">{formatApiError(balances.error)}</p>
         ) : null}
@@ -92,12 +94,18 @@ export function StockPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Lot</th>
-                <th className="px-4 py-3 text-right">On hand</th>
-                <th className="px-4 py-3 text-right">Reserved</th>
-                <th className="px-4 py-3 text-right">Available</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.product")}</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.location")}</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.lot")}</th>
+                <th className="px-4 py-3 text-right">
+                  {t("inventory.stock.col.onHand")}
+                </th>
+                <th className="px-4 py-3 text-right">
+                  {t("inventory.stock.col.reserved")}
+                </th>
+                <th className="px-4 py-3 text-right">
+                  {t("inventory.stock.col.available")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -133,15 +141,15 @@ export function StockPage() {
           </table>
           {!balances.isLoading && (balances.data?.length ?? 0) === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-500">
-              No balances match these filters.
+              {t("inventory.stock.emptyBalances")}
             </p>
           ) : null}
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Movements</h2>
-        {movements.isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">{t("inventory.stock.movements")}</h2>
+        {movements.isLoading ? <p>{t("inventory.stock.loading")}</p> : null}
         {movements.error ? (
           <p className="text-red-700">{formatApiError(movements.error)}</p>
         ) : null}
@@ -149,19 +157,21 @@ export function StockPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Time</th>
-                <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Document</th>
-                <th className="px-4 py-3 text-right">Quantity</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.time")}</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.product")}</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.location")}</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.type")}</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.document")}</th>
+                <th className="px-4 py-3 text-right">
+                  {t("inventory.stock.col.quantity")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {(movements.data ?? []).map((movement) => (
                 <tr key={movement.id}>
                   <td className="whitespace-nowrap px-4 py-3">
-                    {new Date(movement.createdAt).toLocaleString()}
+                    {formatDateTime(movement.createdAt)}
                   </td>
                   <td className="px-4 py-3 font-medium">
                     {productName(movement.productId)}
@@ -182,15 +192,15 @@ export function StockPage() {
           </table>
           {!movements.isLoading && (movements.data?.length ?? 0) === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-slate-500">
-              No movements match these filters.
+              {t("inventory.stock.emptyMovements")}
             </p>
           ) : null}
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Open cost layers</h2>
-        {costLayers.isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">{t("inventory.stock.openCostLayers")}</h2>
+        {costLayers.isLoading ? <p>{t("inventory.stock.loading")}</p> : null}
         {costLayers.error ? (
           <p className="text-red-700">{formatApiError(costLayers.error)}</p>
         ) : null}
@@ -198,11 +208,15 @@ export function StockPage() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b">
-                <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Received</th>
-                <th className="px-4 py-3 text-right">Qty rem</th>
-                <th className="px-4 py-3 text-right">Unit cost</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.product")}</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.location")}</th>
+                <th className="px-4 py-3">{t("inventory.stock.col.received")}</th>
+                <th className="px-4 py-3 text-right">
+                  {t("inventory.stock.col.qtyRem")}
+                </th>
+                <th className="px-4 py-3 text-right">
+                  {t("inventory.stock.col.unitCost")}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -213,7 +227,7 @@ export function StockPage() {
                     {locationName(layer.locationId)}
                   </td>
                   <td className="px-4 py-3">
-                    {new Date(layer.receivedAt).toLocaleString()}
+                    {formatDateTime(layer.receivedAt)}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {layer.qtyRemaining}
