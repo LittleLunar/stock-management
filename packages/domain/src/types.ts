@@ -10,18 +10,28 @@ export type CostingMethod = "fifo" | "avg";
 export type PoStatus =
   | "draft"
   | "submitted"
+  | "approved"
   | "partially_received"
   | "received"
   | "closed"
   | "cancelled";
 
-export type DocumentStatus = "draft" | "posted" | "void";
+export type DocumentStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "posted"
+  | "void";
+
+export type ApprovalDocumentType = "purchase_order" | "stock_adjustment";
 
 export const ISSUE_TYPES = ["consume", "sample", "write_off", "other"] as const;
 
 export type IssueType = (typeof ISSUE_TYPES)[number];
 
 export type TransferStatus = "draft" | "in_transit" | "received" | "void";
+
+export type TransferPurpose = "standard" | "replenishment";
 
 export type LotStatus = "active" | "depleted" | "quarantine";
 
@@ -75,3 +85,5 @@ export const JOURNAL_EVENT_TYPES = [
 export type JournalEventType = (typeof JOURNAL_EVENT_TYPES)[number];
 
 export type SupplierInvoiceStatus = "draft" | "posted" | "voided";
+
+export type WebhookDeliveryStatus = "pending" | "succeeded" | "failed";

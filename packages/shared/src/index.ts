@@ -7,6 +7,9 @@ export {
   CostingMethodSchema,
   PoStatusSchema,
   DocumentStatusSchema,
+  ApprovalDocumentTypeSchema,
+  UpsertApprovalPolicySchema,
+  TransferPurposeSchema,
   UuidSchema,
   type MasterStatus,
   type LocationType,
@@ -14,6 +17,9 @@ export {
   type CostingMethod,
   type PoStatus,
   type DocumentStatus,
+  type ApprovalDocumentType,
+  type UpsertApprovalPolicy,
+  type TransferPurpose,
 } from "./enums.js";
 
 export {
@@ -273,6 +279,18 @@ export const CreateMembershipSchema = z.object({
 });
 export type CreateMembership = z.infer<typeof CreateMembershipSchema>;
 
+export const MembershipSchema = z.object({
+  id: UuidSchema,
+  orgId: UuidSchema,
+  userId: UuidSchema,
+  role: MembershipRoleSchema,
+  status: MasterStatusSchema,
+  branchIds: z.array(UuidSchema),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+export type MembershipDto = z.infer<typeof MembershipSchema>;
+
 export const HealthResponseSchema = z.object({
   ok: z.literal(true),
 });
@@ -339,3 +357,10 @@ export {
   type SupplierInvoiceIdParams,
   type ApAgingQuery,
 } from "./ap.js";
+
+export {
+  CreateWebhookSubscriptionSchema,
+  UpdateWebhookSubscriptionSchema,
+  type CreateWebhookSubscription,
+  type UpdateWebhookSubscription,
+} from "./webhooks.js";

@@ -9,6 +9,7 @@ import {
   CostSummariesQuerySchema,
   ValuationQuerySchema,
 } from "@stock-management/shared";
+import { effectiveReportBranchId } from "./branch-scope.js";
 
 export type CostReportRouteUseCases = {
   valuationReport: ValuationReportUseCases;
@@ -22,12 +23,18 @@ export function costReportsRoutes(
   return async (app) => {
     app.get("/cost-reports/valuation", async (request) => {
       const query = ValuationQuerySchema.parse(request.query);
-      return useCases.valuationReport.listValuation(request.ctx.orgId, query);
+      return useCases.valuationReport.listValuation(request.ctx.orgId, {
+        ...query,
+        branchId: effectiveReportBranchId(request.ctx, query.branchId),
+      });
     });
 
     app.get("/cost-reports/cogs", async (request) => {
       const query = CogsQuerySchema.parse(request.query);
-      return useCases.cogsReport.listCogs(request.ctx.orgId, query);
+      return useCases.cogsReport.listCogs(request.ctx.orgId, {
+        ...query,
+        branchId: effectiveReportBranchId(request.ctx, query.branchId),
+      });
     });
 
     app.get("/stock/cost-summaries", async (request) => {

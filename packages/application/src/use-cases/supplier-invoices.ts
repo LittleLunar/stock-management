@@ -4,6 +4,7 @@ import {
   assertLineAmount,
   ThreeWayMatchError,
 } from "@stock-management/domain";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type {
   ApPort,
   CreateSupplierInvoiceInput,
@@ -14,8 +15,8 @@ import type {
 export class SupplierInvoiceUseCases {
   constructor(private readonly ap: ApPort) {}
 
-  list(orgId: string) {
-    return this.ap.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.ap.list(orgId, filter);
   }
 
   async get(orgId: string, id: string): Promise<SupplierInvoiceWithLines> {

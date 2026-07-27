@@ -20,20 +20,28 @@ import type {
   StockTransfer,
 } from "@stock-management/domain";
 import { stockTransfersRoutes } from "./stock-transfers.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import {
+  createContextPlugin,
+  createTestContextPlugin,
+} from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
 const ORG_ID = "00000000-0000-4000-8000-000000000001";
 const USER_ID = "00000000-0000-4000-8000-000000000002";
 const BRANCH_ID = "00000000-0000-4000-8000-000000000003";
+const STORE_BRANCH_ID = "00000000-0000-4000-8000-000000000013";
 const FROM_LOCATION_ID = "00000000-0000-4000-8000-000000000004";
 const TO_LOCATION_ID = "00000000-0000-4000-8000-000000000005";
 const TRANSIT_LOCATION_ID = "00000000-0000-4000-8000-000000000006";
 const PRODUCT_ID = "00000000-0000-4000-8000-000000000007";
 const now = new Date("2026-07-26T00:00:00.000Z");
 
-function makeHarness(transitType: Location["type"] = "transit") {
+function makeHarness(
+  transitType: Location["type"] = "transit",
+  options: { toBranchId?: string } = {},
+) {
+  const toBranchId = options.toBranchId ?? BRANCH_ID;
   const product: Product = {
     id: PRODUCT_ID,
     orgId: ORG_ID,
@@ -53,18 +61,21 @@ function makeHarness(transitType: Location["type"] = "transit") {
   };
   const locations = new Map<string, Location>(
     [
-      [FROM_LOCATION_ID, "storage"],
-      [TO_LOCATION_ID, "storage"],
-      [TRANSIT_LOCATION_ID, transitType],
-    ].map(([id, type]) => [
+      [FROM_LOCATION_ID, { type: "storage" as const, branchId: BRANCH_ID }],
+      [TO_LOCATION_ID, { type: "storage" as const, branchId: toBranchId }],
+      [
+        TRANSIT_LOCATION_ID,
+        { type: transitType, branchId: BRANCH_ID },
+      ],
+    ].map(([id, meta]) => [
       id,
       {
         id,
         orgId: ORG_ID,
-        branchId: BRANCH_ID,
+        branchId: meta.branchId,
         code: `LOC-${id.slice(-1)}`,
         name: `Location ${id.slice(-1)}`,
-        type,
+        type: meta.type,
         status: "active",
         createdAt: now,
         updatedAt: now,
@@ -120,6 +131,9 @@ function makeHarness(transitType: Location["type"] = "transit") {
       return transfer?.orgId === orgId ? transfer : null;
     },
     async create(orgId, input) {
+      const from = locations.get(input.fromLocationId);
+      const to = locations.get(input.toLocationId);
+      if (!from || !to) throw new Error("Location not found");
       const id = randomUUID();
       const transfer: StockTransferWithLines = {
         id,
@@ -127,6 +141,9 @@ function makeHarness(transitType: Location["type"] = "transit") {
         fromLocationId: input.fromLocationId,
         toLocationId: input.toLocationId,
         transitLocationId: input.transitLocationId,
+        fromBranchId: from.branchId,
+        toBranchId: to.branchId,
+        purpose: input.purpose ?? "standard",
         documentNumber: input.documentNumber ?? null,
         status: "draft",
         createdAt: now,
@@ -151,9 +168,24 @@ function makeHarness(transitType: Location["type"] = "transit") {
     async update(orgId, id, input) {
       const current = await transferRepo.findById(orgId, id);
       if (!current) return null;
+      const fromLocationId = input.fromLocationId ?? current.fromLocationId;
+      const toLocationId = input.toLocationId ?? current.toLocationId;
+      const from = locations.get(fromLocationId);
+      const to = locations.get(toLocationId);
+      if (!from || !to) throw new Error("Location not found");
       const updated: StockTransferWithLines = {
         ...current,
-        ...input,
+        fromLocationId,
+        toLocationId,
+        transitLocationId:
+          input.transitLocationId ?? current.transitLocationId,
+        fromBranchId: from.branchId,
+        toBranchId: to.branchId,
+        purpose: input.purpose ?? current.purpose,
+        documentNumber:
+          input.documentNumber !== undefined
+            ? input.documentNumber
+            : current.documentNumber,
         lines:
           input.lines?.map((line) => ({
             id: line.id ?? randomUUID(),
@@ -302,13 +334,20 @@ function makeHarness(transitType: Location["type"] = "transit") {
   } as unknown as UowContext;
   const uow: UnitOfWork = { run: (fn) => fn(ctx) };
   const useCases = {
-    stockTransfers: new StockTransferUseCases(transferRepo),
+    stockTransfers: new StockTransferUseCases(transferRepo, {
+      async findById(orgId: string, id: string) {
+        const location = locations.get(id);
+        return location?.orgId === orgId ? location : null;
+      },
+    }),
     shipStockTransfer: new ShipStockTransfer(uow),
     receiveStockTransfer: new ReceiveStockTransfer(uow),
     voidStockTransfer: new VoidStockTransfer(uow),
   };
 
-  async function buildApp() {
+  async function buildApp(
+    contextPlugin: ReturnType<typeof createTestContextPlugin> = createTestContextPlugin(),
+  ) {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
@@ -321,6 +360,7 @@ function makeHarness(transitType: Location["type"] = "transit") {
     buildApp,
     getBalance: (locationId: string) => balances.get(locationId),
     getMovements: () => movements,
+    transferCount: () => transfers.size,
   };
 }
 
@@ -340,8 +380,11 @@ describe("stock transfer routes", () => {
     await Promise.all(apps.splice(0).map((app) => app.close()));
   });
 
-  async function setup(transitType: Location["type"] = "transit") {
-    const harness = makeHarness(transitType);
+  async function setup(
+    transitType: Location["type"] = "transit",
+    options: { toBranchId?: string } = {},
+  ) {
+    const harness = makeHarness(transitType, options);
     const app = await harness.buildApp();
     apps.push(app);
     return { app, harness };
@@ -488,5 +531,161 @@ describe("stock transfer routes", () => {
     });
     expect(harness.getBalance(FROM_LOCATION_ID)?.qtyOnHand).toBe("10");
     expect(harness.getMovements()).toHaveLength(0);
+  });
+
+  it("creates a replenishment transfer when branches differ", async () => {
+    const { app } = await setup("transit", { toBranchId: STORE_BRANCH_ID });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/stock-transfers",
+      headers,
+      payload: {
+        ...draftPayload,
+        purpose: "replenishment",
+      },
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json<StockTransferWithLines>()).toMatchObject({
+      purpose: "replenishment",
+      fromBranchId: BRANCH_ID,
+      toBranchId: STORE_BRANCH_ID,
+    });
+  });
+
+  it("rejects replenishment when from and to share a branch", async () => {
+    const { app } = await setup();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/stock-transfers",
+      headers,
+      payload: {
+        ...draftPayload,
+        purpose: "replenishment",
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: { code: "INVALID_STATE" },
+    });
+  });
+
+  it("defaults purpose to standard on create", async () => {
+    const { app } = await setup();
+    const created = await createDraft(app);
+    expect(created.purpose).toBe("standard");
+    expect(created.fromBranchId).toBe(BRANCH_ID);
+    expect(created.toBranchId).toBe(BRANCH_ID);
+  });
+
+  it("rejects replenishment when caller lacks toBranch grant without creating a row", async () => {
+    const harness = makeHarness("transit", { toBranchId: STORE_BRANCH_ID });
+    const branchScopedContext = createContextPlugin({
+      findActiveByUser: async (orgId, userId) => ({
+        id: "00000000-0000-4000-8000-ffffffffbbbb",
+        orgId,
+        userId,
+        role: "warehouse",
+        status: "active",
+        branchIds: [BRANCH_ID],
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      }),
+    });
+    const app = await harness.buildApp(branchScopedContext);
+    apps.push(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/stock-transfers",
+      headers,
+      payload: {
+        ...draftPayload,
+        purpose: "replenishment",
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: { code: "FORBIDDEN" },
+    });
+    expect(harness.transferCount()).toBe(0);
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/v1/stock-transfers",
+      headers,
+    });
+    expect(list.json<StockTransfer[]>()).toHaveLength(0);
+  });
+
+  it("returns 403 when branch-scoped user ships another branch's transfer", async () => {
+    const harness = makeHarness();
+    const hqApp = await harness.buildApp();
+    apps.push(hqApp);
+    const created = await createDraft(hqApp);
+
+    const otherBranchContext = createContextPlugin({
+      findActiveByUser: async (orgId, userId) => ({
+        id: "00000000-0000-4000-8000-ffffffffcccc",
+        orgId,
+        userId,
+        role: "warehouse",
+        status: "active",
+        branchIds: [STORE_BRANCH_ID],
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      }),
+    });
+    const scopedApp = await harness.buildApp(otherBranchContext);
+    apps.push(scopedApp);
+
+    const response = await scopedApp.inject({
+      method: "POST",
+      url: `/api/v1/stock-transfers/${created.id}/ship`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: { code: "FORBIDDEN" },
+    });
+    expect(harness.getBalance(FROM_LOCATION_ID)?.qtyOnHand).toBe("10");
+    expect(harness.getMovements()).toHaveLength(0);
+  });
+
+  it("returns 403 when branch-scoped user gets a transfer outside from/to branches", async () => {
+    const harness = makeHarness();
+    const hqApp = await harness.buildApp();
+    apps.push(hqApp);
+    const created = await createDraft(hqApp);
+
+    const otherBranchContext = createContextPlugin({
+      findActiveByUser: async (orgId, userId) => ({
+        id: "00000000-0000-4000-8000-ffffffffdddd",
+        orgId,
+        userId,
+        role: "warehouse",
+        status: "active",
+        branchIds: [STORE_BRANCH_ID],
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      }),
+    });
+    const scopedApp = await harness.buildApp(otherBranchContext);
+    apps.push(scopedApp);
+
+    const response = await scopedApp.inject({
+      method: "GET",
+      url: `/api/v1/stock-transfers/${created.id}`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      error: { code: "FORBIDDEN" },
+    });
   });
 });

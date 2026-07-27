@@ -5,12 +5,16 @@ import {
   AllocationMismatchError,
   ConflictError,
   DomainError,
+  ForbiddenError,
   InsufficientCostError,
   InsufficientStockError,
   InvoiceAlreadyVoidedError,
   InvoiceNotDraftError,
   InvoiceNotPostedError,
   LayerInUseError,
+  LocationQuarantinedError,
+  LotExpiredError,
+  LotQuarantinedError,
   MissingUnitCostError,
   NotFoundError,
   PeriodClosedError,
@@ -53,13 +57,22 @@ export function registerErrorHandler(app: FastifyInstance): void {
         .send(envelope(request, error.code, error.message));
     }
 
+    if (error instanceof ForbiddenError) {
+      return reply
+        .status(403)
+        .send(envelope(request, error.code, error.message));
+    }
+
     if (
       error instanceof ConflictError ||
       error instanceof LayerInUseError ||
       error instanceof PeriodClosedError ||
       error instanceof InvoiceNotDraftError ||
       error instanceof InvoiceNotPostedError ||
-      error instanceof InvoiceAlreadyVoidedError
+      error instanceof InvoiceAlreadyVoidedError ||
+      error instanceof LotExpiredError ||
+      error instanceof LotQuarantinedError ||
+      error instanceof LocationQuarantinedError
     ) {
       return reply
         .status(409)

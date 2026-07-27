@@ -11,6 +11,10 @@ import {
   StockAdjustmentIdParamsSchema,
   UpdateStockAdjustmentSchema,
 } from "@stock-management/shared";
+import {
+  assertDocumentBranchWrite,
+  listFilterFromContext,
+} from "./branch-scope.js";
 
 export type StockAdjustmentRouteUseCases = {
   stockAdjustments: StockAdjustmentUseCases;
@@ -23,7 +27,10 @@ export function stockAdjustmentsRoutes(
 ): FastifyPluginAsync {
   return async (app) => {
     app.get("/stock-adjustments", async (request) =>
-      useCases.stockAdjustments.list(request.ctx.orgId),
+      useCases.stockAdjustments.list(
+        request.ctx.orgId,
+        listFilterFromContext(request.ctx),
+      ),
     );
 
     app.get<{ Params: { id: string } }>(
@@ -36,6 +43,12 @@ export function stockAdjustmentsRoutes(
 
     app.post("/stock-adjustments", async (request) => {
       const body = CreateStockAdjustmentSchema.parse(request.body);
+      assertDocumentBranchWrite(
+        request.ctx,
+        "inventory.post",
+        body.branchId,
+        "Role cannot post inventory documents",
+      );
       return useCases.stockAdjustments.create(request.ctx.orgId, body);
     });
 
@@ -44,7 +57,50 @@ export function stockAdjustmentsRoutes(
       async (request) => {
         const { id } = StockAdjustmentIdParamsSchema.parse(request.params);
         const body = UpdateStockAdjustmentSchema.parse(request.body);
+        const existing = await useCases.stockAdjustments.get(
+          request.ctx.orgId,
+          id,
+        );
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          body.branchId ?? existing.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.stockAdjustments.update(request.ctx.orgId, id, body);
+      },
+    );
+
+    app.post<{ Params: { id: string } }>(
+      "/stock-adjustments/:id/submit",
+      async (request) => {
+        const { id } = StockAdjustmentIdParamsSchema.parse(request.params);
+        const doc = await useCases.stockAdjustments.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
+        return useCases.stockAdjustments.submitForApproval(
+          request.ctx.orgId,
+          id,
+        );
+      },
+    );
+
+    app.post<{ Params: { id: string } }>(
+      "/stock-adjustments/:id/approve",
+      async (request) => {
+        const { id } = StockAdjustmentIdParamsSchema.parse(request.params);
+        const doc = await useCases.stockAdjustments.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "document.approve",
+          doc.branchId,
+          "Role cannot approve documents",
+        );
+        return useCases.stockAdjustments.approve(request.ctx.orgId, id);
       },
     );
 
@@ -52,6 +108,13 @@ export function stockAdjustmentsRoutes(
       "/stock-adjustments/:id/post",
       async (request) => {
         const { id } = StockAdjustmentIdParamsSchema.parse(request.params);
+        const doc = await useCases.stockAdjustments.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         const body = PostStockAdjustmentSchema.parse(request.body ?? {});
         const headerKey = PostStockAdjustmentHeadersSchema.parse(
           request.headers,
@@ -76,6 +139,13 @@ export function stockAdjustmentsRoutes(
       "/stock-adjustments/:id/void",
       async (request) => {
         const { id } = StockAdjustmentIdParamsSchema.parse(request.params);
+        const doc = await useCases.stockAdjustments.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.voidStockAdjustment.execute(
           request.ctx.orgId,
           request.ctx.userId,

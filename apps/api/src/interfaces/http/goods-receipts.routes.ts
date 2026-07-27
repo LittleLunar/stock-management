@@ -11,6 +11,10 @@ import {
   PostGoodsReceiptSchema,
   UpdateGoodsReceiptSchema,
 } from "@stock-management/shared";
+import {
+  assertDocumentBranchWrite,
+  listFilterFromContext,
+} from "./branch-scope.js";
 
 export type GoodsReceiptRouteUseCases = {
   goodsReceipts: GoodsReceiptUseCases;
@@ -23,7 +27,10 @@ export function goodsReceiptsRoutes(
 ): FastifyPluginAsync {
   return async (app) => {
     app.get("/goods-receipts", async (request) =>
-      useCases.goodsReceipts.list(request.ctx.orgId),
+      useCases.goodsReceipts.list(
+        request.ctx.orgId,
+        listFilterFromContext(request.ctx),
+      ),
     );
 
     app.get<{ Params: { id: string } }>(
@@ -36,6 +43,12 @@ export function goodsReceiptsRoutes(
 
     app.post("/goods-receipts", async (request) => {
       const body = CreateGoodsReceiptSchema.parse(request.body);
+      assertDocumentBranchWrite(
+        request.ctx,
+        "inventory.post",
+        body.branchId,
+        "Role cannot post inventory documents",
+      );
       return useCases.goodsReceipts.create(request.ctx.orgId, body);
     });
 
@@ -44,6 +57,16 @@ export function goodsReceiptsRoutes(
       async (request) => {
         const { id } = GoodsReceiptIdParamsSchema.parse(request.params);
         const body = UpdateGoodsReceiptSchema.parse(request.body);
+        const existing = await useCases.goodsReceipts.get(
+          request.ctx.orgId,
+          id,
+        );
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          body.branchId ?? existing.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.goodsReceipts.update(request.ctx.orgId, id, body);
       },
     );
@@ -52,6 +75,13 @@ export function goodsReceiptsRoutes(
       "/goods-receipts/:id/post",
       async (request) => {
         const { id } = GoodsReceiptIdParamsSchema.parse(request.params);
+        const doc = await useCases.goodsReceipts.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         const body = PostGoodsReceiptSchema.parse(request.body ?? {});
         const headerKey = PostGoodsReceiptHeadersSchema.parse(request.headers);
         const externalSystem =
@@ -74,6 +104,13 @@ export function goodsReceiptsRoutes(
       "/goods-receipts/:id/void",
       async (request) => {
         const { id } = GoodsReceiptIdParamsSchema.parse(request.params);
+        const doc = await useCases.goodsReceipts.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.voidGoodsReceipt.execute(
           request.ctx.orgId,
           request.ctx.userId,

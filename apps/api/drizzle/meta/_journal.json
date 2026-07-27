@@ -64,6 +64,27 @@
       "when": 1785083600000,
       "tag": "0008_phase_d2_ap",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785153600000,
+      "tag": "0009_phase_e1_branch_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785160800000,
+      "tag": "0010_phase_e2_ops_approvals",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785168000000,
+      "tag": "0011_phase_e3_webhooks",
+      "breakpoints": true
     }
   ]
 }

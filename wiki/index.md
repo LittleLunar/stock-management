@@ -2,7 +2,7 @@
 tags:
   - wiki/index
 created: 2026-07-25
-updated: 2026-07-26
+updated: 2026-07-27
 ---
 
 # Wiki Index
@@ -40,7 +40,7 @@ updated: 2026-07-26
 - [[Phase B]] — internal inventory loop (**complete** B1–B3 qty loop)
 - [[Phase C]] — costing (**complete** C1–C3)
 - [[Phase D]] — accounting (**complete** D1–D3)
-- [[Phase E]] — multi-branch hardening (next; unblocked)
+- [[Phase E]] — multi-branch hardening (**complete** E1–E3)
 - [[Phase F]] — POS and channels
 
 ## Flows

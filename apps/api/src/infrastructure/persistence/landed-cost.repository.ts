@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CreateLandedCostInput,
   LandedCostDocument,
   LandedCostLine,
@@ -16,11 +17,18 @@ export class DrizzleLandedCostRepository implements LandedCostPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  async list(orgId: string): Promise<LandedCostDocument[]> {
+  async list(
+    orgId: string,
+    filter?: BranchListFilter,
+  ): Promise<LandedCostDocument[]> {
+    const conditions = [eq(landedCostDocuments.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(landedCostDocuments.branchId, filter.branchId));
+    }
     const headers = await this.db
       .select()
       .from(landedCostDocuments)
-      .where(eq(landedCostDocuments.orgId, orgId));
+      .where(and(...conditions));
     const result: LandedCostDocument[] = [];
     for (const header of headers) {
       result.push(await this.hydrate(header as typeof headers[number]));

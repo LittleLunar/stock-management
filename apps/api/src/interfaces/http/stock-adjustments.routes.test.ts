@@ -2,23 +2,28 @@ import Fastify from "fastify";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  ApprovalPolicyUseCases,
   PostStockAdjustment,
   StockAdjustmentUseCases,
   VoidStockAdjustment,
   createFakeCosting,
+  type ApprovalPolicyPort,
   type IdempotencyRecord,
   type StockAdjustmentWithLines,
   type UnitOfWork,
   type UowContext,
 } from "@stock-management/application";
 import type {
+  ApprovalDocumentType,
+  ApprovalPolicy,
+  Location,
   Product,
   StockAdjustment,
   StockBalance,
   StockMovement,
 } from "@stock-management/domain";
 import { stockAdjustmentsRoutes } from "./stock-adjustments.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -28,6 +33,48 @@ const BRANCH_ID = "00000000-0000-4000-8000-000000000003";
 const LOCATION_ID = "00000000-0000-4000-8000-000000000004";
 const PRODUCT_ID = "00000000-0000-4000-8000-000000000005";
 const now = new Date("2026-07-26T00:00:00.000Z");
+
+function createPermissiveApprovalPolicies(): ApprovalPolicyUseCases {
+  const rows = new Map<string, ApprovalPolicy>();
+  const key = (orgId: string, documentType: ApprovalDocumentType) =>
+    `${orgId}:${documentType}`;
+  for (const documentType of [
+    "purchase_order",
+    "stock_adjustment",
+  ] as const) {
+    rows.set(key(ORG_ID, documentType), {
+      id: `pol-${documentType}`,
+      orgId: ORG_ID,
+      documentType,
+      required: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  const port: ApprovalPolicyPort = {
+    async list(orgId) {
+      return [...rows.values()].filter((r) => r.orgId === orgId);
+    },
+    async findByDocumentType(orgId, documentType) {
+      return rows.get(key(orgId, documentType)) ?? null;
+    },
+    async upsert(orgId, documentType, required) {
+      const id = key(orgId, documentType);
+      const existing = rows.get(id);
+      const row: ApprovalPolicy = {
+        id: existing?.id ?? `pol-${documentType}`,
+        orgId,
+        documentType,
+        required,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      };
+      rows.set(id, row);
+      return row;
+    },
+  };
+  return new ApprovalPolicyUseCases(port);
+}
 
 function createInMemoryCosting() {
   return createFakeCosting();
@@ -47,6 +94,17 @@ function makeHarness(onHand = "10") {
     costingMethod: "fifo",
     reorderMin: null,
     reorderMax: null,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const location: Location = {
+    id: LOCATION_ID,
+    orgId: ORG_ID,
+    branchId: BRANCH_ID,
+    code: "MAIN",
+    name: "Main storage",
+    type: "storage",
     status: "active",
     createdAt: now,
     updatedAt: now,
@@ -167,6 +225,25 @@ function makeHarness(onHand = "10") {
         return id === product.id ? product : null;
       },
     },
+    locations: {
+      async findById(orgId: string, id: string) {
+        return orgId === ORG_ID && id === location.id ? location : null;
+      },
+      async list() {
+        return [location];
+      },
+    },
+    lots: {
+      async upsert() {
+        throw new Error("Unexpected lot upsert");
+      },
+      async findById() {
+        return null;
+      },
+      async list() {
+        return [];
+      },
+    },
     stock: {
       async findBalance() {
         return balance;
@@ -262,7 +339,10 @@ function makeHarness(onHand = "10") {
   const uow: UnitOfWork = { run: (fn) => fn(ctx) };
   const useCases = {
     stockAdjustments: new StockAdjustmentUseCases(adjustmentRepo),
-    postStockAdjustment: new PostStockAdjustment(uow),
+    postStockAdjustment: new PostStockAdjustment(
+      uow,
+      createPermissiveApprovalPolicies(),
+    ),
     voidStockAdjustment: new VoidStockAdjustment(uow),
   };
 
@@ -270,7 +350,7 @@ function makeHarness(onHand = "10") {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(stockAdjustmentsRoutes(useCases), { prefix: "/api/v1" });
     return app;
   }
@@ -403,5 +483,26 @@ describe("stock adjustment routes", () => {
     });
     expect(harness.getBalance().qtyOnHand).toBe("2");
     expect(harness.getMovements()).toHaveLength(0);
+  });
+
+  it("supports submit and approve before post", async () => {
+    const { app } = await setup();
+    const created = await createDraft(app);
+
+    const submit = await app.inject({
+      method: "POST",
+      url: `/api/v1/stock-adjustments/${created.id}/submit`,
+      headers,
+    });
+    expect(submit.statusCode).toBe(200);
+    expect(submit.json()).toMatchObject({ status: "pending_approval" });
+
+    const approve = await app.inject({
+      method: "POST",
+      url: `/api/v1/stock-adjustments/${created.id}/approve`,
+      headers,
+    });
+    expect(approve.statusCode).toBe(200);
+    expect(approve.json()).toMatchObject({ status: "approved" });
   });
 });

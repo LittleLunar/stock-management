@@ -10,7 +10,9 @@ import {
   CustomerReturnUseCases,
   CustomerUseCases,
   CommitReservation,
+  type MembershipAccessPort,
   EnsureDefaultChartOfAccounts,
+  ExpireReservations,
   GoodsReceiptUseCases,
   JournalUseCases,
   LandedCostUseCases,
@@ -25,6 +27,7 @@ import {
   PostStockIssue,
   PostSupplierReturn,
   ProcessOutboxForJournals,
+  ProcessOutboxForWebhooks,
   ProductUseCases,
   PurchaseOrderUseCases,
   ReceiveStockTransfer,
@@ -57,12 +60,16 @@ import {
   PeriodCloseChecklistUseCase,
   PnlReportUseCase,
   TrialBalanceUseCase,
+  ApprovalPolicyUseCases,
+  WebhookSubscriptionUseCases,
+  type HttpPoster,
 } from "@stock-management/application";
 import { NotFoundError } from "@stock-management/domain";
 import type { Db } from "../infrastructure/db/client.js";
 import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
+import { DrizzleApprovalPolicyRepository } from "../infrastructure/persistence/approval-policy.repository.js";
 import { DrizzleBranchRepository } from "../infrastructure/persistence/branch.repository.js";
 import { DrizzleCategoryRepository } from "../infrastructure/persistence/category.repository.js";
 import { DrizzleCogsMovementSource } from "../infrastructure/persistence/cogs-movement.repository.js";
@@ -88,6 +95,13 @@ import { DrizzleSupplierRepository } from "../infrastructure/persistence/supplie
 import { DrizzleSupplierReturnRepository } from "../infrastructure/persistence/supplier-return.repository.js";
 import { DrizzleUnitOfWork } from "../infrastructure/persistence/unit-of-work.js";
 import { DrizzleUsersRepository } from "../infrastructure/persistence/users.repository.js";
+import { DrizzleWebhookRepository } from "../infrastructure/persistence/webhook.repository.js";
+
+const defaultHttpPoster: HttpPoster = async (url, init) => {
+  const res = await fetch(url, init);
+  const bodyText = await res.text();
+  return { status: res.status, bodyText };
+};
 
 export type AppServices = {
   org: OrganizationUseCases;
@@ -98,6 +112,7 @@ export type AppServices = {
   suppliers: SupplierUseCases;
   customers: CustomerUseCases;
   users: UsersUseCases;
+  membershipAccess: MembershipAccessPort;
   purchaseOrders: PurchaseOrderUseCases;
   goodsReceipts: GoodsReceiptUseCases;
   postGoodsReceipt: PostGoodsReceipt;
@@ -120,6 +135,7 @@ export type AppServices = {
   reservations: ReservationUseCases;
   releaseReservation: ReleaseReservation;
   commitReservation: CommitReservation;
+  expireReservations: ExpireReservations;
   availability: AvailabilityUseCases;
   supplierReturns: SupplierReturnUseCases;
   postSupplierReturn: PostSupplierReturn;
@@ -141,6 +157,9 @@ export type AppServices = {
   accounts: AccountUseCases;
   journals: JournalUseCases;
   processOutboxForJournals: ProcessOutboxForJournals;
+  processOutboxForWebhooks: ProcessOutboxForWebhooks;
+  webhooks: DrizzleWebhookRepository;
+  webhookSubscriptions: WebhookSubscriptionUseCases;
   accounting: DrizzleAccountingRepository;
   supplierInvoices: SupplierInvoiceUseCases;
   postSupplierInvoice: PostSupplierInvoice;
@@ -150,6 +169,7 @@ export type AppServices = {
   pnlReport: PnlReportUseCase;
   balanceSheet: BalanceSheetUseCase;
   periodCloseChecklist: PeriodCloseChecklistUseCase;
+  approvalPolicies: ApprovalPolicyUseCases;
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
@@ -175,10 +195,14 @@ export function createAppServices(db: Db): AppServices {
   const ap = new DrizzleApRepository(db);
   const closeChecklist = new DrizzleCloseChecklistRepository(db);
   const orgRepo = new DrizzleOrganizationRepository(db);
+  const usersRepo = new DrizzleUsersRepository(db);
   const unitOfWork = new DrizzleUnitOfWork(db);
+  const approvalPolicyRepo = new DrizzleApprovalPolicyRepository(db);
+  const approvalPolicies = new ApprovalPolicyUseCases(approvalPolicyRepo);
   const ensureDefaultChartOfAccounts = new EnsureDefaultChartOfAccounts(
     accounting,
   );
+  const webhooks = new DrizzleWebhookRepository(db);
 
   return {
     org: new OrganizationUseCases(orgRepo),
@@ -188,22 +212,23 @@ export function createAppServices(db: Db): AppServices {
     products: new ProductUseCases(new DrizzleProductRepository(db)),
     suppliers: new SupplierUseCases(new DrizzleSupplierRepository(db)),
     customers: new CustomerUseCases(customers),
-    users: new UsersUseCases(new DrizzleUsersRepository(db)),
+    users: new UsersUseCases(usersRepo),
+    membershipAccess: usersRepo,
     purchaseOrders: new PurchaseOrderUseCases(purchaseOrders),
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),
-    postGoodsReceipt: new PostGoodsReceipt(unitOfWork),
+    postGoodsReceipt: new PostGoodsReceipt(unitOfWork, approvalPolicies),
     voidGoodsReceipt: new VoidGoodsReceipt(unitOfWork),
     stockInquiry: new StockInquiryUseCases(stock, lots, serials),
     costInquiry: new CostInquiryUseCases(unitOfWork),
     stockIssues: new StockIssueUseCases(stockIssues),
     postStockIssue: new PostStockIssue(unitOfWork),
     voidStockIssue: new VoidStockIssue(unitOfWork),
-    stockTransfers: new StockTransferUseCases(stockTransfers),
+    stockTransfers: new StockTransferUseCases(stockTransfers, locations),
     shipStockTransfer: new ShipStockTransfer(unitOfWork),
     receiveStockTransfer: new ReceiveStockTransfer(unitOfWork),
     voidStockTransfer: new VoidStockTransfer(unitOfWork),
     stockAdjustments: new StockAdjustmentUseCases(stockAdjustments),
-    postStockAdjustment: new PostStockAdjustment(unitOfWork),
+    postStockAdjustment: new PostStockAdjustment(unitOfWork, approvalPolicies),
     voidStockAdjustment: new VoidStockAdjustment(unitOfWork),
     stockCounts: new StockCountUseCases(stockCounts, stock),
     postStockCount: new PostStockCount(unitOfWork),
@@ -211,6 +236,7 @@ export function createAppServices(db: Db): AppServices {
     reservations: new ReservationUseCases(reservations, unitOfWork),
     releaseReservation: new ReleaseReservation(unitOfWork),
     commitReservation: new CommitReservation(unitOfWork),
+    expireReservations: new ExpireReservations(unitOfWork),
     availability: new AvailabilityUseCases(stock, reservations, locations),
     supplierReturns: new SupplierReturnUseCases(supplierReturns),
     postSupplierReturn: new PostSupplierReturn(unitOfWork),
@@ -242,6 +268,12 @@ export function createAppServices(db: Db): AppServices {
       accounting,
       ensureDefaultChartOfAccounts,
     ),
+    processOutboxForWebhooks: new ProcessOutboxForWebhooks(
+      webhooks,
+      defaultHttpPoster,
+    ),
+    webhooks,
+    webhookSubscriptions: new WebhookSubscriptionUseCases(webhooks),
     accounting,
     supplierInvoices: new SupplierInvoiceUseCases(ap),
     postSupplierInvoice: new PostSupplierInvoice(
@@ -260,5 +292,6 @@ export function createAppServices(db: Db): AppServices {
       accounting,
       closeChecklist,
     ),
+    approvalPolicies,
   };
 }

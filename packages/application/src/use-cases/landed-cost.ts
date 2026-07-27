@@ -9,6 +9,7 @@ import type { CostLayer } from "@stock-management/domain";
 import type { IdempotencyInput } from "../dto/inputs.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import { refreshCostSummary } from "../costing/refresh-cost-summary.js";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type {
   CreateLandedCostInput,
   LandedCostDocument,
@@ -22,8 +23,8 @@ const POST_OPERATION = "post-landed-cost";
 export class LandedCostUseCases {
   constructor(private readonly repo: LandedCostPort) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {
@@ -147,6 +148,7 @@ export class PostLandedCost {
         payload: {
           landedCostId: doc.id,
           userId,
+          branchId: doc.branchId,
           ...costingOutboxFields({ landedAmount: doc.totalAmount }),
         },
       });
@@ -245,6 +247,7 @@ export class VoidLandedCost {
         payload: {
           landedCostId: doc.id,
           userId,
+          branchId: doc.branchId,
           ...costingOutboxFields({ landedAmount: doc.totalAmount }),
         },
       });

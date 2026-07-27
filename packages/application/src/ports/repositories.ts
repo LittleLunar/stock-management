@@ -66,6 +66,7 @@ export interface CategoryRepository {
 export interface ProductRepository {
   list(orgId: string): Promise<Product[]>;
   findById(orgId: string, id: string): Promise<Product | null>;
+  findByBarcode(orgId: string, barcode: string): Promise<Product | null>;
   listBarcodes(orgId: string, productId: string): Promise<ProductBarcode[]>;
   create(orgId: string, input: CreateProductInput): Promise<Product>;
   update(orgId: string, id: string, input: UpdateProductInput): Promise<Product | null>;

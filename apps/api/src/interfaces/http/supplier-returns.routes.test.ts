@@ -19,7 +19,7 @@ import type {
   SupplierReturn,
 } from "@stock-management/domain";
 import { supplierReturnsRoutes } from "./supplier-returns.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -316,7 +316,7 @@ function makeHarness(options?: {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(supplierReturnsRoutes(useCases), { prefix: "/api/v1" });
     return app;
   }

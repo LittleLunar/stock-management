@@ -146,6 +146,7 @@ describe("D1 GR journal flow", () => {
             journalCalls += 1;
             await processor.execute(e);
           },
+          processWebhooks: async () => {},
         }),
       log: { info: vi.fn(), error: vi.fn() },
     });

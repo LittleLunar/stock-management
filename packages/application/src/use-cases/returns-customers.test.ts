@@ -453,6 +453,9 @@ function makeFake(options: FakeOptions = {}) {
           updatedAt: now,
         };
       },
+      async findById() {
+        return null;
+      },
       async list() {
         return [];
       },

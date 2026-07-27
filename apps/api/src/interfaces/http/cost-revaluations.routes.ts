@@ -11,6 +11,10 @@ import {
   PostIdempotencySchema,
   UpdateCostRevaluationSchema,
 } from "@stock-management/shared";
+import {
+  assertDocumentBranchWrite,
+  listFilterFromContext,
+} from "./branch-scope.js";
 
 export type CostRevaluationRouteUseCases = {
   costRevaluations: CostRevaluationUseCases;
@@ -23,7 +27,10 @@ export function costRevaluationsRoutes(
 ): FastifyPluginAsync {
   return async (app) => {
     app.get("/cost-revaluations", async (request) =>
-      useCases.costRevaluations.list(request.ctx.orgId),
+      useCases.costRevaluations.list(
+        request.ctx.orgId,
+        listFilterFromContext(request.ctx),
+      ),
     );
 
     app.get<{ Params: { id: string } }>(
@@ -36,6 +43,12 @@ export function costRevaluationsRoutes(
 
     app.post("/cost-revaluations", async (request) => {
       const body = CreateCostRevaluationSchema.parse(request.body);
+      assertDocumentBranchWrite(
+        request.ctx,
+        "inventory.post",
+        body.branchId,
+        "Role cannot post inventory documents",
+      );
       return useCases.costRevaluations.create(request.ctx.orgId, body);
     });
 
@@ -44,6 +57,16 @@ export function costRevaluationsRoutes(
       async (request) => {
         const { id } = CostRevaluationIdParamsSchema.parse(request.params);
         const body = UpdateCostRevaluationSchema.parse(request.body);
+        const existing = await useCases.costRevaluations.get(
+          request.ctx.orgId,
+          id,
+        );
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          existing.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.costRevaluations.update(request.ctx.orgId, id, body);
       },
     );
@@ -52,6 +75,13 @@ export function costRevaluationsRoutes(
       "/cost-revaluations/:id/post",
       async (request) => {
         const { id } = CostRevaluationIdParamsSchema.parse(request.params);
+        const doc = await useCases.costRevaluations.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         const body = PostIdempotencySchema.parse(request.body ?? {});
         const headers = PostIdempotencyHeadersSchema.parse(request.headers);
         const externalSystem = body.external_system ?? headers.external_system;
@@ -73,6 +103,13 @@ export function costRevaluationsRoutes(
       "/cost-revaluations/:id/void",
       async (request) => {
         const { id } = CostRevaluationIdParamsSchema.parse(request.params);
+        const doc = await useCases.costRevaluations.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.voidCostRevaluation.execute(
           request.ctx.orgId,
           request.ctx.userId,

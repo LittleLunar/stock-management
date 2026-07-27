@@ -22,6 +22,13 @@ export class UnauthorizedError extends DomainError {
   }
 }
 
+export class ForbiddenError extends DomainError {
+  constructor(message = "Forbidden") {
+    super(message, "FORBIDDEN");
+    this.name = "ForbiddenError";
+  }
+}
+
 export class ConflictError extends DomainError {
   constructor(message: string) {
     super(message, "CONFLICT");
@@ -158,5 +165,35 @@ export class InvoiceAlreadyVoidedError extends DomainError {
   constructor(message = "Invoice is already voided") {
     super(message, "INVALID_STATE");
     this.name = "InvoiceAlreadyVoidedError";
+  }
+}
+
+export class WebhookDeliveryError extends DomainError {
+  constructor(message: string) {
+    super(message, "WEBHOOK_DELIVERY_FAILED");
+    this.name = "WebhookDeliveryError";
+  }
+}
+
+export class LotExpiredError extends DomainError {
+  constructor(message = "Lot is expired and cannot be sold or issued") {
+    super(message, "LOT_EXPIRED");
+    this.name = "LotExpiredError";
+  }
+}
+
+export class LotQuarantinedError extends DomainError {
+  constructor(message = "Lot is quarantined and cannot be sold or issued") {
+    super(message, "LOT_QUARANTINED");
+    this.name = "LotQuarantinedError";
+  }
+}
+
+export class LocationQuarantinedError extends DomainError {
+  constructor(
+    message = "Cannot sell or issue from a quarantine location",
+  ) {
+    super(message, "LOCATION_QUARANTINED");
+    this.name = "LocationQuarantinedError";
   }
 }

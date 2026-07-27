@@ -2,15 +2,19 @@ import Fastify from "fastify";
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  ApprovalPolicyUseCases,
   GoodsReceiptUseCases,
   PostGoodsReceipt,
   VoidGoodsReceipt,
+  type ApprovalPolicyPort,
   type GoodsReceiptWithLines,
   type IdempotencyRecord,
   type UnitOfWork,
   type UowContext,
 } from "@stock-management/application";
 import type {
+  ApprovalDocumentType,
+  ApprovalPolicy,
   CostLayer,
   GoodsReceipt,
   Product,
@@ -20,7 +24,7 @@ import type {
   StockMovement,
 } from "@stock-management/domain";
 import { goodsReceiptsRoutes } from "./goods-receipts.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -33,6 +37,48 @@ const LOCATION_ID = "00000000-0000-4000-8000-000000000006";
 const PO_ID = "00000000-0000-4000-8000-000000000007";
 const PO_LINE_ID = "00000000-0000-4000-8000-000000000008";
 const now = new Date("2026-07-26T00:00:00.000Z");
+
+function createPermissiveApprovalPolicies(): ApprovalPolicyUseCases {
+  const rows = new Map<string, ApprovalPolicy>();
+  const key = (orgId: string, documentType: ApprovalDocumentType) =>
+    `${orgId}:${documentType}`;
+  for (const documentType of [
+    "purchase_order",
+    "stock_adjustment",
+  ] as const) {
+    rows.set(key(ORG_ID, documentType), {
+      id: `pol-${documentType}`,
+      orgId: ORG_ID,
+      documentType,
+      required: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  const port: ApprovalPolicyPort = {
+    async list(orgId) {
+      return [...rows.values()].filter((r) => r.orgId === orgId);
+    },
+    async findByDocumentType(orgId, documentType) {
+      return rows.get(key(orgId, documentType)) ?? null;
+    },
+    async upsert(orgId, documentType, required) {
+      const id = key(orgId, documentType);
+      const existing = rows.get(id);
+      const row: ApprovalPolicy = {
+        id: existing?.id ?? `pol-${documentType}`,
+        orgId,
+        documentType,
+        required,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      };
+      rows.set(id, row);
+      return row;
+    },
+  };
+  return new ApprovalPolicyUseCases(port);
+}
 
 function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
   const po: PurchaseOrder = {
@@ -286,6 +332,9 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
           updatedAt: now,
         };
       },
+      async findById() {
+        return null;
+      },
       async list() {
         return [];
       },
@@ -442,7 +491,7 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
   const uow: UnitOfWork = { run: (fn) => fn(ctx) };
   const useCases = {
     goodsReceipts: new GoodsReceiptUseCases(gr),
-    postGoodsReceipt: new PostGoodsReceipt(uow),
+    postGoodsReceipt: new PostGoodsReceipt(uow, createPermissiveApprovalPolicies()),
     voidGoodsReceipt: new VoidGoodsReceipt(uow),
   };
 
@@ -450,7 +499,7 @@ function makeHarness(options?: { orderedQty?: string; trackLot?: boolean }) {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(goodsReceiptsRoutes(useCases), { prefix: "/api/v1" });
     return app;
   }

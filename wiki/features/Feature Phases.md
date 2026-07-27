@@ -3,7 +3,7 @@ tags:
   - feature
   - roadmap
 created: 2026-07-25
-updated: 2026-07-26
+updated: 2026-07-27
 ---
 
 # Feature Phases
@@ -19,7 +19,7 @@ Roadmap for [[Stock Management System]]. Full checklist: `docs/FEATURES.md`.
 | B | Internal inventory loop | **Complete** (B1–B3, 2026-07-26) | [[Phase B]] |
 | C | FIFO costing | **Complete** (C1–C3, 2026-07-26) | [[Phase C]] |
 | D | Accounting / AP | **Complete** (D1–D3, 2026-07-26) | [[Phase D]] |
-| E | Multi-branch hardening | Next (unblocked) | [[Phase E]] |
+| E | Multi-branch hardening | **Complete** (E1–E3, 2026-07-27) | [[Phase E]] |
 | F | POS / channels | Someday | [[Phase F]] |
 
 ```
@@ -27,7 +27,7 @@ A  Masters + branches + locations + users
 B  Qty loop: PO, receive, issue, transfer, adjust, count, lot/serial, returns, reservations ✓
 C  Money on stock: FIFO, landed cost, valuation, COGS
 D  Books: GL, AP, 3-way match, periods, reports
-E  Multi-branch ops + webhooks + scanning
+E  Multi-branch ops + webhooks + scanning (E1–E3 ✓)
 F  POS / external channels on same APIs
 ```
 
@@ -36,5 +36,5 @@ F  POS / external channels on same APIs
 **Phase B:** complete — see [[Phase B]] and `docs/superpowers/plans/2026-07-26-phase-b-inventory-loop.md`.  
 **Phase C:** complete — see [[Phase C]].  
 **Phase D:** complete — see [[Phase D]].  
-**Next:** [[Phase E]] — multi-branch hardening / webhooks.  
-Design: `docs/superpowers/specs/2026-07-26-phase-d-accounting-design.md` · Master: `docs/superpowers/plans/2026-07-26-phase-d-accounting.md`
+**Phase E:** complete (E1–E3, 2026-07-27) — branch ACL/UX; replenishment/reservations/approvals; webhooks (HMAC outbox), FEFO/quarantine hard-block, barcode lookup + scan UX. **Next:** [[Phase F]].  
+Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md` · Master: `docs/superpowers/plans/2026-07-26-phase-e-multi-branch.md` · Deep: E1 / E2 / E3 under `docs/superpowers/plans/2026-07-26-phase-e*.md`

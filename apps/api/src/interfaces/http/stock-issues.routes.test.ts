@@ -12,13 +12,14 @@ import {
   type UowContext,
 } from "@stock-management/application";
 import type {
+  Location,
   Product,
   StockBalance,
   StockIssue,
   StockMovement,
 } from "@stock-management/domain";
 import { stockIssuesRoutes } from "./stock-issues.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -47,6 +48,17 @@ function makeHarness(onHand = "10", options?: { seedCostLayers?: boolean }) {
     costingMethod: "fifo",
     reorderMin: null,
     reorderMax: null,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+  const location: Location = {
+    id: LOCATION_ID,
+    orgId: ORG_ID,
+    branchId: BRANCH_ID,
+    code: "MAIN",
+    name: "Main storage",
+    type: "storage",
     status: "active",
     createdAt: now,
     updatedAt: now,
@@ -165,6 +177,25 @@ function makeHarness(onHand = "10", options?: { seedCostLayers?: boolean }) {
         return id === product.id ? product : null;
       },
     },
+    locations: {
+      async findById(orgId: string, id: string) {
+        return orgId === ORG_ID && id === location.id ? location : null;
+      },
+      async list() {
+        return [location];
+      },
+    },
+    lots: {
+      async upsert() {
+        throw new Error("Unexpected lot upsert");
+      },
+      async findById() {
+        return null;
+      },
+      async list() {
+        return [];
+      },
+    },
     stock: {
       async findBalance() {
         return balance;
@@ -268,7 +299,7 @@ function makeHarness(onHand = "10", options?: { seedCostLayers?: boolean }) {
     const app = Fastify();
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(stockIssuesRoutes(useCases), { prefix: "/api/v1" });
     return app;
   }

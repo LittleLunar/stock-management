@@ -3,7 +3,9 @@ import {
   InsufficientStockError,
   InvalidStateError,
   NotFoundError,
+  assertCanApproveAdjustment,
   assertCanPostAdjustment,
+  assertCanSubmitAdjustment,
   assertLayersFullyOpen,
   assertLotSerialRules,
   assertSerialAvailableForOutbound,
@@ -22,8 +24,11 @@ import {
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
+import type { BranchListFilter } from "../access/list-scope.js";
+import { assertOutboundSellable } from "../fefo/assert-outbound-sellable.js";
 import type { StockAdjustmentPort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
+import type { ApprovalPolicyUseCases } from "./approval-policy.js";
 
 export type StockAdjustmentResult = {
   adjustment: StockAdjustment;
@@ -33,8 +38,8 @@ export type StockAdjustmentResult = {
 export class StockAdjustmentUseCases {
   constructor(private readonly repo: StockAdjustmentPort) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {
@@ -60,12 +65,27 @@ export class StockAdjustmentUseCases {
     if (!updated) throw new NotFoundError("Stock adjustment");
     return updated;
   }
+
+  async submitForApproval(orgId: string, id: string) {
+    const adj = await this.get(orgId, id);
+    assertCanSubmitAdjustment(adj);
+    return this.repo.updateStatus(orgId, id, "pending_approval", new Date());
+  }
+
+  async approve(orgId: string, id: string) {
+    const adj = await this.get(orgId, id);
+    assertCanApproveAdjustment(adj);
+    return this.repo.updateStatus(orgId, id, "approved", new Date());
+  }
 }
 
 const POST_OPERATION = "post-stock-adjustment";
 
 export class PostStockAdjustment {
-  constructor(private readonly uow: UnitOfWork) {}
+  constructor(
+    private readonly uow: UnitOfWork,
+    private readonly approvalPolicies: ApprovalPolicyUseCases,
+  ) {}
 
   execute(
     orgId: string,
@@ -89,7 +109,11 @@ export class PostStockAdjustment {
 
       const adjustment = await adjustments.findById(orgId, adjustmentId);
       if (!adjustment) throw new NotFoundError("Stock adjustment");
-      assertCanPostAdjustment(adjustment);
+      const required = await this.approvalPolicies.getRequired(
+        orgId,
+        "stock_adjustment",
+      );
+      assertCanPostAdjustment(adjustment, { required });
 
       const serialTrackedProductIds = new Set<string>();
       for (const line of adjustment.lines) {
@@ -101,6 +125,14 @@ export class PostStockAdjustment {
           lotId: line.lotId,
           serialNumbers: line.serialNumbers,
         });
+        if (Number(line.qty) < 0) {
+          await assertOutboundSellable(ctx, {
+            orgId,
+            locationId: adjustment.locationId,
+            lotId: line.lotId,
+            operation: "adjustment",
+          });
+        }
         if (
           serialTrackedProductIds.has(line.productId) &&
           Number(line.qty) < 0
@@ -220,6 +252,7 @@ export class PostStockAdjustment {
         adjustment.id,
         "posted",
         movements,
+        adjustment.branchId,
       );
       if (idempotency) {
         await ctx.idempotency.save({
@@ -338,6 +371,7 @@ export class VoidStockAdjustment {
         adjustment.id,
         "voided",
         movements,
+        adjustment.branchId,
       );
       return { adjustment: voided, movements };
     });
@@ -398,6 +432,7 @@ async function enqueueAdjustmentEvents(
   adjustmentId: string,
   action: "posted" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
@@ -407,6 +442,7 @@ async function enqueueAdjustmentEvents(
       payload: {
       adjustmentId,
       userId,
+      branchId,
       ...costingFieldsFromMovements(movements),
     },
   });

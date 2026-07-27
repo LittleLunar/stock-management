@@ -45,6 +45,9 @@ import type {
   UpdateStockTransferInput,
   UpdateSupplierReturnInput,
 } from "../dto/inputs.js";
+import type { BranchListFilter } from "../access/list-scope.js";
+
+export type { BranchListFilter };
 
 export type PurchaseOrderWithLines = PurchaseOrder & {
   lines: PurchaseOrderLine[];
@@ -61,7 +64,7 @@ export type GoodsReceiptWithLines = GoodsReceipt & {
 };
 
 export interface PurchaseOrderPort {
-  list(orgId: string): Promise<PurchaseOrder[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<PurchaseOrder[]>;
   findById(orgId: string, id: string): Promise<PurchaseOrderWithLines | null>;
   findLineById(orgId: string, id: string): Promise<PurchaseOrderLine | null>;
   create(
@@ -86,7 +89,7 @@ export interface PurchaseOrderPort {
 }
 
 export interface GoodsReceiptPort {
-  list(orgId: string): Promise<GoodsReceipt[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<GoodsReceipt[]>;
   findById(orgId: string, id: string): Promise<GoodsReceiptWithLines | null>;
   findLineById(orgId: string, id: string): Promise<GoodsReceiptLine | null>;
   create(
@@ -116,7 +119,7 @@ export type StockIssueWithLines = StockIssue & {
 };
 
 export interface StockIssuePort {
-  list(orgId: string): Promise<StockIssue[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<StockIssue[]>;
   findById(orgId: string, id: string): Promise<StockIssueWithLines | null>;
   create(
     orgId: string,
@@ -140,7 +143,7 @@ export type StockTransferWithLines = StockTransfer & {
 };
 
 export interface StockTransferPort {
-  list(orgId: string): Promise<StockTransfer[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<StockTransfer[]>;
   findById(orgId: string, id: string): Promise<StockTransferWithLines | null>;
   create(
     orgId: string,
@@ -164,7 +167,7 @@ export type StockAdjustmentWithLines = StockAdjustment & {
 };
 
 export interface StockAdjustmentPort {
-  list(orgId: string): Promise<StockAdjustment[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<StockAdjustment[]>;
   findById(orgId: string, id: string): Promise<StockAdjustmentWithLines | null>;
   create(
     orgId: string,
@@ -206,7 +209,7 @@ export type UpdateStockCountSnapshotInput = Omit<
 };
 
 export interface StockCountPort {
-  list(orgId: string): Promise<StockCount[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<StockCount[]>;
   findById(orgId: string, id: string): Promise<StockCountWithLines | null>;
   create(
     orgId: string,
@@ -254,6 +257,8 @@ export interface ReservationPort {
     id: string,
     input: UpdateReservationInput,
   ): Promise<StockReservation | null>;
+  /** Open reservations with expiresAt <= now (org-scoped or global worker). */
+  listExpiredOpen(now: Date, limit: number): Promise<StockReservation[]>;
 }
 
 export type SupplierReturnWithLines = SupplierReturn & {
@@ -261,7 +266,7 @@ export type SupplierReturnWithLines = SupplierReturn & {
 };
 
 export interface SupplierReturnPort {
-  list(orgId: string): Promise<SupplierReturn[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<SupplierReturn[]>;
   findById(orgId: string, id: string): Promise<SupplierReturnWithLines | null>;
   create(
     orgId: string,
@@ -285,7 +290,7 @@ export type CustomerReturnWithLines = CustomerReturn & {
 };
 
 export interface CustomerReturnPort {
-  list(orgId: string): Promise<CustomerReturn[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<CustomerReturn[]>;
   findById(orgId: string, id: string): Promise<CustomerReturnWithLines | null>;
   create(
     orgId: string,
@@ -357,6 +362,7 @@ export type UpsertLotInput = {
 
 export interface LotPort {
   upsert(input: UpsertLotInput): Promise<Lot>;
+  findById(orgId: string, id: string): Promise<Lot | null>;
   list(orgId: string, filters?: { productId?: string }): Promise<Lot[]>;
 }
 

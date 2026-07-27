@@ -24,7 +24,7 @@ import type {
 } from "@stock-management/domain";
 import { reservationsRoutes } from "./reservations.routes.js";
 import { availabilityRoutes } from "./availability.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -196,6 +196,16 @@ function makeFake(options: FakeOptions = {}) {
       };
       return reservations[index]!;
     },
+    async listExpiredOpen(at, limit) {
+      return reservations
+        .filter(
+          (r) =>
+            r.status === "open" &&
+            r.expiresAt !== null &&
+            r.expiresAt.getTime() <= at.getTime(),
+        )
+        .slice(0, limit);
+    },
   };
 
   const stock: StockPort = {
@@ -299,6 +309,9 @@ function makeFake(options: FakeOptions = {}) {
     lots: {
       async upsert() {
         throw new Error("lots unused");
+      },
+      async findById() {
+        return null;
       },
       async list() {
         return [];
@@ -407,7 +420,7 @@ async function buildApp(fake: ReturnType<typeof makeFake>) {
   const app = Fastify();
   registerErrorHandler(app);
   await app.register(requestIdPlugin);
-  await app.register(contextPlugin);
+  await app.register(createTestContextPlugin());
 
   const reservations = new ReservationUseCases(
     fake.reservationPort,

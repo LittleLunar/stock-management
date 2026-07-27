@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CostRevaluation,
   CostRevaluationLine,
   CostRevaluationPort,
@@ -19,11 +20,18 @@ export class DrizzleCostRevaluationRepository implements CostRevaluationPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  async list(orgId: string): Promise<CostRevaluation[]> {
+  async list(
+    orgId: string,
+    filter?: BranchListFilter,
+  ): Promise<CostRevaluation[]> {
+    const conditions = [eq(costRevaluations.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(costRevaluations.branchId, filter.branchId));
+    }
     const headers = await this.db
       .select()
       .from(costRevaluations)
-      .where(eq(costRevaluations.orgId, orgId));
+      .where(and(...conditions));
     const result: CostRevaluation[] = [];
     for (const header of headers) {
       result.push(await this.hydrate(header));

@@ -19,6 +19,8 @@ import {
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
+import type { BranchListFilter } from "../access/list-scope.js";
+import { assertOutboundSellable } from "../fefo/assert-outbound-sellable.js";
 import type { StockIssuePort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -30,8 +32,8 @@ export type StockIssueResult = {
 export class StockIssueUseCases {
   constructor(private readonly repo: StockIssuePort) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {
@@ -87,6 +89,12 @@ export async function postStockIssueInCtx(
     assertLotSerialRules(product, {
       lotId: line.lotId,
       serialNumbers: line.serialNumbers,
+    });
+    await assertOutboundSellable(ctx, {
+      orgId,
+      locationId: issue.locationId,
+      lotId: line.lotId,
+      operation: "issue",
     });
     await assertSerialsAvailable(
       ctx.serials,
@@ -164,7 +172,15 @@ export async function postStockIssueInCtx(
     new Date(),
   );
   const result = { issue: postedIssue, movements };
-  await enqueueIssueEvents(ctx, orgId, userId, issue.id, "posted", movements);
+  await enqueueIssueEvents(
+    ctx,
+    orgId,
+    userId,
+    issue.id,
+    "posted",
+    movements,
+    issue.branchId,
+  );
   if (idempotency) {
     await ctx.idempotency.save({
       orgId,
@@ -275,6 +291,7 @@ export class VoidStockIssue {
         issue.id,
         "voided",
         movements,
+        issue.branchId,
       );
       return { issue: voidedIssue, movements };
     });
@@ -327,6 +344,7 @@ async function enqueueIssueEvents(
   issueId: string,
   action: "posted" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
@@ -336,6 +354,7 @@ async function enqueueIssueEvents(
       payload: {
       issueId,
       userId,
+      branchId,
       ...costingOutboxFields({
         cogsTotal: String(
           movements.reduce(

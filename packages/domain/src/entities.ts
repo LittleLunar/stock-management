@@ -1,5 +1,6 @@
 import type {
   AccountType,
+  ApprovalDocumentType,
   CostingMethod,
   DocumentStatus,
   IssueType,
@@ -14,7 +15,9 @@ import type {
   ReservationStatus,
   SerialStatus,
   SupplierInvoiceStatus,
+  TransferPurpose,
   TransferStatus,
+  WebhookDeliveryStatus,
 } from "./types.js";
 
 export type Organization = {
@@ -123,6 +126,7 @@ export type Membership = {
   userId: string;
   role: MembershipRole;
   status: MasterStatus;
+  branchIds: string[]; // empty = HQ / all branches
   createdAt: Date;
   updatedAt: Date;
 };
@@ -231,6 +235,15 @@ export type ProductCostSummary = {
   updatedAt: Date;
 };
 
+export type ApprovalPolicy = {
+  id: string;
+  orgId: string;
+  documentType: ApprovalDocumentType;
+  required: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type PurchaseOrder = {
   id: string;
   orgId: string;
@@ -318,6 +331,9 @@ export type StockTransfer = {
   fromLocationId: string;
   toLocationId: string;
   transitLocationId: string;
+  fromBranchId: string;
+  toBranchId: string;
+  purpose: TransferPurpose;
   documentNumber: string | null;
   status: TransferStatus;
   createdAt: Date;
@@ -570,4 +586,28 @@ export type InvoiceMatch = {
   goodsReceiptLineId: string;
   matchedQty: string;
   matchedAmount: string;
+};
+
+export type WebhookSubscription = {
+  id: string;
+  orgId: string;
+  url: string;
+  secret: string;
+  eventTypes: string[];
+  branchId: string | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type WebhookDelivery = {
+  id: string;
+  orgId: string;
+  subscriptionId: string;
+  outboxEventId: string;
+  status: WebhookDeliveryStatus;
+  httpStatus: number | null;
+  error: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };

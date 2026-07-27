@@ -1,5 +1,6 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import type {
+  BranchListFilter,
   CreateStockTransferInput,
   StockTransferPort,
   StockTransferWithLines,
@@ -11,6 +12,7 @@ import type {
 } from "@stock-management/domain";
 import type { Db, DbClient, DbTransaction } from "../db/client.js";
 import {
+  locations,
   stockTransferLines,
   stockTransferSerials,
   stockTransfers,
@@ -24,11 +26,20 @@ export class DrizzleStockTransferRepository implements StockTransferPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  list(orgId: string): Promise<StockTransfer[]> {
+  list(orgId: string, filter?: BranchListFilter): Promise<StockTransfer[]> {
+    const conditions = [eq(stockTransfers.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(
+        or(
+          eq(stockTransfers.fromBranchId, filter.branchId),
+          eq(stockTransfers.toBranchId, filter.branchId),
+        )!,
+      );
+    }
     return this.db
       .select()
       .from(stockTransfers)
-      .where(eq(stockTransfers.orgId, orgId)) as Promise<StockTransfer[]>;
+      .where(and(...conditions)) as Promise<StockTransfer[]>;
   }
 
   async findById(
@@ -70,6 +81,10 @@ export class DrizzleStockTransferRepository implements StockTransferPort {
     input: CreateStockTransferInput,
   ): Promise<StockTransferWithLines> {
     return this.inTransaction(async (client) => {
+      const branches = await this.branchIdsForLocations(client, orgId, {
+        fromLocationId: input.fromLocationId,
+        toLocationId: input.toLocationId,
+      });
       const [transfer] = await client
         .insert(stockTransfers)
         .values({
@@ -77,6 +92,9 @@ export class DrizzleStockTransferRepository implements StockTransferPort {
           fromLocationId: input.fromLocationId,
           toLocationId: input.toLocationId,
           transitLocationId: input.transitLocationId,
+          fromBranchId: branches.fromBranchId,
+          toBranchId: branches.toBranchId,
+          purpose: input.purpose ?? "standard",
           documentNumber: input.documentNumber ?? null,
         })
         .returning();
@@ -94,13 +112,32 @@ export class DrizzleStockTransferRepository implements StockTransferPort {
     input: UpdateStockTransferInput,
   ): Promise<StockTransferWithLines | null> {
     return this.inTransaction(async (client) => {
+      const existing = await new DrizzleStockTransferRepository(
+        client,
+      ).findById(orgId, id);
+      if (!existing) return null;
+
+      const fromLocationId = input.fromLocationId ?? existing.fromLocationId;
+      const toLocationId = input.toLocationId ?? existing.toLocationId;
+      const branches = await this.branchIdsForLocations(client, orgId, {
+        fromLocationId,
+        toLocationId,
+      });
+
       const [updated] = await client
         .update(stockTransfers)
         .set({
-          fromLocationId: input.fromLocationId,
-          toLocationId: input.toLocationId,
-          transitLocationId: input.transitLocationId,
-          documentNumber: input.documentNumber,
+          fromLocationId,
+          toLocationId,
+          transitLocationId:
+            input.transitLocationId ?? existing.transitLocationId,
+          fromBranchId: branches.fromBranchId,
+          toBranchId: branches.toBranchId,
+          purpose: input.purpose ?? existing.purpose,
+          documentNumber:
+            input.documentNumber !== undefined
+              ? input.documentNumber
+              : existing.documentNumber,
           updatedAt: new Date(),
         })
         .where(and(eq(stockTransfers.orgId, orgId), eq(stockTransfers.id, id)))
@@ -135,6 +172,29 @@ export class DrizzleStockTransferRepository implements StockTransferPort {
       .returning();
     if (!transfer) throw new Error("Stock transfer not found");
     return transfer as StockTransfer;
+  }
+
+  private async branchIdsForLocations(
+    client: DbClient,
+    orgId: string,
+    ids: { fromLocationId: string; toLocationId: string },
+  ): Promise<{ fromBranchId: string; toBranchId: string }> {
+    const rows = await client
+      .select({ id: locations.id, branchId: locations.branchId })
+      .from(locations)
+      .where(
+        and(
+          eq(locations.orgId, orgId),
+          inArray(locations.id, [ids.fromLocationId, ids.toLocationId]),
+        ),
+      );
+    const byId = new Map(rows.map((row) => [row.id, row.branchId]));
+    const fromBranchId = byId.get(ids.fromLocationId);
+    const toBranchId = byId.get(ids.toLocationId);
+    if (!fromBranchId || !toBranchId) {
+      throw new Error("Transfer location not found for branch resolution");
+    }
+    return { fromBranchId, toBranchId };
   }
 
   private async serialsByLine(orgId: string, lineIds: string[]) {

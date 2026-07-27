@@ -19,7 +19,7 @@ import {
   makeFakeAccountingWithLines,
 } from "../../../../../packages/application/src/use-cases/report-test-fakes.js";
 import { financialReportsRoutes } from "./financial-reports.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -95,7 +95,7 @@ describe("financial reports routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(financialReportsRoutes(services), { prefix: "/api/v1" });
     return app;
   }

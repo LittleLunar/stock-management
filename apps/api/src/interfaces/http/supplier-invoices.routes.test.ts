@@ -9,7 +9,7 @@ import {
   apReportsRoutes,
   supplierInvoicesRoutes,
 } from "./supplier-invoices.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -33,7 +33,7 @@ describe("supplier invoice routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(supplierInvoicesRoutes(services), {
       prefix: "/api/v1",
     });
@@ -69,7 +69,7 @@ describe("ap aging routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(apReportsRoutes(new ApAgingReportUseCase(harness.ap)), {
       prefix: "/api/v1",
     });

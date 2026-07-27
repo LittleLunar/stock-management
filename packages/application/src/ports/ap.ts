@@ -3,6 +3,7 @@ import type {
   SupplierInvoice,
   SupplierInvoiceLine,
 } from "@stock-management/domain";
+import type { BranchListFilter } from "../access/list-scope.js";
 
 export type SupplierInvoiceWithLines = SupplierInvoice & {
   lines: SupplierInvoiceLine[];
@@ -34,7 +35,7 @@ export type UpdateSupplierInvoiceInput = Partial<
 };
 
 export interface ApPort {
-  list(orgId: string): Promise<SupplierInvoice[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<SupplierInvoice[]>;
   findById(orgId: string, id: string): Promise<SupplierInvoiceWithLines | null>;
 
   create(

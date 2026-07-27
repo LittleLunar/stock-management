@@ -265,6 +265,7 @@ export const customers = pgTable(
 export const poStatusEnum = pgEnum("po_status", [
   "draft",
   "submitted",
+  "approved",
   "partially_received",
   "received",
   "closed",
@@ -273,8 +274,15 @@ export const poStatusEnum = pgEnum("po_status", [
 
 export const documentStatusEnum = pgEnum("document_status", [
   "draft",
+  "pending_approval",
+  "approved",
   "posted",
   "void",
+]);
+
+export const transferPurposeEnum = pgEnum("transfer_purpose", [
+  "standard",
+  "replenishment",
 ]);
 
 export const landedCostTypeEnum = pgEnum("landed_cost_type", [
@@ -870,6 +878,13 @@ export const stockTransfers = pgTable(
     transitLocationId: uuid("transit_location_id")
       .notNull()
       .references(() => locations.id),
+    fromBranchId: uuid("from_branch_id")
+      .notNull()
+      .references(() => branches.id),
+    toBranchId: uuid("to_branch_id")
+      .notNull()
+      .references(() => branches.id),
+    purpose: transferPurposeEnum("purpose").notNull().default("standard"),
     documentNumber: text("document_number"),
     status: transferStatusEnum("status").notNull().default("draft"),
     shippedAt: timestamp("shipped_at", { withTimezone: true }),
@@ -941,6 +956,30 @@ export const stockTransferSerials = pgTable(
       t.orgId,
       t.stockTransferLineId,
       t.serialNumber,
+    ),
+  ],
+);
+
+export const approvalPolicies = pgTable(
+  "approval_policies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    documentType: text("document_type").notNull(),
+    required: boolean("required").notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("approval_policies_org_type_uidx").on(
+      t.orgId,
+      t.documentType,
+    ),
+    index("approval_policies_org_idx").on(t.orgId),
+    check(
+      "approval_policies_document_type_chk",
+      sql`${t.documentType} IN ('purchase_order', 'stock_adjustment')`,
     ),
   ],
 );
@@ -1581,3 +1620,53 @@ export const invoiceMatches = pgTable("invoice_matches", {
   }).notNull(),
   ...timestamps,
 });
+
+export const webhookDeliveryStatusEnum = pgEnum("webhook_delivery_status", [
+  "pending",
+  "succeeded",
+  "failed",
+]);
+
+export const webhookSubscriptions = pgTable(
+  "webhook_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    url: text("url").notNull(),
+    secret: text("secret").notNull(),
+    eventTypes: text("event_types").array().notNull(),
+    branchId: uuid("branch_id").references(() => branches.id),
+    active: boolean("active").notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [index("webhook_subscriptions_org_idx").on(t.orgId)],
+);
+
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => webhookSubscriptions.id),
+    outboxEventId: uuid("outbox_event_id")
+      .notNull()
+      .references(() => outboxEvents.id),
+    status: webhookDeliveryStatusEnum("status").notNull().default("pending"),
+    httpStatus: integer("http_status"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("webhook_deliveries_sub_event_uidx").on(
+      t.subscriptionId,
+      t.outboxEventId,
+    ),
+    index("webhook_deliveries_org_idx").on(t.orgId),
+  ],
+);

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { useApprovePurchaseOrder } from "../hooks/approvals";
 import {
   useCreatePurchaseOrder,
   usePurchaseOrders,
@@ -27,6 +28,7 @@ export function PurchaseOrdersPage() {
   const { data: products } = useProducts();
   const create = useCreatePurchaseOrder();
   const submit = useSubmitPurchaseOrder();
+  const approve = useApprovePurchaseOrder();
   const [supplierId, setSupplierId] = useState("");
   const [branchId, setBranchId] = useState("");
   const [documentNumber, setDocumentNumber] = useState("");
@@ -249,7 +251,7 @@ export function PurchaseOrdersPage() {
                       : "—"}
                   </td>
                   <td className="px-4 py-3">{purchaseOrder.status}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="space-x-2 px-4 py-3 text-right">
                     {purchaseOrder.status === "draft" ? (
                       <button
                         type="button"
@@ -263,6 +265,22 @@ export function PurchaseOrdersPage() {
                         }
                       >
                         Submit
+                      </button>
+                    ) : null}
+                    {purchaseOrder.status === "submitted" ? (
+                      <button
+                        type="button"
+                        disabled={approve.isPending}
+                        className="rounded bg-teal-800 px-3 py-1.5 text-white disabled:opacity-50"
+                        onClick={() =>
+                          approve.mutate(purchaseOrder.id, {
+                            onSuccess: () =>
+                              toast.success("Purchase order approved"),
+                            onError: (err) => toast.error(formatApiError(err)),
+                          })
+                        }
+                      >
+                        Approve
                       </button>
                     ) : null}
                   </td>

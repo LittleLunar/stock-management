@@ -20,6 +20,7 @@ import type {
 } from "../dto/inputs.js";
 import { createLayerForMovement } from "../costing/apply-document-costing.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type { CustomerReturnPort } from "../ports/inventory.js";
 import type { UnitOfWork, UowContext } from "../ports/unit-of-work.js";
 
@@ -31,8 +32,8 @@ export type CustomerReturnResult = {
 export class CustomerReturnUseCases {
   constructor(private readonly repo: CustomerReturnPort) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {
@@ -169,6 +170,7 @@ export class PostCustomerReturn {
         "customer_return",
         "posted",
         movements,
+        doc.branchId,
       );
       if (idempotency) {
         await ctx.idempotency.save({
@@ -271,6 +273,7 @@ export class VoidCustomerReturn {
         "customer_return",
         "voided",
         movements,
+        doc.branchId,
       );
       return { doc: voided, movements };
     });
@@ -307,6 +310,7 @@ async function enqueueReturnEvents(
   aggregateType: string,
   action: "posted" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
@@ -316,6 +320,7 @@ async function enqueueReturnEvents(
       payload: {
       returnId,
       userId,
+      branchId,
       ...costingOutboxFields({
         inventoryValueDelta: String(
           movements.reduce(

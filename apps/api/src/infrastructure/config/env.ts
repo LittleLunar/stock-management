@@ -19,6 +19,12 @@ const EnvSchema = z.object({
     .default("info"),
   OUTBOX_POLLER_ENABLED: booleanFromEnv,
   OUTBOX_POLLER_INTERVAL_MS: z.coerce.number().int().positive().default(5_000),
+  RESERVATION_EXPIRE_ENABLED: booleanFromEnv,
+  RESERVATION_EXPIRE_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60_000),
 });
 
 export type ApiEnv = z.infer<typeof EnvSchema>;

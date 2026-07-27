@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
 import type { ProductUseCases } from "@stock-management/application";
 import {
   CreateProductSchema,
@@ -8,6 +9,18 @@ import {
 
 export function productsRoutes(useCases: ProductUseCases): FastifyPluginAsync {
   return async (app) => {
+    // Register before /products/:id so "by-barcode" is not captured as an id.
+    app.get<{ Params: { code: string } }>(
+      "/products/by-barcode/:code",
+      async (request) => {
+        const code = z.string().min(1).parse(request.params.code);
+        return useCases.findByBarcode(
+          request.ctx.orgId,
+          decodeURIComponent(code),
+        );
+      },
+    );
+
     app.get("/products", async (request) => useCases.list(request.ctx.orgId));
 
     app.get<{ Params: { id: string } }>("/products/:id", async (request) => {

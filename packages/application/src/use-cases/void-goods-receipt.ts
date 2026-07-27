@@ -123,6 +123,7 @@ export class VoidGoodsReceipt {
         payload: {
           receiptId: receipt.id,
           userId,
+          branchId: receipt.branchId,
           ...costingOutboxFields({
             inventoryValueDelta: String(
               movements.reduce(

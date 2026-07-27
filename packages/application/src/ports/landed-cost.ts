@@ -1,4 +1,5 @@
 import type { DocumentStatus } from "@stock-management/domain";
+import type { BranchListFilter } from "../access/list-scope.js";
 
 export type LandedCostType = "freight" | "duty" | "other";
 
@@ -49,7 +50,7 @@ export type UpdateLandedCostInput = {
 export interface LandedCostPort {
   create(orgId: string, input: CreateLandedCostInput): Promise<LandedCostDocument>;
   findById(orgId: string, id: string): Promise<LandedCostDocument | null>;
-  list(orgId: string): Promise<LandedCostDocument[]>;
+  list(orgId: string, filter?: BranchListFilter): Promise<LandedCostDocument[]>;
   update(
     orgId: string,
     id: string,

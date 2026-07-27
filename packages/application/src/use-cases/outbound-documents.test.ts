@@ -1,4 +1,5 @@
 import type {
+  Lot,
   Product,
   Serial,
   StockAdjustment,
@@ -8,7 +9,7 @@ import type {
   StockMovement,
   StockTransfer,
 } from "@stock-management/domain";
-import { InsufficientStockError } from "@stock-management/domain";
+import { InsufficientStockError, LotExpiredError } from "@stock-management/domain";
 import { describe, expect, it } from "vitest";
 import { createFakeCosting } from "../costing/fake-costing.js";
 import type {
@@ -18,6 +19,7 @@ import type {
   StockTransferWithLines,
 } from "../ports/inventory.js";
 import type { UnitOfWork, UowContext } from "../ports/unit-of-work.js";
+import { createPermissiveApprovalPolicies } from "./approval-policy.harness.js";
 import {
   PostStockAdjustment,
   VoidStockAdjustment,
@@ -60,11 +62,13 @@ type FakeOptions = {
   serialLocationId?: string | null;
   seedSerials?: boolean;
   seedCostLayers?: boolean;
+  lot?: Pick<Lot, "id" | "expiryDate" | "status">;
 };
 
 function makeFake(options: FakeOptions = {}) {
   const serialNumbers = options.serialNumbers ?? [];
   const adjustmentSerialNumbers = options.adjustmentSerialNumbers ?? [];
+  const lotId = options.lot?.id ?? null;
   const product: Product = {
     id: productId,
     orgId,
@@ -72,9 +76,9 @@ function makeFake(options: FakeOptions = {}) {
     name: "Widget",
     uom: "each",
     categoryId: null,
-    trackLot: false,
+    trackLot: options.lot != null,
     trackSerial: serialNumbers.length > 0 || adjustmentSerialNumbers.length > 0,
-    trackExpiry: false,
+    trackExpiry: options.lot != null,
     costingMethod: "fifo",
     reorderMin: null,
     reorderMax: null,
@@ -102,7 +106,7 @@ function makeFake(options: FakeOptions = {}) {
         stockIssueId: "issue-1",
         productId,
         qty: options.issueQty ?? "3",
-        lotId: null,
+        lotId,
         lineNumber: 1,
         serialNumbers,
       },
@@ -114,6 +118,9 @@ function makeFake(options: FakeOptions = {}) {
     fromLocationId,
     toLocationId,
     transitLocationId,
+    fromBranchId: "branch-1",
+    toBranchId: "branch-1",
+    purpose: "standard",
     documentNumber: "TRF-1",
     status: "draft",
     createdAt: now,
@@ -203,16 +210,16 @@ function makeFake(options: FakeOptions = {}) {
   const serialsByNumber = new Map<string, Serial>();
   const costing = createFakeCosting();
   let movementSequence = 0;
-  const key = (locationId: string, lotId: string | null = null) =>
-    `${productId}:${locationId}:${lotId ?? ""}`;
+  const key = (locationId: string, balanceLotId: string | null = null) =>
+    `${productId}:${locationId}:${balanceLotId ?? ""}`;
 
   const seedBalance = (locationId: string, qtyOnHand: string) => {
-    balances.set(key(locationId), {
+    balances.set(key(locationId, lotId), {
       id: `balance-${locationId}`,
       orgId,
       productId,
       locationId,
-      lotId: null,
+      lotId,
       qtyOnHand,
       qtyReserved: "0",
       updatedAt: now,
@@ -227,7 +234,7 @@ function makeFake(options: FakeOptions = {}) {
       orgId,
       productId,
       locationId: fromLocationId,
-      lotId: null,
+      lotId,
       sourceDocumentType: "goods_receipt",
       sourceDocumentId: "gr-seed",
       sourceDocumentLineId: "grl-seed",
@@ -506,6 +513,19 @@ function makeFake(options: FakeOptions = {}) {
       async upsert() {
         throw new Error("Unexpected lot upsert");
       },
+      async findById(_orgId: string, id: string) {
+        if (!options.lot || options.lot.id !== id) return null;
+        return {
+          id: options.lot.id,
+          orgId,
+          productId,
+          lotCode: "LOT-1",
+          expiryDate: options.lot.expiryDate,
+          status: options.lot.status,
+          createdAt: now,
+          updatedAt: now,
+        };
+      },
       async list() {
         return [];
       },
@@ -586,7 +606,7 @@ function makeFake(options: FakeOptions = {}) {
     uow,
     ctx,
     getBalance: (locationId: string) =>
-      balances.get(key(locationId))?.qtyOnHand ?? "0",
+      balances.get(key(locationId, lotId))?.qtyOnHand ?? "0",
     getIssue: () => issue,
     getTransfer: () => transfer,
     getAdjustment: () => adjustment,
@@ -647,6 +667,24 @@ describe("stock issue use cases", () => {
       new PostStockIssue(fake.uow).execute(orgId, userId, "issue-1"),
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(fake.getMovements()).toHaveLength(0);
+  });
+
+  it("rejects posting an issue for an expired lot even with on-hand balance", async () => {
+    const fake = makeFake({
+      issueQty: "1",
+      onHand: "5",
+      lot: {
+        id: "lot-expired",
+        expiryDate: new Date("2026-07-01T00:00:00.000Z"),
+        status: "active",
+      },
+    });
+
+    await expect(
+      new PostStockIssue(fake.uow).execute(orgId, userId, "issue-1"),
+    ).rejects.toBeInstanceOf(LotExpiredError);
+    expect(fake.getMovements()).toHaveLength(0);
+    expect(fake.getBalance(fromLocationId)).toBe("5");
   });
 
   it("consumes FIFO layers on post and stamps movement costs", async () => {
@@ -793,22 +831,35 @@ describe("stock transfer use cases", () => {
 
   it("supports draft list, get, create, and update operations", async () => {
     const fake = makeFake();
-    const drafts = new StockTransferUseCases(fake.ctx.transfers);
+    const drafts = new StockTransferUseCases(
+      fake.ctx.transfers,
+      fake.ctx.locations!,
+    );
 
     await expect(drafts.list(orgId)).resolves.toHaveLength(1);
     await expect(drafts.get(orgId, "transfer-1")).resolves.toMatchObject({
       status: "draft",
     });
+    const hqAccess = { role: "org_admin" as const, branchIds: [] as string[] };
     await expect(
-      drafts.create(orgId, {
-        fromLocationId,
-        toLocationId,
-        transitLocationId,
-        lines: [{ productId, qty: "4", lineNumber: 1 }],
-      }),
+      drafts.create(
+        orgId,
+        {
+          fromLocationId,
+          toLocationId,
+          transitLocationId,
+          lines: [{ productId, qty: "4", lineNumber: 1 }],
+        },
+        hqAccess,
+      ),
     ).resolves.toMatchObject({ id: "transfer-1" });
     await expect(
-      drafts.update(orgId, "transfer-1", { documentNumber: "TRF-2" }),
+      drafts.update(
+        orgId,
+        "transfer-1",
+        { documentNumber: "TRF-2" },
+        hqAccess,
+      ),
     ).resolves.toMatchObject({ id: "transfer-1" });
   });
 
@@ -861,7 +912,7 @@ describe("stock adjustment use cases", () => {
     async ({ adjustmentQty, expectedBalance }) => {
       const fake = makeFake({ adjustmentQty });
 
-      await new PostStockAdjustment(fake.uow).execute(
+      await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
         orgId,
         userId,
         "adjustment-1",
@@ -877,7 +928,7 @@ describe("stock adjustment use cases", () => {
     const fake = makeFake({ adjustmentQty: "-11" });
 
     await expect(
-      new PostStockAdjustment(fake.uow).execute(orgId, userId, "adjustment-1"),
+      new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(orgId, userId, "adjustment-1"),
     ).rejects.toBeInstanceOf(InsufficientStockError);
     expect(fake.getBalance(fromLocationId)).toBe("10");
     expect(fake.getMovements()).toHaveLength(0);
@@ -885,7 +936,7 @@ describe("stock adjustment use cases", () => {
 
   it("voids an adjustment with an opposite signed movement", async () => {
     const fake = makeFake({ adjustmentQty: "-3" });
-    await new PostStockAdjustment(fake.uow).execute(
+    await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -912,7 +963,7 @@ describe("stock adjustment use cases", () => {
     });
 
     await expect(
-      new PostStockAdjustment(fake.uow).execute(orgId, userId, "adjustment-1"),
+      new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(orgId, userId, "adjustment-1"),
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(fake.getMovements()).toHaveLength(0);
   });
@@ -923,7 +974,7 @@ describe("stock adjustment use cases", () => {
       adjustmentSerialNumbers: ["SN-1"],
     });
 
-    await new PostStockAdjustment(fake.uow).execute(
+    await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -940,7 +991,7 @@ describe("stock adjustment use cases", () => {
       seedSerials: false,
     });
 
-    await new PostStockAdjustment(fake.uow).execute(
+    await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -954,7 +1005,7 @@ describe("stock adjustment use cases", () => {
 
   it("creates a cost layer on positive adjustment and consumes on negative", async () => {
     const fake = makeFake({ adjustmentQty: "2", adjustmentUnitCost: "15" });
-    const posted = await new PostStockAdjustment(fake.uow).execute(
+    const posted = await new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -965,7 +1016,7 @@ describe("stock adjustment use cases", () => {
     ).toHaveLength(1);
 
     const fakeDown = makeFake({ adjustmentQty: "-3", onHand: "10" });
-    const down = await new PostStockAdjustment(fakeDown.uow).execute(
+    const down = await new PostStockAdjustment(fakeDown.uow, createPermissiveApprovalPolicies()).execute(
       orgId,
       userId,
       "adjustment-1",
@@ -980,7 +1031,7 @@ describe("stock adjustment use cases", () => {
       adjustmentUnitCost: null,
     });
     await expect(
-      new PostStockAdjustment(fake.uow).execute(orgId, userId, "adjustment-1"),
+      new PostStockAdjustment(fake.uow, createPermissiveApprovalPolicies()).execute(orgId, userId, "adjustment-1"),
     ).rejects.toMatchObject({ code: "MISSING_UNIT_COST" });
   });
 });

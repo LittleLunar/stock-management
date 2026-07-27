@@ -1,4 +1,4 @@
-import { and, eq, isNull, type SQL } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lte, type SQL } from "drizzle-orm";
 import type {
   CreateReservationInput,
   ReservationListFilters,
@@ -42,6 +42,27 @@ export class DrizzleReservationRepository implements ReservationPort {
       .select()
       .from(stockReservations)
       .where(and(...conditions)) as Promise<StockReservation[]>;
+  }
+
+  async listExpiredOpen(
+    now: Date,
+    limit: number,
+  ): Promise<StockReservation[]> {
+    const query = this.db
+      .select()
+      .from(stockReservations)
+      .where(
+        and(
+          eq(stockReservations.status, "open"),
+          isNotNull(stockReservations.expiresAt),
+          lte(stockReservations.expiresAt, now),
+        ),
+      )
+      .limit(limit);
+    const rows = this.lockForUpdate
+      ? await query.for("update", { skipLocked: true })
+      : await query;
+    return rows as StockReservation[];
   }
 
   async findById(

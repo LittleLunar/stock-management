@@ -19,6 +19,7 @@ import {
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
 import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type { StockCountPort, StockPort } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 
@@ -33,8 +34,8 @@ export class StockCountUseCases {
     private readonly stock: StockPort,
   ) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {
@@ -214,6 +215,7 @@ export class PostStockCount {
         count.id,
         "posted",
         movements,
+        count.branchId,
       );
       if (idempotency) {
         await ctx.idempotency.save({
@@ -331,6 +333,7 @@ export class VoidStockCount {
         count.id,
         "voided",
         movements,
+        count.branchId,
       );
       return { count: voided, movements };
     });
@@ -344,6 +347,7 @@ async function enqueueCountEvents(
   countId: string,
   action: "posted" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
@@ -353,6 +357,7 @@ async function enqueueCountEvents(
       payload: {
       countId,
       userId,
+      branchId,
       ...costingFieldsFromMovements(movements),
     },
   });

@@ -13,7 +13,7 @@ import type {
   PurchaseOrderLine,
 } from "@stock-management/domain";
 import { purchaseOrdersRoutes } from "./purchase-orders.routes.js";
-import { contextPlugin } from "../plugins/context.js";
+import { createTestContextPlugin } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 
@@ -129,7 +129,7 @@ describe("purchase order routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(contextPlugin);
+    await app.register(createTestContextPlugin());
     await app.register(
       purchaseOrdersRoutes(
         new PurchaseOrderUseCases(new InMemoryPurchaseOrderRepository()),
@@ -176,6 +176,56 @@ describe("purchase order routes", () => {
       id: created.id,
       orgId: ORG_ID,
       status: "submitted",
+    });
+  });
+
+  it("approves a submitted purchase order", async () => {
+    const app = Fastify();
+    apps.push(app);
+    registerErrorHandler(app);
+    await app.register(requestIdPlugin);
+    await app.register(createTestContextPlugin());
+    const repo = new InMemoryPurchaseOrderRepository();
+    await app.register(
+      purchaseOrdersRoutes(new PurchaseOrderUseCases(repo)),
+      { prefix: "/api/v1" },
+    );
+
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/purchase-orders",
+      headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+      payload: {
+        supplierId: SUPPLIER_ID,
+        branchId: BRANCH_ID,
+        documentNumber: "PO-2001",
+        lines: [
+          {
+            productId: PRODUCT_ID,
+            orderedQty: "2.0000",
+            unitCost: "10.0000",
+            lineNumber: 1,
+          },
+        ],
+      },
+    });
+    const created = createResponse.json<PurchaseOrderWithLines>();
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/purchase-orders/${created.id}/submit`,
+      headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+    });
+
+    const approveResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/purchase-orders/${created.id}/approve`,
+      headers: { "x-org-id": ORG_ID, "x-user-id": USER_ID },
+    });
+
+    expect(approveResponse.statusCode).toBe(200);
+    expect(approveResponse.json()).toMatchObject({
+      id: created.id,
+      status: "approved",
     });
   });
 });

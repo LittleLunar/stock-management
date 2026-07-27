@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { useApprovalPolicies } from "../hooks/approvals";
 import {
+  useApproveStockAdjustment,
   useCreateStockAdjustment,
   usePostStockAdjustment,
   useStockAdjustments,
+  useSubmitStockAdjustment,
   useVoidStockAdjustment,
 } from "../hooks/inventory";
 import { useBranches, useLocations, useProducts } from "../hooks/masters";
@@ -27,9 +30,12 @@ const emptyLine = (): AdjustmentLineDraft => ({
 
 export function StockAdjustmentsPage() {
   const { data: adjustments, isLoading, error } = useStockAdjustments();
+  const { data: policies } = useApprovalPolicies();
   const { data: branches } = useBranches();
   const { data: products } = useProducts();
   const create = useCreateStockAdjustment();
+  const submit = useSubmitStockAdjustment();
+  const approve = useApproveStockAdjustment();
   const post = usePostStockAdjustment();
   const voidAdjustment = useVoidStockAdjustment();
   const [branchId, setBranchId] = useState("");
@@ -39,6 +45,10 @@ export function StockAdjustmentsPage() {
   const [reasonCode, setReasonCode] = useState("");
   const [reasonNote, setReasonNote] = useState("");
   const [lines, setLines] = useState<AdjustmentLineDraft[]>([emptyLine()]);
+
+  const adjustmentRequiresApproval =
+    policies?.find((p) => p.documentType === "stock_adjustment")?.required ??
+    true;
 
   function updateLine(
     index: number,
@@ -297,7 +307,59 @@ export function StockAdjustmentsPage() {
                   </td>
                   <td className="px-4 py-3">{adjustment.status}</td>
                   <td className="space-x-2 px-4 py-3 text-right">
-                    {adjustment.status === "draft" ? (
+                    {adjustment.status === "draft" &&
+                    adjustmentRequiresApproval ? (
+                      <button
+                        type="button"
+                        disabled={submit.isPending}
+                        className="rounded bg-teal-800 px-3 py-1.5 text-white disabled:opacity-50"
+                        onClick={() =>
+                          submit.mutate(adjustment.id, {
+                            onSuccess: () =>
+                              toast.success("Submitted for approval"),
+                            onError: (err) => toast.error(formatApiError(err)),
+                          })
+                        }
+                      >
+                        Submit for approval
+                      </button>
+                    ) : null}
+                    {adjustment.status === "draft" &&
+                    !adjustmentRequiresApproval ? (
+                      <button
+                        type="button"
+                        disabled={post.isPending}
+                        className="rounded bg-teal-800 px-3 py-1.5 text-white disabled:opacity-50"
+                        onClick={() =>
+                          post.mutate(
+                            { id: adjustment.id },
+                            {
+                              onSuccess: () =>
+                                toast.success("Stock adjustment posted"),
+                            },
+                          )
+                        }
+                      >
+                        Post
+                      </button>
+                    ) : null}
+                    {adjustment.status === "pending_approval" ? (
+                      <button
+                        type="button"
+                        disabled={approve.isPending}
+                        className="rounded bg-teal-800 px-3 py-1.5 text-white disabled:opacity-50"
+                        onClick={() =>
+                          approve.mutate(adjustment.id, {
+                            onSuccess: () =>
+                              toast.success("Stock adjustment approved"),
+                            onError: (err) => toast.error(formatApiError(err)),
+                          })
+                        }
+                      >
+                        Approve
+                      </button>
+                    ) : null}
+                    {adjustment.status === "approved" ? (
                       <button
                         type="button"
                         disabled={post.isPending}

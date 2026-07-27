@@ -2,10 +2,47 @@
 tags:
   - wiki/log
 created: 2026-07-25
-updated: 2026-07-26
+updated: 2026-07-27
 ---
 
 # Wiki Log
+
+## [2026-07-27] update | Phase E3 complete (webhooks / FEFO / barcode)
+
+Shipped E3: webhook subscriptions + HMAC-SHA256 deliveries after journals in
+outbox poller; FEFO/quarantine hard-block on outbound; barcode lookup + scan
+fields on GR/issue/count/transfer; thin webhook admin page. Verification green
+(domain/application/api tests + api/web typecheck). Marked [[Phase E]] E1–E3
+complete; updated [[POS Integration Boundary]], [[Feature Phases]], [[index]],
+`TASKS.md`, `docs/FEATURES.md`. Next: [[Phase F]]. Manual browser smoke not run
+this gate — covered by automated tests (HTTP + application + domain).
+
+## [2026-07-27] update | Phase E2 complete (ops / approvals)
+
+Shipped E2: transfer `purpose` (replenishment needs distinct branches),
+reservation FOR UPDATE + expire poller, `approval_policies` defaults on for
+PO + adjustments (submit/approve gates), thin web replenish wizard + approve
+actions + policies page. Verification green (domain/application/api tests +
+api/web typecheck). Marked [[Phase E]] E2 complete; updated
+[[Org Branch Location]], [[Feature Phases]], [[index]], `TASKS.md`. Next: E3.
+Manual browser smoke not run this gate — covered by automated tests.
+
+## [2026-07-27] update | Phase E1 complete (branch hardening)
+
+Shipped E1: membership→context ACL (`branchIds`, `X-Branch-Id`), branch-filtered
+document lists + write gates, transfer `from_branch_id`/`to_branch_id`, outbox
+`branchId` attribution for journals, web branch switcher. Verification green
+(domain/application/api tests + api/web typecheck). Marked [[Phase E]] E1
+complete; updated [[Org Branch Location]], [[Feature Phases]], [[index]],
+`TASKS.md`. Next: E2.
+
+## [2026-07-26] update | Phase E plans ready (design + E1–E3)
+
+Planning complete for [[Phase E]]: design spec
+(`docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md`) plus master
+and deep E1–E3 plans under `docs/superpowers/plans/`. Updated [[Phase E]],
+[[Feature Phases]], [[Org Branch Location]], [[POS Integration Boundary]],
+[[index]]; `TASKS.md` split into E1/E2/E3 Active items. Implementation not started.
 
 ## [2026-07-26] update | Phase D complete (D1–D3)
 

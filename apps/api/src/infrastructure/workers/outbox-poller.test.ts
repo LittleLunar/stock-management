@@ -54,7 +54,11 @@ describe("processOutboxBatch", () => {
 
     const count = await processOutboxBatch({
       runInTransaction: async (fn) =>
-        fn({ store, processJournal: async () => {} }),
+        fn({
+          store,
+          processJournal: async () => {},
+          processWebhooks: async () => {},
+        }),
       log: { info, error: vi.fn() },
       batchSize: 10,
     });
@@ -88,6 +92,7 @@ describe("processOutboxBatch", () => {
           processJournal: async (e) => {
             order.push(`journal:${e.id}`);
           },
+          processWebhooks: async () => {},
         }),
       log: { info: vi.fn(), error: vi.fn() },
     });
@@ -107,6 +112,7 @@ describe("processOutboxBatch", () => {
           processJournal: async () => {
             throw new Error("journal boom");
           },
+          processWebhooks: async () => {},
         }),
       log: { info: vi.fn(), error },
       batchSize: 10,
@@ -119,5 +125,76 @@ describe("processOutboxBatch", () => {
       expect.objectContaining({ eventId: "evt-bad", err: "journal boom" }),
       "outbox event failed",
     );
+  });
+});
+
+describe("processOutboxBatch journal then webhook", () => {
+  it("calls processJournal before processWebhooks then markProcessed", async () => {
+    const order: string[] = [];
+    const event: PendingOutboxEvent = {
+      id: "e1",
+      orgId: "o1",
+      eventType: "document.posted",
+      aggregateType: "goods_receipt",
+      aggregateId: "gr1",
+      payload: {},
+    };
+    const store: OutboxPollerStore = {
+      async claimPending() {
+        return [event];
+      },
+      async markProcessed(id) {
+        order.push(`processed:${id}`);
+      },
+      async markFailed() {
+        order.push("failed");
+      },
+    };
+    await processOutboxBatch({
+      log: { info() {}, error() {} },
+      runInTransaction: async (fn) =>
+        fn({
+          store,
+          processJournal: async () => {
+            order.push("journal");
+          },
+          processWebhooks: async () => {
+            order.push("webhook");
+          },
+        }),
+    });
+    expect(order).toEqual(["journal", "webhook", "processed:e1"]);
+  });
+
+  it("markFailed when webhooks throw after journal", async () => {
+    const event: PendingOutboxEvent = {
+      id: "e2",
+      orgId: "o1",
+      eventType: "document.posted",
+      aggregateType: "goods_receipt",
+      aggregateId: "gr1",
+      payload: {},
+    };
+    const markFailed = vi.fn();
+    await processOutboxBatch({
+      log: { info() {}, error() {} },
+      runInTransaction: async (fn) =>
+        fn({
+          store: {
+            async claimPending() {
+              return [event];
+            },
+            async markProcessed() {
+              throw new Error("should not process");
+            },
+            markFailed,
+          },
+          processJournal: async () => {},
+          processWebhooks: async () => {
+            throw new Error("hook down");
+          },
+        }),
+    });
+    expect(markFailed).toHaveBeenCalledWith("e2", "hook down");
   });
 });

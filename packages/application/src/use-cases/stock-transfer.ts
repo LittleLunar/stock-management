@@ -3,19 +3,24 @@ import {
   InsufficientStockError,
   InvalidStateError,
   NotFoundError,
+  assertBranchAccess,
   assertCanReceiveTransfer,
   assertCanShipTransfer,
   assertCanVoidTransfer,
   assertLayersFullyOpen,
   assertLotSerialRules,
   assertSerialAvailableForOutbound,
+  assertTransferPurpose,
   signedQtyForMovement,
 } from "@stock-management/domain";
 import type {
+  MembershipAccess,
   MovementType,
   StockMovement,
   StockTransfer,
+  TransferPurpose,
 } from "@stock-management/domain";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type {
   CreateStockTransferInput,
   IdempotencyInput,
@@ -25,7 +30,9 @@ import {
   moveLayersForTransferHop,
   restoreConsumptionsForVoidedMovements,
 } from "../costing/apply-document-costing.js";
+import { assertOutboundSellable } from "../fefo/assert-outbound-sellable.js";
 import type {
+  LocationLookupPort,
   StockTransferPort,
   StockTransferWithLines,
 } from "../ports/inventory.js";
@@ -37,10 +44,13 @@ export type StockTransferResult = {
 };
 
 export class StockTransferUseCases {
-  constructor(private readonly repo: StockTransferPort) {}
+  constructor(
+    private readonly repo: StockTransferPort,
+    private readonly locations: LocationLookupPort,
+  ) {}
 
-  list(orgId: string) {
-    return this.repo.list(orgId);
+  list(orgId: string, filter?: BranchListFilter) {
+    return this.repo.list(orgId, filter);
   }
 
   async get(orgId: string, id: string) {
@@ -49,24 +59,74 @@ export class StockTransferUseCases {
     return transfer;
   }
 
-  create(orgId: string, input: CreateStockTransferInput) {
+  async create(
+    orgId: string,
+    input: CreateStockTransferInput,
+    access: MembershipAccess,
+  ) {
     assertDistinctLocations(input.fromLocationId, input.toLocationId);
-    return this.repo.create(orgId, input);
+    const purpose = input.purpose ?? "standard";
+    const { fromBranchId, toBranchId } = await resolveTransferBranches(
+      this.locations,
+      orgId,
+      input.fromLocationId,
+      input.toLocationId,
+    );
+    assertTransferPurpose(purpose, fromBranchId, toBranchId);
+    assertTransferBranchWrite(access, purpose, fromBranchId, toBranchId);
+    return this.repo.create(orgId, { ...input, purpose });
   }
 
-  async update(orgId: string, id: string, input: UpdateStockTransferInput) {
+  async update(
+    orgId: string,
+    id: string,
+    input: UpdateStockTransferInput,
+    access: MembershipAccess,
+  ) {
     const transfer = await this.get(orgId, id);
     if (transfer.status !== "draft") {
       throw new InvalidStateError("Only draft stock transfers can be updated");
     }
-    assertDistinctLocations(
-      input.fromLocationId ?? transfer.fromLocationId,
-      input.toLocationId ?? transfer.toLocationId,
+    const fromLocationId = input.fromLocationId ?? transfer.fromLocationId;
+    const toLocationId = input.toLocationId ?? transfer.toLocationId;
+    assertDistinctLocations(fromLocationId, toLocationId);
+    const purpose = input.purpose ?? transfer.purpose;
+    const { fromBranchId, toBranchId } = await resolveTransferBranches(
+      this.locations,
+      orgId,
+      fromLocationId,
+      toLocationId,
     );
-    const updated = await this.repo.update(orgId, id, input);
+    assertTransferPurpose(purpose, fromBranchId, toBranchId);
+    assertTransferBranchWrite(access, purpose, fromBranchId, toBranchId);
+    const updated = await this.repo.update(orgId, id, { ...input, purpose });
     if (!updated) throw new NotFoundError("Stock transfer");
     return updated;
   }
+}
+
+function assertTransferBranchWrite(
+  access: MembershipAccess,
+  purpose: TransferPurpose,
+  fromBranchId: string,
+  toBranchId: string,
+): void {
+  assertBranchAccess(access, fromBranchId);
+  if (purpose === "replenishment") {
+    assertBranchAccess(access, toBranchId);
+  }
+}
+
+async function resolveTransferBranches(
+  locations: LocationLookupPort,
+  orgId: string,
+  fromLocationId: string,
+  toLocationId: string,
+): Promise<{ fromBranchId: string; toBranchId: string }> {
+  const from = await locations.findById(orgId, fromLocationId);
+  const to = await locations.findById(orgId, toLocationId);
+  if (!from || !to) throw new NotFoundError("Location");
+  return { fromBranchId: from.branchId, toBranchId: to.branchId };
 }
 
 const SHIP_OPERATION = "ship-stock-transfer";
@@ -105,6 +165,7 @@ export class ShipStockTransfer {
         ctx,
         orgId,
         transfer.fromLocationId,
+        transfer.toLocationId,
         transfer.lines,
       );
 
@@ -137,6 +198,7 @@ export class ShipStockTransfer {
         transfer.id,
         "shipped",
         movements,
+        transfer.fromBranchId,
       );
       await saveReplay(ctx, orgId, SHIP_OPERATION, idempotency, result);
       return result;
@@ -208,6 +270,7 @@ export class ReceiveStockTransfer {
         transfer.id,
         "received",
         movements,
+        transfer.fromBranchId,
       );
       await saveReplay(ctx, orgId, RECEIVE_OPERATION, idempotency, result);
       return result;
@@ -263,6 +326,7 @@ export class VoidStockTransfer {
         transfer.id,
         "voided",
         movements,
+        transfer.fromBranchId,
       );
       return { transfer: voided, movements };
     });
@@ -283,7 +347,8 @@ type TransferLines = StockTransferWithLines["lines"];
 async function validateTransferLines(
   ctx: Parameters<Parameters<UnitOfWork["run"]>[0]>[0],
   orgId: string,
-  locationId: string,
+  fromLocationId: string,
+  toLocationId: string,
   lines: TransferLines,
 ): Promise<void> {
   for (const line of lines) {
@@ -293,16 +358,23 @@ async function validateTransferLines(
       lotId: line.lotId,
       serialNumbers: line.serialNumbers,
     });
+    await assertOutboundSellable(ctx, {
+      orgId,
+      locationId: fromLocationId,
+      lotId: line.lotId,
+      operation: "transfer_ship",
+      toLocationId,
+    });
     await assertTransferSerialsAvailable(
       ctx,
       orgId,
       line.productId,
       line.lotId,
       line.serialNumbers,
-      locationId,
+      fromLocationId,
     );
   }
-  await validateAvailableStock(ctx, orgId, locationId, lines);
+  await validateAvailableStock(ctx, orgId, fromLocationId, lines);
 }
 
 async function assertTransferSerialsAvailable(
@@ -619,13 +691,14 @@ async function enqueueTransferEvents(
   transferId: string,
   action: "shipped" | "received" | "voided",
   movements: StockMovement[],
+  branchId: string,
 ): Promise<void> {
   await ctx.outbox.enqueue({
     orgId,
     eventType: action === "voided" ? "document.voided" : "document.posted",
     aggregateType: "stock_transfer",
     aggregateId: transferId,
-    payload: { transferId, userId, action },
+    payload: { transferId, userId, action, branchId },
   });
   if (movements.length > 0) {
     await ctx.outbox.enqueue({

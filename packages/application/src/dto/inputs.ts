@@ -4,6 +4,7 @@ import type {
   LocationType,
   MasterStatus,
   MembershipRole,
+  TransferPurpose,
 } from "@stock-management/domain";
 
 export type CreateOrganizationInput = {
@@ -177,6 +178,7 @@ export type CreateStockTransferInput = {
   fromLocationId: string;
   toLocationId: string;
   transitLocationId: string;
+  purpose?: TransferPurpose;
   documentNumber?: string | null;
   lines: OutboundLineInput[];
 };

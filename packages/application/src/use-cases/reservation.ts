@@ -1,3 +1,7 @@
+/**
+ * Reserve must run inside UnitOfWork so StockPort.findBalance uses FOR UPDATE.
+ * Never call assertCanReserve against an unlocked balance read.
+ */
 import {
   InvalidStateError,
   NotFoundError,
@@ -7,6 +11,7 @@ import {
 } from "@stock-management/domain";
 import type { StockReservation } from "@stock-management/domain";
 import type { CreateReservationInput } from "../dto/inputs.js";
+import type { BranchListFilter } from "../access/list-scope.js";
 import type {
   ReservationListFilters,
   ReservationPort,
@@ -20,8 +25,16 @@ export class ReservationUseCases {
     private readonly uow: UnitOfWork,
   ) {}
 
-  list(orgId: string, filters?: ReservationListFilters) {
-    return this.repo.list(orgId, filters);
+  list(
+    orgId: string,
+    filters?: ReservationListFilters,
+    branchFilter?: BranchListFilter,
+  ) {
+    const effective: ReservationListFilters | undefined =
+      branchFilter?.kind === "branch"
+        ? { ...filters, branchId: branchFilter.branchId }
+        : filters;
+    return this.repo.list(orgId, effective);
   }
 
   async get(orgId: string, id: string) {

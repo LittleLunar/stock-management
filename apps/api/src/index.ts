@@ -6,9 +6,10 @@ import { loadEnv } from "./infrastructure/config/env.js";
 import { createDb } from "./infrastructure/db/client.js";
 import { DrizzleOutboxRepository } from "./infrastructure/persistence/outbox.repository.js";
 import { OutboxPoller } from "./infrastructure/workers/outbox-poller.js";
+import { ReservationExpirePoller } from "./infrastructure/workers/reservation-expire-poller.js";
 import { createAppServices } from "./main/composition-root.js";
 import { registerErrorHandler } from "./interfaces/plugins/error-handler.js";
-import { contextPlugin } from "./interfaces/plugins/context.js";
+import { createContextPlugin } from "./interfaces/plugins/context.js";
 import { requestIdPlugin } from "./interfaces/plugins/request-id.js";
 import { orgRoutes } from "./interfaces/http/org.routes.js";
 import { branchesRoutes } from "./interfaces/http/branches.routes.js";
@@ -18,6 +19,8 @@ import { productsRoutes } from "./interfaces/http/products.routes.js";
 import { suppliersRoutes } from "./interfaces/http/suppliers.routes.js";
 import { customersRoutes } from "./interfaces/http/customers.routes.js";
 import { usersRoutes } from "./interfaces/http/users.routes.js";
+import { approvalPoliciesRoutes } from "./interfaces/http/approval-policies.routes.js";
+import { webhooksRoutes } from "./interfaces/http/webhooks.routes.js";
 import { purchaseOrdersRoutes } from "./interfaces/http/purchase-orders.routes.js";
 import { goodsReceiptsRoutes } from "./interfaces/http/goods-receipts.routes.js";
 import { stockRoutes } from "./interfaces/http/stock.routes.js";
@@ -42,11 +45,20 @@ import { DrizzleAccountingRepository } from "./infrastructure/persistence/accoun
 import {
   EnsureDefaultChartOfAccounts,
   ProcessOutboxForJournals,
+  ProcessOutboxForWebhooks,
+  type HttpPoster,
 } from "@stock-management/application";
+import { DrizzleWebhookRepository } from "./infrastructure/persistence/webhook.repository.js";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
 const services = createAppServices(db);
+
+const httpPoster: HttpPoster = async (url, init) => {
+  const res = await fetch(url, init);
+  const bodyText = await res.text();
+  return { status: res.status, bodyText };
+};
 
 const app = Fastify({
   logger: {
@@ -74,7 +86,7 @@ app.addHook("onRequest", async (request, reply) => {
   reply.header("Access-Control-Allow-Origin", "*");
   reply.header(
     "Access-Control-Allow-Headers",
-    "Content-Type, X-Org-Id, X-User-Id, X-Request-Id",
+    "Content-Type, X-Org-Id, X-User-Id, X-Branch-Id, X-Request-Id",
   );
   reply.header("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,OPTIONS");
   if (request.method === "OPTIONS") {
@@ -86,7 +98,7 @@ app.get("/health", async () => {
   return HealthResponseSchema.parse({ ok: true as const });
 });
 
-await app.register(contextPlugin);
+await app.register(createContextPlugin(services.membershipAccess));
 await app.register(orgRoutes(services.org), { prefix: "/api/v1" });
 await app.register(branchesRoutes(services.branches), { prefix: "/api/v1" });
 await app.register(locationsRoutes(services.locations), { prefix: "/api/v1" });
@@ -98,6 +110,12 @@ await app.register(suppliersRoutes(services.suppliers), { prefix: "/api/v1" });
 await app.register(customersRoutes(services.customers), { prefix: "/api/v1" });
 await app.register(usersRoutes(services.users), { prefix: "/api/v1" });
 await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
+  prefix: "/api/v1",
+});
+await app.register(approvalPoliciesRoutes(services.approvalPolicies), {
+  prefix: "/api/v1",
+});
+await app.register(webhooksRoutes(services.webhookSubscriptions), {
   prefix: "/api/v1",
 });
 await app.register(goodsReceiptsRoutes(services), { prefix: "/api/v1" });
@@ -138,10 +156,17 @@ const outboxPoller = env.OUTBOX_POLLER_ENABLED
             accounting,
             new EnsureDefaultChartOfAccounts(accounting),
           );
+          const webhooks = new ProcessOutboxForWebhooks(
+            new DrizzleWebhookRepository(tx),
+            httpPoster,
+          );
           return fn({
             store,
             processJournal: async (event) => {
               await processor.execute(event);
+            },
+            processWebhooks: async (event) => {
+              await webhooks.execute(event);
             },
           });
         }),
@@ -157,6 +182,25 @@ if (outboxPoller) {
   app.addHook("onClose", async () => {
     outboxPoller.stop();
     app.log.info("outbox poller stopped");
+  });
+}
+
+const reservationExpirePoller = env.RESERVATION_EXPIRE_ENABLED
+  ? new ReservationExpirePoller(services.expireReservations, {
+      intervalMs: env.RESERVATION_EXPIRE_INTERVAL_MS,
+      log: app.log,
+    })
+  : null;
+
+if (reservationExpirePoller) {
+  reservationExpirePoller.start();
+  app.log.info(
+    { intervalMs: env.RESERVATION_EXPIRE_INTERVAL_MS },
+    "reservation expire poller started",
+  );
+  app.addHook("onClose", async () => {
+    reservationExpirePoller.stop();
+    app.log.info("reservation expire poller stopped");
   });
 }
 

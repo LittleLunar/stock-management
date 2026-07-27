@@ -11,6 +11,10 @@ import {
   SupplierReturnIdParamsSchema,
   UpdateSupplierReturnSchema,
 } from "@stock-management/shared";
+import {
+  assertDocumentBranchWrite,
+  listFilterFromContext,
+} from "./branch-scope.js";
 
 export type SupplierReturnRouteUseCases = {
   supplierReturns: SupplierReturnUseCases;
@@ -23,7 +27,10 @@ export function supplierReturnsRoutes(
 ): FastifyPluginAsync {
   return async (app) => {
     app.get("/supplier-returns", async (request) =>
-      useCases.supplierReturns.list(request.ctx.orgId),
+      useCases.supplierReturns.list(
+        request.ctx.orgId,
+        listFilterFromContext(request.ctx),
+      ),
     );
 
     app.get<{ Params: { id: string } }>(
@@ -36,6 +43,12 @@ export function supplierReturnsRoutes(
 
     app.post("/supplier-returns", async (request) => {
       const body = CreateSupplierReturnSchema.parse(request.body);
+      assertDocumentBranchWrite(
+        request.ctx,
+        "inventory.post",
+        body.branchId,
+        "Role cannot post inventory documents",
+      );
       return useCases.supplierReturns.create(request.ctx.orgId, body);
     });
 
@@ -44,6 +57,16 @@ export function supplierReturnsRoutes(
       async (request) => {
         const { id } = SupplierReturnIdParamsSchema.parse(request.params);
         const body = UpdateSupplierReturnSchema.parse(request.body);
+        const existing = await useCases.supplierReturns.get(
+          request.ctx.orgId,
+          id,
+        );
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          body.branchId ?? existing.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.supplierReturns.update(request.ctx.orgId, id, body);
       },
     );
@@ -52,6 +75,13 @@ export function supplierReturnsRoutes(
       "/supplier-returns/:id/post",
       async (request) => {
         const { id } = SupplierReturnIdParamsSchema.parse(request.params);
+        const doc = await useCases.supplierReturns.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         const body = PostSupplierReturnSchema.parse(request.body ?? {});
         const headerKey = PostSupplierReturnHeadersSchema.parse(
           request.headers,
@@ -76,6 +106,13 @@ export function supplierReturnsRoutes(
       "/supplier-returns/:id/void",
       async (request) => {
         const { id } = SupplierReturnIdParamsSchema.parse(request.params);
+        const doc = await useCases.supplierReturns.get(request.ctx.orgId, id);
+        assertDocumentBranchWrite(
+          request.ctx,
+          "inventory.post",
+          doc.branchId,
+          "Role cannot post inventory documents",
+        );
         return useCases.voidSupplierReturn.execute(
           request.ctx.orgId,
           request.ctx.userId,

@@ -12,7 +12,9 @@ type BalanceRow = {
 export function BalanceSheetPage() {
   const { data: branches } = useBranches();
   const [asOf, setAsOf] = useState(new Date().toISOString().slice(0, 10));
-  const [branchId, setBranchId] = useState("");
+  const [branchId, setBranchId] = useState(
+    () => localStorage.getItem("activeBranchId") ?? "",
+  );
   const report = useBalanceSheet({
     asOf,
     branchId: branchId || undefined,

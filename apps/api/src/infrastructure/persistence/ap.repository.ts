@@ -1,6 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import type {
   ApPort,
+  BranchListFilter,
   CreateSupplierInvoiceInput,
   SupplierInvoiceWithLines,
   UpdateSupplierInvoiceInput,
@@ -72,11 +73,18 @@ export class DrizzleApRepository implements ApPort {
     private readonly lockForUpdate = false,
   ) {}
 
-  async list(orgId: string): Promise<SupplierInvoice[]> {
+  async list(
+    orgId: string,
+    filter?: BranchListFilter,
+  ): Promise<SupplierInvoice[]> {
+    const conditions = [eq(supplierInvoices.orgId, orgId)];
+    if (filter?.kind === "branch") {
+      conditions.push(eq(supplierInvoices.branchId, filter.branchId));
+    }
     const rows = await this.db
       .select()
       .from(supplierInvoices)
-      .where(eq(supplierInvoices.orgId, orgId))
+      .where(and(...conditions))
       .orderBy(asc(supplierInvoices.invoiceDate));
     return rows.map(mapInvoice);
   }

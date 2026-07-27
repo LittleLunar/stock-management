@@ -6,6 +6,7 @@ import {
   assertFifoCostingMethod,
   assertLotSerialRules,
   assertNoOverReceive,
+  assertPoReceivable,
   resolveReceiptUnitCost,
   signedQtyForMovement,
   totalCost,
@@ -20,6 +21,7 @@ import { refreshCostSummary } from "../costing/refresh-cost-summary.js";
 import type { IdempotencyInput } from "../dto/inputs.js";
 import type { GoodsReceiptLineDetails } from "../ports/inventory.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
+import type { ApprovalPolicyUseCases } from "./approval-policy.js";
 
 const OPERATION = "post-goods-receipt";
 
@@ -33,7 +35,10 @@ function addQty(left: string, right: string): string {
 }
 
 export class PostGoodsReceipt {
-  constructor(private readonly uow: UnitOfWork) {}
+  constructor(
+    private readonly uow: UnitOfWork,
+    private readonly approvalPolicies: ApprovalPolicyUseCases,
+  ) {}
 
   execute(
     orgId: string,
@@ -55,6 +60,16 @@ export class PostGoodsReceipt {
       const receipt = await ctx.gr.findById(orgId, receiptId);
       if (!receipt) throw new NotFoundError("Goods receipt");
       assertCanPostReceipt(receipt);
+
+      if (receipt.purchaseOrderId) {
+        const po = await ctx.po.findById(orgId, receipt.purchaseOrderId);
+        if (!po) throw new NotFoundError("Purchase order");
+        const policyRequired = await this.approvalPolicies.getRequired(
+          orgId,
+          "purchase_order",
+        );
+        assertPoReceivable(po, { required: policyRequired });
+      }
 
       const poLineReceipts = new Map<
         string,
@@ -186,6 +201,7 @@ export class PostGoodsReceipt {
         payload: {
           receiptId: receipt.id,
           userId,
+          branchId: receipt.branchId,
           ...costingOutboxFields({ inventoryValueDelta }),
         },
       });
@@ -260,10 +276,15 @@ export class PostGoodsReceipt {
       (line) => Number(line.receivedQty) >= Number(line.orderedQty),
     );
     const partiallyReceived = po.lines.some((line) => Number(line.receivedQty) > 0);
+    if (!fullyReceived && !partiallyReceived) {
+      // No qty landed — keep prior status (e.g. approved) so default-on
+      // approval does not demote and block the next GR.
+      return;
+    }
     await ctx.po.updateStatus(
       orgId,
       po.id,
-      fullyReceived ? "received" : partiallyReceived ? "partially_received" : "submitted",
+      fullyReceived ? "received" : "partially_received",
     );
   }
 }

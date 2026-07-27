@@ -54,6 +54,14 @@ export class DrizzleLotRepository implements LotPort {
     return lot as Lot;
   }
 
+  async findById(orgId: string, id: string): Promise<Lot | null> {
+    const [lot] = await this.db
+      .select()
+      .from(lots)
+      .where(and(eq(lots.orgId, orgId), eq(lots.id, id)));
+    return (lot as Lot | undefined) ?? null;
+  }
+
   list(orgId: string, filters?: { productId?: string }): Promise<Lot[]> {
     const conditions: SQL[] = [eq(lots.orgId, orgId)];
     if (filters?.productId) conditions.push(eq(lots.productId, filters.productId));

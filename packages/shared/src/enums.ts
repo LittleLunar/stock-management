@@ -26,6 +26,7 @@ export type CostingMethod = z.infer<typeof CostingMethodSchema>;
 export const PoStatusSchema = z.enum([
   "draft",
   "submitted",
+  "approved",
   "partially_received",
   "received",
   "closed",
@@ -33,7 +34,28 @@ export const PoStatusSchema = z.enum([
 ]);
 export type PoStatus = z.infer<typeof PoStatusSchema>;
 
-export const DocumentStatusSchema = z.enum(["draft", "posted", "void"]);
+export const DocumentStatusSchema = z.enum([
+  "draft",
+  "pending_approval",
+  "approved",
+  "posted",
+  "void",
+]);
 export type DocumentStatus = z.infer<typeof DocumentStatusSchema>;
+
+export const ApprovalDocumentTypeSchema = z.enum([
+  "purchase_order",
+  "stock_adjustment",
+]);
+export type ApprovalDocumentType = z.infer<typeof ApprovalDocumentTypeSchema>;
+
+export const UpsertApprovalPolicySchema = z.object({
+  documentType: ApprovalDocumentTypeSchema,
+  required: z.boolean(),
+});
+export type UpsertApprovalPolicy = z.infer<typeof UpsertApprovalPolicySchema>;
+
+export const TransferPurposeSchema = z.enum(["standard", "replenishment"]);
+export type TransferPurpose = z.infer<typeof TransferPurposeSchema>;
 
 export const UuidSchema = z.string().uuid();
