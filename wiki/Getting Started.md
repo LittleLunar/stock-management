@@ -16,6 +16,7 @@ updated: 2026-07-27
 5. Phase A plan (historical): `docs/superpowers/plans/2026-07-25-phase-a-platform-skeleton.md`
 6. DX foundation (logging, errors, Vitest, Prettier, CI): `docs/superpowers/plans/2026-07-26-dx-foundation-tooling.md`
 7. Web i18n (EN/TH): `docs/superpowers/specs/2026-07-27-web-i18n-design.md` — language switcher in the shell footer; catalogs in `apps/web/src/i18n/`
+8. Auth + notifications (in progress): [[Authentication]], [[Notifications]] — specs under `docs/superpowers/specs/2026-07-27-authentication-design.md` and `…-notifications-design.md`; plan `docs/superpowers/plans/2026-07-27-auth-and-notifications.md`
 
 ## Local scripts
 
@@ -26,11 +27,14 @@ updated: 2026-07-27
 | `pnpm format` | Prettier write |
 | `pnpm db:clear` | Truncate all app rows (`scripts/clear-data.sql`); keeps schema + drizzle migrations |
 
-Env template: `.env.example` (`DATABASE_URL`, `PORT`, `LOG_LEVEL`, `NODE_ENV`, `VITE_API_URL`).
+Env template: `.env.example` (`DATABASE_URL`, `PORT`, `LOG_LEVEL`, `NODE_ENV`, `VITE_API_URL`). Auth/mailer secrets (`JWT_ACCESS_SECRET`, SMTP, etc.) land with the auth implementation.
 
-## Local bootstrap (auth stub)
+## Local bootstrap (auth stub — until JWT ships)
 
-Phase E1 loads membership from the DB for every API call (`X-Org-Id` + `X-User-Id`). Creating an org in the web shell (`POST /api/v1/orgs`) also creates:
+> [!note]
+> Until [[Authentication]] replaces the stub, Phase E1 still loads membership from the DB via `X-Org-Id` + `X-User-Id`. Target model: Bearer JWT + `X-Org-Id` / `X-Branch-Id` only.
+
+Creating an org in the web shell (`POST /api/v1/orgs`) also creates:
 
 - stub user `00000000-0000-0000-0000-000000000001` (`admin@local`)
 - active HQ `org_admin` membership (no `membership_branches` rows = all branches)
@@ -39,7 +43,7 @@ If you see `401 UNAUTHORIZED` / `No active membership` with a stale `localStorag
 
 1. Run `pnpm db:clear`
 2. Clear browser `localStorage` keys `orgId`, `userId`, `activeBranchId` on the web origin
-3. Create the org again from the shell form
+3. Create the org again from the shell form (later: use `/signup` instead)
 
 Do **not** put truncate/seed into drizzle migrations — only generate migrations when the TypeScript schema changes (`pnpm --filter @stock-management/api db:generate` then `db:migrate`).
 

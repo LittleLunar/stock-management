@@ -2,7 +2,7 @@
 tags:
   - wiki/agent
 created: 2026-07-25
-updated: 2026-07-25
+updated: 2026-07-27
 ---
 
 # Wiki Operating Schema
@@ -25,6 +25,7 @@ This vault documents the stock-management product: domain, architecture, phases,
 - Costing / accounting: [[FIFO Costing]], [[Inventory Accounting]]
 - Structure: [[Org Branch Location]]
 - Integrations: [[POS Integration Boundary]]
+- Access: [[Authentication]], [[Notifications]]
 - Roadmap: [[Feature Phases]] (under `features/`)
 
 ## Workflows
