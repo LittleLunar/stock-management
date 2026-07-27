@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { NotificationPreferenceDto } from "../api/client";
+import { useApiContext } from "../hooks/masters";
 import {
   useNotificationPreferences,
   usePutNotificationPreferences,
@@ -43,15 +44,17 @@ function buildMap(
 export function NotificationPreferencesPage() {
   const { t } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
+  const { orgId } = useApiContext();
   const { data, isLoading, error } = useNotificationPreferences();
   const put = usePutNotificationPreferences();
   const serverMap = useMemo(() => buildMap(data), [data]);
   const [draft, setDraft] = useState<Map<string, boolean> | null>(null);
   const effective = draft ?? serverMap;
 
+  // Drop draft on org switch only — never on query refetch (focus/reconnect).
   useEffect(() => {
     setDraft(null);
-  }, [data]);
+  }, [orgId]);
 
   const dirty = useMemo(() => {
     if (!draft) return false;
@@ -88,6 +91,7 @@ export function NotificationPreferencesPage() {
     );
     put.mutate(preferences, {
       onSuccess: () => {
+        setDraft(null);
         toast.success(t("settings.notificationPreferences.saveSuccess"));
       },
       onError: (err) => toast.error(formatApiError(err)),
