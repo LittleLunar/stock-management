@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type NotificationDto } from "../api/client";
-import { getAccessToken } from "../auth/session";
+import { getAccessToken, subscribeAccessToken } from "../auth/session";
 import { env } from "../lib/env";
 import { useApiContext } from "./masters";
 
@@ -16,8 +16,17 @@ export function useNotifications(enabled = true) {
   });
 }
 
-export function useUnreadNotificationCount(enabled = true) {
+export function useUnreadNotificationCount(
+  enabled = true,
+  options?: { pollWhenDisconnected?: boolean; wsConnected?: boolean },
+) {
   const ctx = useApiContext();
+  const poll =
+    options?.pollWhenDisconnected === true
+      ? options.wsConnected
+        ? false
+        : POLL_MS
+      : POLL_MS;
   return useQuery({
     queryKey: ["notifications", "unread-count", ctx.orgId],
     queryFn: async () => {
@@ -25,7 +34,7 @@ export function useUnreadNotificationCount(enabled = true) {
       return res.count;
     },
     enabled: enabled && Boolean(ctx.orgId) && Boolean(getAccessToken()),
-    refetchInterval: POLL_MS,
+    refetchInterval: poll,
   });
 }
 
@@ -82,13 +91,15 @@ export function useNotificationSocket(onEvent?: (msg: unknown) => void) {
   const ctx = useApiContext();
   const qc = useQueryClient();
   const [connected, setConnected] = useState(false);
+  const [tokenEpoch, setTokenEpoch] = useState(0);
   const backoffRef = useRef(1000);
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
+  useEffect(() => subscribeAccessToken(() => setTokenEpoch((n) => n + 1)), []);
+
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token || !ctx.orgId) {
+    if (!ctx.orgId) {
       setConnected(false);
       return;
     }
@@ -99,6 +110,11 @@ export function useNotificationSocket(onEvent?: (msg: unknown) => void) {
 
     const connect = () => {
       if (closed) return;
+      const token = getAccessToken();
+      if (!token) {
+        setConnected(false);
+        return;
+      }
       const base = env.VITE_API_URL.replace(/^http/, "ws");
       const url = `${base}/api/v1/notifications/ws?access_token=${encodeURIComponent(token)}&orgId=${encodeURIComponent(ctx.orgId)}`;
       socket = new WebSocket(url);
@@ -141,6 +157,14 @@ export function useNotificationSocket(onEvent?: (msg: unknown) => void) {
           const notification = (msg as { notification?: NotificationDto })
             .notification;
           if (notification) {
+            // Only merge when server actions already carry tokens (or none).
+            const serverActions = notification.actions.filter(
+              (a) => a.kind === "server",
+            );
+            const tokensReady =
+              serverActions.length === 0 ||
+              serverActions.every((a) => Boolean(a.token));
+            if (!tokensReady) return;
             qc.setQueryData(
               ["notifications", ctx.orgId],
               (prev: NotificationDto[] | undefined) => {
@@ -173,7 +197,7 @@ export function useNotificationSocket(onEvent?: (msg: unknown) => void) {
       if (reconnectTimer) clearTimeout(reconnectTimer);
       socket?.close();
     };
-  }, [ctx.orgId, qc]);
+  }, [ctx.orgId, qc, tokenEpoch]);
 
   return { connected };
 }

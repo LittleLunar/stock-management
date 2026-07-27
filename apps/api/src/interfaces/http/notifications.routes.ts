@@ -5,6 +5,7 @@ import type {
   NotificationPublisher,
   NotificationUseCases,
 } from "@stock-management/application";
+import { pickEntityRef } from "@stock-management/application";
 import type { Notification } from "@stock-management/domain";
 import {
   ExecuteNotificationActionBodySchema,
@@ -34,19 +35,16 @@ function serializeNotification(
     return { ...base, actions: n.actions };
   }
 
+  const entityRef = pickEntityRef(n.data.entityIds ?? {}, n.eventType);
   return Promise.all(
     n.actions.map(async (action) => {
-      if (action.kind !== "server") return action;
-      const entityIds = n.data.entityIds ?? {};
-      const entries = Object.entries(entityIds);
-      if (entries.length === 0) return action;
-      const [type, id] = entries[0]!;
+      if (action.kind !== "server" || !entityRef) return action;
       const token = await actionTokens.sign({
         notificationId: n.id,
         actionId: action.id,
         userId: n.userId,
         orgId: n.orgId,
-        entityRef: { type, id },
+        entityRef,
       });
       return { ...action, token };
     }),

@@ -33,12 +33,15 @@ export function NotificationBell() {
   const { t, i18n } = useTranslation("common");
   const navigate = useNavigate();
   const list = useNotifications();
-  const unread = useUnreadNotificationCount();
+  const { connected: wsConnected } = useNotificationSocket();
+  const unread = useUnreadNotificationCount(true, {
+    pollWhenDisconnected: true,
+    wsConnected,
+  });
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
   const dismiss = useDismissNotification();
   const execute = useExecuteNotificationAction();
-  useNotificationSocket();
 
   const count = unread.data ?? 0;
   const items = useMemo(
@@ -161,6 +164,9 @@ export function NotificationBell() {
                             action.id === "reject" || action.id === "decline"
                               ? "outline"
                               : "secondary"
+                          }
+                          isDisabled={
+                            action.kind === "server" && !action.token
                           }
                           isPending={execute.isPending}
                           onPress={() => {

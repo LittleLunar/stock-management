@@ -58,6 +58,10 @@ export class WsNotificationHub implements NotificationPublisher {
 function serializeMessage(message: NotificationRealtimeMessage): unknown {
   if (message.type === "notification.created") {
     const n = message.notification;
+    const actions = n.actions.map((action) => {
+      const token = message.actionTokens?.[action.id];
+      return token ? { ...action, token } : action;
+    });
     return {
       type: message.type,
       notification: {
@@ -68,7 +72,7 @@ function serializeMessage(message: NotificationRealtimeMessage): unknown {
         title: n.title,
         body: n.body,
         data: n.data,
-        actions: n.actions,
+        actions,
         readAt: n.readAt?.toISOString() ?? null,
         dismissedAt: n.dismissedAt?.toISOString() ?? null,
         createdAt: n.createdAt.toISOString(),

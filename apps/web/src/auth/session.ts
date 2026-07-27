@@ -4,6 +4,7 @@ const ORG_NAME_KEY = "orgName";
 const USER_ID_KEY = "userId";
 
 let accessTokenMemory: string | null = null;
+const accessTokenListeners = new Set<() => void>();
 
 function readSessionStorage(key: string): string | null {
   if (typeof sessionStorage === "undefined") return null;
@@ -20,6 +21,18 @@ function removeSessionStorage(key: string): void {
   sessionStorage.removeItem(key);
 }
 
+function notifyAccessTokenListeners(): void {
+  for (const listener of accessTokenListeners) listener();
+}
+
+/** Subscribe to access-token set/clear (e.g. WS reconnect after refresh). */
+export function subscribeAccessToken(listener: () => void): () => void {
+  accessTokenListeners.add(listener);
+  return () => {
+    accessTokenListeners.delete(listener);
+  };
+}
+
 export function getAccessToken(): string | null {
   if (accessTokenMemory) return accessTokenMemory;
   const stored = readSessionStorage(ACCESS_TOKEN_KEY);
@@ -32,11 +45,13 @@ export function getAccessToken(): string | null {
 export function setAccessToken(token: string): void {
   accessTokenMemory = token;
   writeSessionStorage(ACCESS_TOKEN_KEY, token);
+  notifyAccessTokenListeners();
 }
 
 export function clearAccessToken(): void {
   accessTokenMemory = null;
   removeSessionStorage(ACCESS_TOKEN_KEY);
+  notifyAccessTokenListeners();
 }
 
 export function getOrgId(): string {
@@ -87,7 +102,8 @@ export function isAuthPublicPath(pathname: string): boolean {
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
     pathname === "/verify-email" ||
-    pathname === "/accept-invite"
+    pathname === "/accept-invite" ||
+    pathname === "/notification-action"
   );
 }
 

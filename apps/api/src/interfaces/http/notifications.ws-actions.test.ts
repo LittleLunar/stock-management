@@ -101,8 +101,26 @@ describe("notification-actions execute", () => {
         },
         async dismiss() {},
       } satisfies NotificationRepository,
+      membershipAccess: {
+        async findActiveByUser(orgId, userId) {
+          return {
+            id: "m-1",
+            orgId,
+            userId,
+            role: "org_admin",
+            status: "active",
+            branchIds: [],
+            createdAt: new Date(0),
+            updatedAt: new Date(0),
+          };
+        },
+      },
       purchaseOrders: {
-        get: async () => ({ id: PO, status: "submitted" }),
+        get: async () => ({
+          id: PO,
+          status: "submitted",
+          branchId: "00000000-0000-4000-8000-000000000005",
+        }),
         approve,
         cancel: vi.fn(),
       } as unknown as PurchaseOrderUseCases,
@@ -166,6 +184,11 @@ describe("notification-actions execute", () => {
           return 0;
         },
         async dismiss() {},
+      },
+      membershipAccess: {
+        async findActiveByUser() {
+          return null;
+        },
       },
       purchaseOrders: {} as PurchaseOrderUseCases,
       stockAdjustments: {} as StockAdjustmentUseCases,

@@ -244,6 +244,7 @@ const outboxPoller = env.OUTBOX_POLLER_ENABLED
             notificationRepo,
             preferenceRepo,
             services.notificationHub,
+            services.actionTokens,
           );
           const notifications = new ProcessOutboxForNotifications(
             notificationChannel,

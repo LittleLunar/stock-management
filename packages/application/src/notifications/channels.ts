@@ -1,5 +1,6 @@
 import {
   isChannelEnabled,
+  type Notification,
   type NotificationEventType,
 } from "@stock-management/domain";
 import type {
@@ -28,6 +29,7 @@ export class InAppChannelDecorator implements NotificationChannel {
     private readonly notifications: NotificationRepository,
     private readonly preferences: NotificationPreferenceRepository,
     private readonly publisher?: NotificationPublisher,
+    private readonly actionTokens?: ActionTokenSigner,
   ) {}
 
   async deliver(ctx: NotificationDeliveryContext): Promise<void> {
@@ -67,9 +69,12 @@ export class InAppChannelDecorator implements NotificationChannel {
           actions: ctx.actions,
         });
         next.notificationId = row.id;
+
+        const actionTokens = await this.signActionTokens(row);
         this.publisher?.publish(ctx.recipient.userId, ctx.orgId, {
           type: "notification.created",
           notification: row,
+          ...(actionTokens ? { actionTokens } : {}),
         });
         const count = await this.notifications.unreadCount(
           ctx.orgId,
@@ -83,6 +88,49 @@ export class InAppChannelDecorator implements NotificationChannel {
     }
     await this.inner.deliver(next);
   }
+
+  private async signActionTokens(
+    row: Notification,
+  ): Promise<Record<string, string> | undefined> {
+    if (!this.actionTokens) return undefined;
+    const entityIds = row.data.entityIds ?? {};
+    const entityRef = pickEntityRef(entityIds, row.eventType);
+    if (!entityRef) return undefined;
+
+    const tokens: Record<string, string> = {};
+    for (const action of row.actions) {
+      if (action.kind !== "server") continue;
+      tokens[action.id] = await this.actionTokens.sign({
+        notificationId: row.id,
+        actionId: action.id,
+        userId: row.userId,
+        orgId: row.orgId,
+        entityRef,
+      });
+    }
+    return Object.keys(tokens).length > 0 ? tokens : undefined;
+  }
+}
+
+/** Prefer known entity keys for the event type over Object.entries order. */
+export function pickEntityRef(
+  entityIds: Record<string, string>,
+  eventType: string,
+): { type: string; id: string } | undefined {
+  const preferred =
+    eventType === "approval.assigned"
+      ? ["purchase_order", "stock_adjustment"]
+      : eventType.startsWith("membership.invite")
+        ? ["membership_invite"]
+        : Object.keys(entityIds);
+  for (const key of preferred) {
+    const id = entityIds[key];
+    if (typeof id === "string") return { type: key, id };
+  }
+  const entries = Object.entries(entityIds);
+  if (entries.length === 0) return undefined;
+  const [type, id] = entries[0]!;
+  return { type, id };
 }
 
 export class EmailChannelDecorator implements NotificationChannel {
@@ -151,13 +199,7 @@ async function resolveEmailCta(
     options?.actionTokens &&
     options.appPublicUrl
   ) {
-    const entityRef =
-      ctx.data.entityIds && Object.keys(ctx.data.entityIds).length > 0
-        ? {
-            type: Object.keys(ctx.data.entityIds)[0]!,
-            id: Object.values(ctx.data.entityIds)[0]!,
-          }
-        : undefined;
+    const entityRef = pickEntityRef(ctx.data.entityIds ?? {}, ctx.eventType);
     if (entityRef) {
       const token = await options.actionTokens.sign({
         notificationId: ctx.notificationId,

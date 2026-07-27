@@ -184,6 +184,8 @@ export type NotificationRealtimeMessage =
   | {
       type: "notification.created";
       notification: Notification;
+      /** Signed action tokens keyed by action id (server actions only). */
+      actionTokens?: Record<string, string>;
     }
   | { type: "notification.read"; id: string }
   | { type: "notifications.read_all" }

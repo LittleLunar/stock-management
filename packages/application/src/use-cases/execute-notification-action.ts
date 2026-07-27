@@ -2,10 +2,13 @@ import {
   ForbiddenError,
   InvalidStateError,
   NotFoundError,
+  assertBranchAccess,
   assertCanApproveAdjustment,
   assertCanApprovePo,
+  canPerform,
   type Notification,
 } from "@stock-management/domain";
+import type { MembershipAccessPort } from "../ports/membership-access.js";
 import type {
   ActionTokenSigner,
   NotificationPublisher,
@@ -24,6 +27,7 @@ export type ExecuteNotificationActionResult = {
 export type ExecuteNotificationActionDeps = {
   tokens: ActionTokenSigner;
   notifications: NotificationRepository;
+  membershipAccess: MembershipAccessPort;
   publisher?: NotificationPublisher;
   purchaseOrders: PurchaseOrderUseCases;
   stockAdjustments: StockAdjustmentUseCases;
@@ -91,10 +95,32 @@ export class ExecuteNotificationAction {
     };
   }
 
+  private async assertDocumentApprove(
+    orgId: string,
+    userId: string,
+    branchId: string,
+  ): Promise<void> {
+    const membership = await this.deps.membershipAccess.findActiveByUser(
+      orgId,
+      userId,
+    );
+    if (!membership) {
+      throw new ForbiddenError("No active membership");
+    }
+    if (!canPerform(membership.role, "document.approve")) {
+      throw new ForbiddenError("Role cannot approve documents");
+    }
+    assertBranchAccess(
+      { role: membership.role, branchIds: membership.branchIds },
+      branchId,
+    );
+  }
+
   private async dispatch(
     actionId: string,
     claims: {
       orgId: string;
+      userId: string;
       entityRef: { type: string; id: string };
     },
     notification: Notification,
@@ -104,28 +130,35 @@ export class ExecuteNotificationAction {
 
     if (actionId === "approve" || actionId === "reject") {
       if (type === "purchase_order") {
+        const po = await this.deps.purchaseOrders.get(claims.orgId, id);
+        await this.assertDocumentApprove(
+          claims.orgId,
+          claims.userId,
+          po.branchId,
+        );
         if (actionId === "approve") {
-          const po = await this.deps.purchaseOrders.get(claims.orgId, id);
-          // Idempotent: already approved is OK.
           if (po.status === "approved") return;
           assertCanApprovePo(po);
           await this.deps.purchaseOrders.approve(claims.orgId, id);
           return;
         }
-        const po = await this.deps.purchaseOrders.get(claims.orgId, id);
         if (po.status === "cancelled") return;
         await this.deps.purchaseOrders.cancel(claims.orgId, id);
         return;
       }
       if (type === "stock_adjustment") {
+        const adj = await this.deps.stockAdjustments.get(claims.orgId, id);
+        await this.assertDocumentApprove(
+          claims.orgId,
+          claims.userId,
+          adj.branchId,
+        );
         if (actionId === "approve") {
-          const adj = await this.deps.stockAdjustments.get(claims.orgId, id);
           if (adj.status === "approved") return;
           assertCanApproveAdjustment(adj);
           await this.deps.stockAdjustments.approve(claims.orgId, id);
           return;
         }
-        const adj = await this.deps.stockAdjustments.get(claims.orgId, id);
         if (adj.status === "draft") return;
         await this.deps.stockAdjustments.reject(claims.orgId, id);
         return;

@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  ForbiddenError,
   InvalidStateError,
   TokenExpiredError,
   TokenInvalidError,
+  type Membership,
+  type MembershipRole,
   type Notification,
 } from "@stock-management/domain";
 import { ExecuteNotificationAction } from "./execute-notification-action.js";
@@ -11,6 +14,7 @@ import type {
   NotificationActionTokenClaims,
   NotificationRepository,
 } from "../ports/notification.js";
+import type { MembershipAccessPort } from "../ports/membership-access.js";
 import type { PurchaseOrderUseCases } from "./purchase-order.js";
 import type { StockAdjustmentUseCases } from "./stock-adjustment.js";
 import type { MembershipInviteUseCases } from "./membership-invite.js";
@@ -19,6 +23,7 @@ const ORG = "00000000-0000-4000-8000-000000000001";
 const USER = "00000000-0000-4000-8000-000000000002";
 const NOTIF = "00000000-0000-4000-8000-000000000003";
 const PO = "00000000-0000-4000-8000-000000000004";
+const BRANCH = "00000000-0000-4000-8000-000000000005";
 
 function notification(
   overrides: Partial<Notification> = {},
@@ -64,34 +69,58 @@ function memoryTokens(
   };
 }
 
+function membershipAccess(
+  role: MembershipRole = "org_admin",
+  branchIds: string[] = [],
+): MembershipAccessPort {
+  return {
+    async findActiveByUser(orgId, userId): Promise<Membership | null> {
+      return {
+        id: "m-1",
+        orgId,
+        userId,
+        role,
+        status: "active",
+        branchIds,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      };
+    },
+  };
+}
+
+function emptyNotifications(
+  row: Notification | null = notification(),
+): NotificationRepository {
+  return {
+    async insert() {
+      throw new Error("unused");
+    },
+    async findByDeliveryKey() {
+      return null;
+    },
+    async listForUser() {
+      return [];
+    },
+    async unreadCount() {
+      return 0;
+    },
+    async findById() {
+      return row;
+    },
+    async markRead(_o, _u, _id, at) {
+      if (row) row.readAt = at;
+    },
+    async markAllRead() {
+      return 0;
+    },
+    async dismiss() {},
+  };
+}
+
 describe("ExecuteNotificationAction", () => {
   it("approves a purchase order and marks the notification read", async () => {
     const row = notification();
-    const notifications: NotificationRepository = {
-      async insert() {
-        throw new Error("unused");
-      },
-      async findByDeliveryKey() {
-        return null;
-      },
-      async listForUser() {
-        return [];
-      },
-      async unreadCount() {
-        return 0;
-      },
-      async findById() {
-        return row;
-      },
-      async markRead(_o, _u, id, at) {
-        row.readAt = at;
-        expect(id).toBe(NOTIF);
-      },
-      async markAllRead() {
-        return 0;
-      },
-      async dismiss() {},
-    };
     const approve = vi.fn(async () => ({ id: PO, status: "approved" }));
     const tokens = memoryTokens();
     const token = await tokens.sign({
@@ -104,9 +133,10 @@ describe("ExecuteNotificationAction", () => {
 
     const uc = new ExecuteNotificationAction({
       tokens,
-      notifications,
+      notifications: emptyNotifications(row),
+      membershipAccess: membershipAccess("org_admin"),
       purchaseOrders: {
-        get: async () => ({ id: PO, status: "submitted" }),
+        get: async () => ({ id: PO, status: "submitted", branchId: BRANCH }),
         approve,
         cancel: vi.fn(),
       } as unknown as PurchaseOrderUseCases,
@@ -124,6 +154,34 @@ describe("ExecuteNotificationAction", () => {
     expect(row.readAt).not.toBeNull();
   });
 
+  it("rejects approve when role lacks document.approve (e.g. purchasing)", async () => {
+    const approve = vi.fn();
+    const tokens = memoryTokens();
+    const token = await tokens.sign({
+      notificationId: NOTIF,
+      actionId: "approve",
+      userId: USER,
+      orgId: ORG,
+      entityRef: { type: "purchase_order", id: PO },
+    });
+
+    const uc = new ExecuteNotificationAction({
+      tokens,
+      notifications: emptyNotifications(),
+      membershipAccess: membershipAccess("purchasing"),
+      purchaseOrders: {
+        get: async () => ({ id: PO, status: "submitted", branchId: BRANCH }),
+        approve,
+        cancel: vi.fn(),
+      } as unknown as PurchaseOrderUseCases,
+      stockAdjustments: {} as StockAdjustmentUseCases,
+      membershipInvites: {} as MembershipInviteUseCases,
+    });
+
+    await expect(uc.execute({ token })).rejects.toBeInstanceOf(ForbiddenError);
+    expect(approve).not.toHaveBeenCalled();
+  });
+
   it("is idempotent when the PO is already approved", async () => {
     const row = notification();
     const approve = vi.fn();
@@ -137,32 +195,10 @@ describe("ExecuteNotificationAction", () => {
     });
     const uc = new ExecuteNotificationAction({
       tokens,
-      notifications: {
-        async insert() {
-          throw new Error("unused");
-        },
-        async findByDeliveryKey() {
-          return null;
-        },
-        async listForUser() {
-          return [];
-        },
-        async unreadCount() {
-          return 0;
-        },
-        async findById() {
-          return row;
-        },
-        async markRead(_o, _u, _id, at) {
-          row.readAt = at;
-        },
-        async markAllRead() {
-          return 0;
-        },
-        async dismiss() {},
-      },
+      notifications: emptyNotifications(row),
+      membershipAccess: membershipAccess("branch_manager"),
       purchaseOrders: {
-        get: async () => ({ id: PO, status: "approved" }),
+        get: async () => ({ id: PO, status: "approved", branchId: BRANCH }),
         approve,
         cancel: vi.fn(),
       } as unknown as PurchaseOrderUseCases,
@@ -191,28 +227,8 @@ describe("ExecuteNotificationAction", () => {
 
     const uc = new ExecuteNotificationAction({
       tokens,
-      notifications: {
-        async insert() {
-          throw new Error("unused");
-        },
-        async findByDeliveryKey() {
-          return null;
-        },
-        async listForUser() {
-          return [];
-        },
-        async unreadCount() {
-          return 0;
-        },
-        async findById() {
-          return notification();
-        },
-        async markRead() {},
-        async markAllRead() {
-          return 0;
-        },
-        async dismiss() {},
-      },
+      notifications: emptyNotifications(),
+      membershipAccess: membershipAccess(),
       purchaseOrders: {} as PurchaseOrderUseCases,
       stockAdjustments: {} as StockAdjustmentUseCases,
       membershipInvites: {} as MembershipInviteUseCases,
@@ -226,28 +242,8 @@ describe("ExecuteNotificationAction", () => {
   it("maps invalid action tokens to TokenInvalidError", async () => {
     const uc = new ExecuteNotificationAction({
       tokens: memoryTokens(),
-      notifications: {
-        async insert() {
-          throw new Error("unused");
-        },
-        async findByDeliveryKey() {
-          return null;
-        },
-        async listForUser() {
-          return [];
-        },
-        async unreadCount() {
-          return 0;
-        },
-        async findById() {
-          return null;
-        },
-        async markRead() {},
-        async markAllRead() {
-          return 0;
-        },
-        async dismiss() {},
-      },
+      notifications: emptyNotifications(null),
+      membershipAccess: membershipAccess(),
       purchaseOrders: {} as PurchaseOrderUseCases,
       stockAdjustments: {} as StockAdjustmentUseCases,
       membershipInvites: {} as MembershipInviteUseCases,
@@ -280,30 +276,8 @@ describe("ExecuteNotificationAction", () => {
 
     const uc = new ExecuteNotificationAction({
       tokens,
-      notifications: {
-        async insert() {
-          throw new Error("unused");
-        },
-        async findByDeliveryKey() {
-          return null;
-        },
-        async listForUser() {
-          return [];
-        },
-        async unreadCount() {
-          return 0;
-        },
-        async findById() {
-          return row;
-        },
-        async markRead(_o, _u, _id, at) {
-          row.readAt = at;
-        },
-        async markAllRead() {
-          return 0;
-        },
-        async dismiss() {},
-      },
+      notifications: emptyNotifications(row),
+      membershipAccess: membershipAccess(),
       purchaseOrders: {} as PurchaseOrderUseCases,
       stockAdjustments: {} as StockAdjustmentUseCases,
       membershipInvites: {
@@ -332,28 +306,8 @@ describe("ExecuteNotificationAction", () => {
     });
     const uc = new ExecuteNotificationAction({
       tokens,
-      notifications: {
-        async insert() {
-          throw new Error("unused");
-        },
-        async findByDeliveryKey() {
-          return null;
-        },
-        async listForUser() {
-          return [];
-        },
-        async unreadCount() {
-          return 0;
-        },
-        async findById() {
-          return row;
-        },
-        async markRead() {},
-        async markAllRead() {
-          return 0;
-        },
-        async dismiss() {},
-      },
+      notifications: emptyNotifications(row),
+      membershipAccess: membershipAccess(),
       purchaseOrders: {} as PurchaseOrderUseCases,
       stockAdjustments: {} as StockAdjustmentUseCases,
       membershipInvites: {} as MembershipInviteUseCases,

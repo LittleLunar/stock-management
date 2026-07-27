@@ -62,6 +62,7 @@ import { SupplierInvoicesPage } from "./pages/SupplierInvoicesPage";
 import { TrialBalancePage } from "./pages/TrialBalancePage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { NotificationActionPage } from "./pages/NotificationActionPage";
 import { WebhookSubscriptionsPage } from "./pages/WebhookSubscriptionsPage";
 
 const queryClient = new QueryClient({
@@ -556,6 +557,16 @@ const acceptInviteRoute = createRoute({
   component: AcceptInvitePage,
 });
 
+const notificationActionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/notification-action",
+  validateSearch: (search: Record<string, unknown>): { token?: string } => {
+    const token = typeof search.token === "string" ? search.token : undefined;
+    return token !== undefined ? { token } : {};
+  },
+  component: NotificationActionPage,
+});
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -749,6 +760,7 @@ const routeTree = rootRoute.addChildren([
   resetPasswordRoute,
   verifyEmailRoute,
   acceptInviteRoute,
+  notificationActionRoute,
   indexRoute,
   branchesRoute,
   locationsRoute,

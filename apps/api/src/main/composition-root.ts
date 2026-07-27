@@ -281,6 +281,7 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     notificationRepo,
     notificationPreferenceRepo,
     notificationHub,
+    actionTokens,
   );
   const processOutboxForNotifications = new ProcessOutboxForNotifications(
     notificationChannel,
@@ -334,6 +335,7 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     tokens: actionTokens,
     notifications: notificationRepo,
     publisher: notificationHub,
+    membershipAccess: usersRepo,
     purchaseOrders: purchaseOrderUseCases,
     stockAdjustments: stockAdjustmentUseCases,
     membershipInvites,

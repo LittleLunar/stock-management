@@ -129,7 +129,7 @@ describe("NotificationEventPolicyRegistry", () => {
     expect(resolved.defaultChannels).toEqual(["in_app"]);
   });
 
-  it("resolves approval.assigned including purchasing", async () => {
+  it("resolves approval.assigned to document.approve roles only", async () => {
     const intent: NotificationIntent = {
       eventType: "approval.assigned",
       orgId: "org-1",
@@ -141,8 +141,8 @@ describe("NotificationEventPolicyRegistry", () => {
       .resolve(intent, directory);
     expect(resolved.recipients.map((r) => r.userId).sort()).toEqual([
       "admin-1",
-      "buy-1",
       "mgr-1",
     ]);
+    expect(resolved.recipients.map((r) => r.userId)).not.toContain("buy-1");
   });
 });

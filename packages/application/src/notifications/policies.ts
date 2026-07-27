@@ -285,11 +285,7 @@ export const notificationEventPolicies: NotificationEventPolicy[] = [
     // TODO(notifications): prefer approval-policy eligible approvers once the
     // policy model exposes approver roles/users (today: required boolean only).
     (intent, directory) =>
-      stakeholders(intent, directory, [
-        "org_admin",
-        "branch_manager",
-        "purchasing",
-      ]),
+      stakeholders(intent, directory, ["org_admin", "branch_manager"]),
     [
       { id: "approve", label: "Approve", kind: "server" },
       { id: "reject", label: "Reject", kind: "server" },
