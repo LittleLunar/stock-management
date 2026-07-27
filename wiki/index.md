@@ -23,7 +23,7 @@ updated: 2026-07-27
 
 ## Concepts
 
-- [[Tech Stack]] — Fastify, Drizzle, Postgres, Vite/React, TanStack, Tailwind, Vitest, Prettier, Pino
+- [[Tech Stack]] — Fastify, Drizzle, Postgres, Vite/React, TanStack, Tailwind, i18next EN/TH, Vitest, Prettier, Pino
 - [[Clean Architecture]] — mandatory Full CA for Phases A–F (`domain` / `application` packages)
 - [[SOLID and Design Patterns]] — SOLID within Clean Architecture
 - [[Domain Model]] — core entities and relationships

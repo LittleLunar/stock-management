@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useApprovePurchaseOrder } from "../hooks/approvals";
 import {
@@ -7,6 +8,7 @@ import {
   useSubmitPurchaseOrder,
 } from "../hooks/inventory";
 import { useBranches, useProducts, useSuppliers } from "../hooks/masters";
+import { formatDate } from "../i18n/format";
 import { formatApiError } from "../lib/errors";
 
 type PurchaseOrderLineDraft = {
@@ -22,6 +24,7 @@ const emptyLine = (): PurchaseOrderLineDraft => ({
 });
 
 export function PurchaseOrdersPage() {
+  const { t } = useTranslation("purchasing");
   const { data: purchaseOrders, isLoading, error } = usePurchaseOrders();
   const { data: suppliers } = useSuppliers();
   const { data: branches } = useBranches();
@@ -50,7 +53,7 @@ export function PurchaseOrdersPage() {
   function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!supplierId || !branchId || lines.some((line) => !line.productId)) {
-      toast.error("Select a supplier, branch, and product for every line");
+      toast.error(t("purchasing.purchaseOrders.selectRequired"));
       return;
     }
     create.mutate(
@@ -70,7 +73,7 @@ export function PurchaseOrdersPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Purchase order created");
+          toast.success(t("purchasing.purchaseOrders.createSuccess"));
           setDocumentNumber("");
           setExpectedDate("");
           setLines([emptyLine()]);
@@ -87,9 +90,11 @@ export function PurchaseOrdersPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Purchase orders</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("purchasing.purchaseOrders.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Create draft orders and submit them for receiving.
+          {t("purchasing.purchaseOrders.description")}
         </p>
       </div>
 
@@ -97,7 +102,9 @@ export function PurchaseOrdersPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">New purchase order</h2>
+        <h2 className="font-semibold">
+          {t("purchasing.purchaseOrders.newTitle")}
+        </h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <select
             required
@@ -105,7 +112,7 @@ export function PurchaseOrdersPage() {
             value={supplierId}
             onChange={(event) => setSupplierId(event.target.value)}
           >
-            <option value="">Supplier</option>
+            <option value="">{t("purchasing.purchaseOrders.supplier")}</option>
             {(suppliers ?? []).map((supplier) => (
               <option key={supplier.id} value={supplier.id}>
                 {supplier.code} — {supplier.name}
@@ -118,7 +125,7 @@ export function PurchaseOrdersPage() {
             value={branchId}
             onChange={(event) => setBranchId(event.target.value)}
           >
-            <option value="">Branch</option>
+            <option value="">{t("purchasing.purchaseOrders.branch")}</option>
             {(branches ?? []).map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.code} — {branch.name}
@@ -127,7 +134,7 @@ export function PurchaseOrdersPage() {
           </select>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Document number (optional)"
+            placeholder={t("purchasing.purchaseOrders.documentNumberPlaceholder")}
             value={documentNumber}
             onChange={(event) => setDocumentNumber(event.target.value)}
           />
@@ -153,7 +160,7 @@ export function PurchaseOrdersPage() {
                   updateLine(index, "productId", event.target.value)
                 }
               >
-                <option value="">Product</option>
+                <option value="">{t("purchasing.purchaseOrders.product")}</option>
                 {(products ?? []).map((product) => (
                   <option key={product.id} value={product.id}>
                     {product.sku} — {product.name}
@@ -164,8 +171,10 @@ export function PurchaseOrdersPage() {
                 required
                 inputMode="decimal"
                 className="rounded border border-slate-300 px-3 py-2"
-                aria-label={`Line ${index + 1} quantity`}
-                placeholder="Quantity"
+                aria-label={t("purchasing.purchaseOrders.qtyAria", {
+                  n: index + 1,
+                })}
+                placeholder={t("purchasing.purchaseOrders.qtyPlaceholder")}
                 value={line.orderedQty}
                 onChange={(event) =>
                   updateLine(index, "orderedQty", event.target.value)
@@ -174,8 +183,10 @@ export function PurchaseOrdersPage() {
               <input
                 inputMode="decimal"
                 className="rounded border border-slate-300 px-3 py-2"
-                aria-label={`Line ${index + 1} unit cost`}
-                placeholder="Unit cost"
+                aria-label={t("purchasing.purchaseOrders.unitCostAria", {
+                  n: index + 1,
+                })}
+                placeholder={t("purchasing.purchaseOrders.unitCostPlaceholder")}
                 value={line.unitCost}
                 onChange={(event) =>
                   updateLine(index, "unitCost", event.target.value)
@@ -191,7 +202,7 @@ export function PurchaseOrdersPage() {
                   )
                 }
               >
-                Remove
+                {t("purchasing.purchaseOrders.remove")}
               </button>
             </div>
           ))}
@@ -202,31 +213,45 @@ export function PurchaseOrdersPage() {
             className="rounded border border-slate-300 px-4 py-2 text-sm"
             onClick={() => setLines((current) => [...current, emptyLine()])}
           >
-            Add line
+            {t("purchasing.purchaseOrders.addLine")}
           </button>
           <button
             type="submit"
             disabled={create.isPending}
             className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {create.isPending ? "Creating…" : "Create draft"}
+            {create.isPending
+              ? t("purchasing.purchaseOrders.creating")
+              : t("purchasing.purchaseOrders.createDraft")}
           </button>
         </div>
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Orders</h2>
-        {isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">
+          {t("purchasing.purchaseOrders.listTitle")}
+        </h2>
+        {isLoading ? <p>{t("purchasing.purchaseOrders.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Document</th>
-                <th className="px-4 py-3">Supplier</th>
-                <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Expected</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">
+                  {t("purchasing.purchaseOrders.col.document")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("purchasing.purchaseOrders.col.supplier")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("purchasing.purchaseOrders.col.branch")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("purchasing.purchaseOrders.col.expected")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("purchasing.purchaseOrders.col.status")}
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -245,9 +270,7 @@ export function PurchaseOrdersPage() {
                   </td>
                   <td className="px-4 py-3">
                     {purchaseOrder.expectedDate
-                      ? new Date(
-                          purchaseOrder.expectedDate,
-                        ).toLocaleDateString()
+                      ? formatDate(purchaseOrder.expectedDate)
                       : "—"}
                   </td>
                   <td className="px-4 py-3">{purchaseOrder.status}</td>
@@ -260,11 +283,13 @@ export function PurchaseOrdersPage() {
                         onClick={() =>
                           submit.mutate(purchaseOrder.id, {
                             onSuccess: () =>
-                              toast.success("Purchase order submitted"),
+                              toast.success(
+                                t("purchasing.purchaseOrders.submitSuccess"),
+                              ),
                           })
                         }
                       >
-                        Submit
+                        {t("purchasing.purchaseOrders.submit")}
                       </button>
                     ) : null}
                     {purchaseOrder.status === "submitted" ? (
@@ -275,12 +300,14 @@ export function PurchaseOrdersPage() {
                         onClick={() =>
                           approve.mutate(purchaseOrder.id, {
                             onSuccess: () =>
-                              toast.success("Purchase order approved"),
+                              toast.success(
+                                t("purchasing.purchaseOrders.approveSuccess"),
+                              ),
                             onError: (err) => toast.error(formatApiError(err)),
                           })
                         }
                       >
-                        Approve
+                        {t("purchasing.purchaseOrders.approve")}
                       </button>
                     ) : null}
                   </td>

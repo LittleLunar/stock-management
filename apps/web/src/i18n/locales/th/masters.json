@@ -1,0 +1,19 @@
+{
+  "masters.dashboard.title": "แดชบอร์ด",
+  "masters.dashboard.description": "จัดการข้อมูลหลัก การจัดซื้อ การรับสินค้า การคืนสินค้า การจอง เอกสารขาออก และสต็อกจากแถบด้านข้าง",
+  "masters.branches.title": "สาขา",
+  "masters.locations.title": "ตำแหน่งจัดเก็บ",
+  "masters.products.title": "สินค้า",
+  "masters.suppliers.title": "ผู้จำหน่าย",
+  "masters.customers.title": "ลูกค้า",
+  "masters.form.code": "รหัส",
+  "masters.form.name": "ชื่อ",
+  "masters.form.sku": "SKU",
+  "masters.form.add": "เพิ่ม",
+  "masters.form.loading": "กำลังโหลด…",
+  "masters.form.selectBranch": "เลือกสาขา",
+  "masters.products.trackLot": "ล็อต",
+  "masters.products.trackSerial": "ซีเรียล",
+  "masters.products.trackExpiry": "วันหมดอายุ",
+  "masters.products.noTracking": "ไม่ติดตาม"
+}

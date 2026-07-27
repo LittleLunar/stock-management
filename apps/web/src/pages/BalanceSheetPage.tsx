@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useBalanceSheet } from "../hooks/accounting";
 import { useBranches } from "../hooks/masters";
 import { formatApiError } from "../lib/errors";
@@ -10,6 +11,7 @@ type BalanceRow = {
 };
 
 export function BalanceSheetPage() {
+  const { t } = useTranslation("accounting");
   const { data: branches } = useBranches();
   const [asOf, setAsOf] = useState(new Date().toISOString().slice(0, 10));
   const [branchId, setBranchId] = useState(
@@ -32,13 +34,20 @@ export function BalanceSheetPage() {
       }
     | undefined;
 
+  const sectionTitle = {
+    assets: t("accounting.balanceSheet.section.assets"),
+    liabilities: t("accounting.balanceSheet.section.liabilities"),
+    equity: t("accounting.balanceSheet.section.equity"),
+  } as const;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Balance sheet</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("accounting.balanceSheet.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          As-of assets, liabilities, and equity with interim net income folded
-          in.
+          {t("accounting.balanceSheet.description")}
         </p>
       </div>
       <div className="flex flex-wrap gap-3 rounded border bg-white p-4">
@@ -53,7 +62,7 @@ export function BalanceSheetPage() {
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
         >
-          <option value="">All branches</option>
+          <option value="">{t("accounting.balanceSheet.allBranches")}</option>
           {(branches ?? []).map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
@@ -65,21 +74,26 @@ export function BalanceSheetPage() {
         <p className="text-red-700">{formatApiError(report.error)}</p>
       ) : null}
       <p className="font-medium">
-        Assets: {data?.totalAssets ?? "—"} · Liabilities:{" "}
-        {data?.totalLiabilities ?? "—"} · Equity (incl. net income):{" "}
-        {data?.totalEquity ?? "—"} · Net income: {data?.netIncome ?? "—"} ·{" "}
-        {data?.balanced ? "Balanced" : "Not balanced"}
+        {t("accounting.balanceSheet.summary", {
+          assets: data?.totalAssets ?? "—",
+          liabilities: data?.totalLiabilities ?? "—",
+          equity: data?.totalEquity ?? "—",
+          netIncome: data?.netIncome ?? "—",
+          balanced: data?.balanced
+            ? t("accounting.balanceSheet.balanced")
+            : t("accounting.balanceSheet.notBalanced"),
+        })}
       </p>
       {(["assets", "liabilities", "equity"] as const).map((section) => (
         <div key={section}>
-          <h2 className="mb-2 text-lg font-medium capitalize">{section}</h2>
+          <h2 className="mb-2 text-lg font-medium">{sectionTitle[section]}</h2>
           <div className="overflow-x-auto rounded border bg-white">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="p-2">Code</th>
-                  <th className="p-2">Name</th>
-                  <th className="p-2">Net</th>
+                  <th className="p-2">{t("accounting.balanceSheet.col.code")}</th>
+                  <th className="p-2">{t("accounting.balanceSheet.col.name")}</th>
+                  <th className="p-2">{t("accounting.balanceSheet.col.net")}</th>
                 </tr>
               </thead>
               <tbody>

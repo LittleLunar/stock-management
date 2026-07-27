@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BarcodeScanField } from "../components/BarcodeScanField";
 import {
@@ -28,6 +29,7 @@ const emptyLine = (): CountLineDraft => ({
 });
 
 export function StockCountsPage() {
+  const { t } = useTranslation("inventory");
   const { data: counts, isLoading, error } = useStockCounts();
   const { data: branches } = useBranches();
   const { data: products } = useProducts();
@@ -82,9 +84,7 @@ export function StockCountsPage() {
       !locationId ||
       lines.some((line) => !line.productId || line.countedQty === "")
     ) {
-      toast.error(
-        "Select a branch, location, product, and counted qty for every line",
-      );
+      toast.error(t("inventory.stockCounts.selectRequired"));
       return;
     }
     create.mutate(
@@ -108,7 +108,7 @@ export function StockCountsPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Stock count created");
+          toast.success(t("inventory.stockCounts.createSuccess"));
           setDocumentNumber("");
           setLines([emptyLine()]);
         },
@@ -145,7 +145,7 @@ export function StockCountsPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Counted quantities saved");
+          toast.success(t("inventory.stockCounts.saveSuccess"));
           setCountedEdits({});
         },
       },
@@ -164,10 +164,11 @@ export function StockCountsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Stock counts</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("inventory.stockCounts.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Capture physical counts against expected on-hand. Variance posts on
-          document post.
+          {t("inventory.stockCounts.description")}
         </p>
       </div>
 
@@ -175,7 +176,9 @@ export function StockCountsPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">New stock count</h2>
+        <h2 className="font-semibold">
+          {t("inventory.stockCounts.newTitle")}
+        </h2>
         <div className="grid gap-3 md:grid-cols-3">
           <select
             required
@@ -186,7 +189,7 @@ export function StockCountsPage() {
               setLocationId("");
             }}
           >
-            <option value="">Branch</option>
+            <option value="">{t("inventory.stockCounts.branch")}</option>
             {(branches ?? []).map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.code} — {branch.name}
@@ -199,7 +202,7 @@ export function StockCountsPage() {
             value={locationId}
             onChange={(event) => setLocationId(event.target.value)}
           >
-            <option value="">Location</option>
+            <option value="">{t("inventory.stockCounts.location")}</option>
             {(locations ?? []).map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -208,7 +211,9 @@ export function StockCountsPage() {
           </select>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Document number (optional)"
+            placeholder={t(
+              "inventory.stockCounts.documentNumberPlaceholder",
+            )}
             value={documentNumber}
             onChange={(event) => setDocumentNumber(event.target.value)}
           />
@@ -234,7 +239,7 @@ export function StockCountsPage() {
                   updateLine(index, "productId", event.target.value)
                 }
               >
-                <option value="">Product</option>
+                <option value="">{t("inventory.stockCounts.product")}</option>
                 {(products ?? []).map((product) => (
                   <option key={product.id} value={product.id}>
                     {product.sku} — {product.name}
@@ -243,7 +248,7 @@ export function StockCountsPage() {
               </select>
               <input
                 className="rounded border border-slate-300 px-3 py-2"
-                placeholder="Lot id"
+                placeholder={t("inventory.stockCounts.lotIdPlaceholder")}
                 value={line.lotId}
                 onChange={(event) =>
                   updateLine(index, "lotId", event.target.value)
@@ -252,16 +257,20 @@ export function StockCountsPage() {
               <input
                 readOnly
                 className="rounded border border-slate-200 bg-slate-100 px-3 py-2 tabular-nums"
-                aria-label={`Line ${index + 1} expected quantity`}
+                aria-label={t("inventory.stockCounts.expectedAria", {
+                  n: index + 1,
+                })}
                 value={expectedQty(line.productId, line.lotId)}
-                title="Expected on-hand (from balances; snapshotted on create)"
+                title={t("inventory.stockCounts.expectedTitle")}
               />
               <input
                 required
                 inputMode="decimal"
                 className="rounded border border-slate-300 px-3 py-2"
-                aria-label={`Line ${index + 1} counted quantity`}
-                placeholder="Counted"
+                aria-label={t("inventory.stockCounts.countedAria", {
+                  n: index + 1,
+                })}
+                placeholder={t("inventory.stockCounts.countedPlaceholder")}
                 value={line.countedQty}
                 onChange={(event) =>
                   updateLine(index, "countedQty", event.target.value)
@@ -276,8 +285,10 @@ export function StockCountsPage() {
                   required
                   inputMode="decimal"
                   className="rounded border border-slate-300 px-3 py-2"
-                  aria-label={`Line ${index + 1} unit cost`}
-                  placeholder="Unit cost"
+                  aria-label={t("inventory.stockCounts.unitCostAria", {
+                    n: index + 1,
+                  })}
+                  placeholder={t("inventory.stockCounts.unitCostPlaceholder")}
                   value={line.unitCost}
                   onChange={(event) =>
                     updateLine(index, "unitCost", event.target.value)
@@ -296,15 +307,14 @@ export function StockCountsPage() {
                   )
                 }
               >
-                Remove
+                {t("inventory.stockCounts.remove")}
               </button>
               </div>
             </div>
           ))}
         </div>
         <p className="text-xs text-slate-500">
-          Expected is shown from current balances and snapshotted when the
-          draft is created.
+          {t("inventory.stockCounts.expectedHint")}
         </p>
 
         <div className="flex gap-2">
@@ -313,30 +323,42 @@ export function StockCountsPage() {
             className="rounded border border-slate-300 px-4 py-2 text-sm"
             onClick={() => setLines((current) => [...current, emptyLine()])}
           >
-            Add line
+            {t("inventory.stockCounts.addLine")}
           </button>
           <button
             type="submit"
             disabled={create.isPending}
             className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {create.isPending ? "Creating…" : "Create draft"}
+            {create.isPending
+              ? t("inventory.stockCounts.creating")
+              : t("inventory.stockCounts.createDraft")}
           </button>
         </div>
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Counts</h2>
-        {isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">
+          {t("inventory.stockCounts.listTitle")}
+        </h2>
+        {isLoading ? <p>{t("inventory.stockCounts.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Document</th>
-                <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockCounts.col.document")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockCounts.col.branch")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockCounts.col.location")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockCounts.col.status")}
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -360,7 +382,7 @@ export function StockCountsPage() {
                         setCountedEdits({});
                       }}
                     >
-                      Lines
+                      {t("inventory.stockCounts.lines")}
                     </button>
                     {count.status === "draft" ? (
                       <button
@@ -372,12 +394,14 @@ export function StockCountsPage() {
                             { id: count.id },
                             {
                               onSuccess: () =>
-                                toast.success("Stock count posted"),
+                                toast.success(
+                                  t("inventory.stockCounts.postSuccess"),
+                                ),
                             },
                           )
                         }
                       >
-                        Post
+                        {t("inventory.stockCounts.post")}
                       </button>
                     ) : null}
                     {count.status === "posted" ? (
@@ -388,11 +412,13 @@ export function StockCountsPage() {
                         onClick={() =>
                           voidCount.mutate(count.id, {
                             onSuccess: () =>
-                              toast.success("Stock count voided"),
+                              toast.success(
+                                t("inventory.stockCounts.voidSuccess"),
+                              ),
                           })
                         }
                       >
-                        Void
+                        {t("inventory.stockCounts.void")}
                       </button>
                     ) : null}
                   </td>
@@ -407,8 +433,11 @@ export function StockCountsPage() {
         <section className="space-y-3 rounded border border-slate-200 bg-white p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold">
-              Count lines —{" "}
-              {selectedCount.documentNumber ?? selectedCount.id.slice(0, 8)}
+              {t("inventory.stockCounts.linesTitle", {
+                document:
+                  selectedCount.documentNumber ??
+                  selectedCount.id.slice(0, 8),
+              })}
             </h2>
             {selectedCount.status === "draft" ? (
               <button
@@ -417,7 +446,9 @@ export function StockCountsPage() {
                 className="rounded bg-teal-800 px-3 py-1.5 text-sm text-white disabled:opacity-50"
                 onClick={handleSaveCounted}
               >
-                {update.isPending ? "Saving…" : "Save counted"}
+                {update.isPending
+                  ? t("inventory.stockCounts.saving")
+                  : t("inventory.stockCounts.saveCounted")}
               </button>
             ) : null}
           </div>
@@ -425,11 +456,21 @@ export function StockCountsPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Product</th>
-                  <th className="px-4 py-3">Lot</th>
-                  <th className="px-4 py-3 text-right">Expected</th>
-                  <th className="px-4 py-3 text-right">Counted</th>
-                  <th className="px-4 py-3 text-right">Unit cost</th>
+                  <th className="px-4 py-3">
+                    {t("inventory.stockCounts.col.product")}
+                  </th>
+                  <th className="px-4 py-3">
+                    {t("inventory.stockCounts.col.lot")}
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    {t("inventory.stockCounts.col.expected")}
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    {t("inventory.stockCounts.col.counted")}
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    {t("inventory.stockCounts.col.unitCost")}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -475,7 +516,9 @@ export function StockCountsPage() {
                         <input
                           inputMode="decimal"
                           className="w-28 rounded border border-slate-300 px-2 py-1 text-right tabular-nums"
-                          placeholder="Unit cost"
+                          placeholder={t(
+                            "inventory.stockCounts.unitCostPlaceholder",
+                          )}
                           value={
                             countedEdits[`${line.id}:unitCost`] ??
                             line.unitCost ??

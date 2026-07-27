@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useApAging } from "../hooks/accounting";
 import { formatApiError } from "../lib/errors";
 
@@ -12,6 +13,7 @@ type AgingBucket = {
 };
 
 export function ApAgingPage() {
+  const { t } = useTranslation("accounting");
   const [asOf, setAsOf] = useState(new Date().toISOString().slice(0, 10));
   const aging = useApAging(asOf);
   const data = aging.data as
@@ -21,13 +23,15 @@ export function ApAgingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">AP aging</h1>
+        <h1 className="text-2xl font-semibold">{t("accounting.apAging.title")}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Posted supplier invoice balances by age bucket (D2 API).
+          {t("accounting.apAging.description")}
         </p>
       </div>
       <div className="rounded border bg-white p-4">
-        <label className="mb-1 block text-xs text-slate-500">As of</label>
+        <label className="mb-1 block text-xs text-slate-500">
+          {t("accounting.apAging.asOf")}
+        </label>
         <input
           type="date"
           className="rounded border px-3 py-2"
@@ -38,17 +42,21 @@ export function ApAgingPage() {
       {aging.error ? (
         <p className="text-red-700">{formatApiError(aging.error)}</p>
       ) : null}
-      <p className="font-medium">Grand total: {data?.grandTotal ?? "—"}</p>
+      <p className="font-medium">
+        {t("accounting.apAging.grandTotal", {
+          value: data?.grandTotal ?? "—",
+        })}
+      </p>
       <div className="overflow-x-auto rounded border bg-white">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2">Supplier</th>
-              <th className="p-2">0–30</th>
-              <th className="p-2">31–60</th>
-              <th className="p-2">61–90</th>
-              <th className="p-2">90+</th>
-              <th className="p-2">Total</th>
+              <th className="p-2">{t("accounting.apAging.col.supplier")}</th>
+              <th className="p-2">{t("accounting.apAging.col.0to30")}</th>
+              <th className="p-2">{t("accounting.apAging.col.31to60")}</th>
+              <th className="p-2">{t("accounting.apAging.col.61to90")}</th>
+              <th className="p-2">{t("accounting.apAging.col.over90")}</th>
+              <th className="p-2">{t("accounting.apAging.col.total")}</th>
             </tr>
           </thead>
           <tbody>

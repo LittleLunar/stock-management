@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { BarcodeScanField } from "../components/BarcodeScanField";
 import {
@@ -18,10 +19,10 @@ type IssueLineDraft = {
 };
 
 const ISSUE_TYPES = [
-  { value: "consume", label: "Consume" },
-  { value: "sample", label: "Sample" },
-  { value: "write_off", label: "Write-off" },
-  { value: "other", label: "Other" },
+  { value: "consume", labelKey: "inventory.stockIssues.type.consume" },
+  { value: "sample", labelKey: "inventory.stockIssues.type.sample" },
+  { value: "write_off", labelKey: "inventory.stockIssues.type.writeOff" },
+  { value: "other", labelKey: "inventory.stockIssues.type.other" },
 ] as const;
 
 const emptyLine = (): IssueLineDraft => ({
@@ -32,6 +33,7 @@ const emptyLine = (): IssueLineDraft => ({
 });
 
 export function StockIssuesPage() {
+  const { t } = useTranslation("inventory");
   const { data: issues, isLoading, error } = useStockIssues();
   const { data: branches } = useBranches();
   const { data: products } = useProducts();
@@ -62,7 +64,7 @@ export function StockIssuesPage() {
   function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!branchId || !locationId || lines.some((line) => !line.productId)) {
-      toast.error("Select a branch, location, and product for every line");
+      toast.error(t("inventory.stockIssues.selectRequired"));
       return;
     }
     create.mutate(
@@ -85,7 +87,7 @@ export function StockIssuesPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Stock issue created");
+          toast.success(t("inventory.stockIssues.createSuccess"));
           setDocumentNumber("");
           setReasonNote("");
           setLines([emptyLine()]);
@@ -102,9 +104,11 @@ export function StockIssuesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Stock issues</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("inventory.stockIssues.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Issue stock for consumption, samples, write-offs, or other reasons.
+          {t("inventory.stockIssues.description")}
         </p>
       </div>
 
@@ -112,7 +116,9 @@ export function StockIssuesPage() {
         className="space-y-4 rounded border border-slate-200 bg-white p-5"
         onSubmit={handleCreate}
       >
-        <h2 className="font-semibold">New stock issue</h2>
+        <h2 className="font-semibold">
+          {t("inventory.stockIssues.newTitle")}
+        </h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <select
             required
@@ -123,7 +129,7 @@ export function StockIssuesPage() {
               setLocationId("");
             }}
           >
-            <option value="">Branch</option>
+            <option value="">{t("inventory.stockIssues.branch")}</option>
             {(branches ?? []).map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.code} — {branch.name}
@@ -136,7 +142,7 @@ export function StockIssuesPage() {
             value={locationId}
             onChange={(event) => setLocationId(event.target.value)}
           >
-            <option value="">Location</option>
+            <option value="">{t("inventory.stockIssues.location")}</option>
             {(locations ?? []).map((location) => (
               <option key={location.id} value={location.id}>
                 {location.code} — {location.name}
@@ -155,20 +161,20 @@ export function StockIssuesPage() {
           >
             {ISSUE_TYPES.map((type) => (
               <option key={type.value} value={type.value}>
-                {type.label}
+                {t(type.labelKey)}
               </option>
             ))}
           </select>
           <input
             className="rounded border border-slate-300 px-3 py-2"
-            placeholder="Document number (optional)"
+            placeholder={t("inventory.stockIssues.documentNumberPlaceholder")}
             value={documentNumber}
             onChange={(event) => setDocumentNumber(event.target.value)}
           />
         </div>
         <input
           className="w-full rounded border border-slate-300 px-3 py-2"
-          placeholder="Reason note (optional)"
+          placeholder={t("inventory.stockIssues.reasonNotePlaceholder")}
           value={reasonNote}
           onChange={(event) => setReasonNote(event.target.value)}
         />
@@ -193,7 +199,7 @@ export function StockIssuesPage() {
                     updateLine(index, "productId", event.target.value)
                   }
                 >
-                  <option value="">Product</option>
+                  <option value="">{t("inventory.stockIssues.product")}</option>
                   {(products ?? []).map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.sku} — {product.name}
@@ -204,8 +210,10 @@ export function StockIssuesPage() {
                   required
                   inputMode="decimal"
                   className="rounded border border-slate-300 px-3 py-2"
-                  aria-label={`Line ${index + 1} quantity`}
-                  placeholder="Quantity"
+                  aria-label={t("inventory.stockIssues.qtyAria", {
+                    n: index + 1,
+                  })}
+                  placeholder={t("inventory.stockIssues.qtyPlaceholder")}
                   value={line.qty}
                   onChange={(event) =>
                     updateLine(index, "qty", event.target.value)
@@ -221,13 +229,13 @@ export function StockIssuesPage() {
                     )
                   }
                 >
-                  Remove
+                  {t("inventory.stockIssues.remove")}
                 </button>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Lot id (optional)"
+                  placeholder={t("inventory.stockIssues.lotIdPlaceholder")}
                   value={line.lotId}
                   onChange={(event) =>
                     updateLine(index, "lotId", event.target.value)
@@ -235,7 +243,7 @@ export function StockIssuesPage() {
                 />
                 <input
                   className="rounded border border-slate-300 px-3 py-2"
-                  placeholder="Serials, comma separated"
+                  placeholder={t("inventory.stockIssues.serialsPlaceholder")}
                   value={line.serialNumbers}
                   onChange={(event) =>
                     updateLine(index, "serialNumbers", event.target.value)
@@ -252,31 +260,45 @@ export function StockIssuesPage() {
             className="rounded border border-slate-300 px-4 py-2 text-sm"
             onClick={() => setLines((current) => [...current, emptyLine()])}
           >
-            Add line
+            {t("inventory.stockIssues.addLine")}
           </button>
           <button
             type="submit"
             disabled={create.isPending}
             className="rounded bg-teal-800 px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {create.isPending ? "Creating…" : "Create draft"}
+            {create.isPending
+              ? t("inventory.stockIssues.creating")
+              : t("inventory.stockIssues.createDraft")}
           </button>
         </div>
       </form>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Issues</h2>
-        {isLoading ? <p>Loading…</p> : null}
+        <h2 className="font-semibold">
+          {t("inventory.stockIssues.listTitle")}
+        </h2>
+        {isLoading ? <p>{t("inventory.stockIssues.loading")}</p> : null}
         {error ? <p className="text-red-700">{formatApiError(error)}</p> : null}
         <div className="overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="px-4 py-3">Document</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Location</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockIssues.col.document")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockIssues.col.type")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockIssues.col.branch")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockIssues.col.location")}
+                </th>
+                <th className="px-4 py-3">
+                  {t("inventory.stockIssues.col.status")}
+                </th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -303,12 +325,14 @@ export function StockIssuesPage() {
                             { id: issue.id },
                             {
                               onSuccess: () =>
-                                toast.success("Stock issue posted"),
+                                toast.success(
+                                  t("inventory.stockIssues.postSuccess"),
+                                ),
                             },
                           )
                         }
                       >
-                        Post
+                        {t("inventory.stockIssues.post")}
                       </button>
                     ) : null}
                     {issue.status === "posted" ? (
@@ -319,11 +343,13 @@ export function StockIssuesPage() {
                         onClick={() =>
                           voidIssue.mutate(issue.id, {
                             onSuccess: () =>
-                              toast.success("Stock issue voided"),
+                              toast.success(
+                                t("inventory.stockIssues.voidSuccess"),
+                              ),
                           })
                         }
                       >
-                        Void
+                        {t("inventory.stockIssues.void")}
                       </button>
                     ) : null}
                   </td>

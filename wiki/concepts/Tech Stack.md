@@ -2,8 +2,8 @@
 tags:
   - concept
 created: 2026-07-25
-updated: 2026-07-26
-source_count: 3
+updated: 2026-07-27
+source_count: 4
 ---
 
 # Tech Stack
@@ -18,6 +18,7 @@ Locked stack for [[Stock Management System]].
 | Routing / data | TanStack Router + TanStack Query |
 | Forms | react-hook-form + Zod resolvers |
 | UI | Tailwind; Sonner toasts |
+| i18n | i18next + react-i18next (`en` / `th`); flat dotted keys; locale in `localStorage` |
 | Logging | Fastify/Pino (pretty in dev); `x-request-id` correlation |
 | Validation | Zod (HTTP DTOs + env + shared error envelope) |
 | Tests | Vitest |
@@ -35,8 +36,10 @@ All application code follows [[Clean Architecture]]. SOLID applies within that s
 - Shared `ErrorEnvelopeSchema` in `packages/shared` — API errors always include `requestId`
 - Zod-validated env for API (`PORT`, `DATABASE_URL`, `LOG_LEVEL`, `NODE_ENV`) and web (`VITE_API_URL`)
 - Web uses shared DTOs + typed `ApiError`; no Sentry/OpenAPI yet
+- Web i18n: catalogs under `apps/web/src/i18n/locales/{en,th}/`; shell language switcher; API errors mapped by `code` on the client
 
 Spec: `docs/superpowers/specs/2026-07-26-dx-foundation-design.md`
+Web i18n: `docs/superpowers/specs/2026-07-27-web-i18n-design.md`
 
 ## Explicitly rejected
 
@@ -52,3 +55,4 @@ Spec: `docs/superpowers/specs/2026-07-26-dx-foundation-design.md`
 - [[source-product-vision-2026-07-25]]
 - Planning decision 2026-07-26 (Full Clean Architecture packages)
 - Planning decision 2026-07-26 (DX foundation tooling)
+- Planning decision 2026-07-27 (web EN/TH i18n)

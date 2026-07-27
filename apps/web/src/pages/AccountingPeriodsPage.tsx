@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   useAccountingPeriods,
   useCloseAccountingPeriod,
@@ -6,6 +7,7 @@ import {
   useGenerateAccountingPeriods,
   useOpenAccountingPeriod,
 } from "../hooks/accounting";
+import { formatDate } from "../i18n/format";
 import { formatApiError } from "../lib/errors";
 
 type Period = {
@@ -23,6 +25,7 @@ type Checklist = {
 };
 
 export function AccountingPeriodsPage() {
+  const { t } = useTranslation("accounting");
   const periods = useAccountingPeriods();
   const generate = useGenerateAccountingPeriods();
   const openPeriod = useOpenAccountingPeriod();
@@ -36,15 +39,17 @@ export function AccountingPeriodsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Accounting periods</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("accounting.accountingPeriods.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Generate fiscal periods, open/close, and review close checklist.
+          {t("accounting.accountingPeriods.description")}
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-3 rounded border bg-white p-4">
         <div>
           <label className="mb-1 block text-xs text-slate-500">
-            Fiscal year
+            {t("accounting.accountingPeriods.fiscalYear")}
           </label>
           <input
             type="number"
@@ -60,7 +65,7 @@ export function AccountingPeriodsPage() {
             generate.mutate({ fiscalYear: Number(fiscalYear) })
           }
         >
-          Generate
+          {t("accounting.accountingPeriods.generate")}
         </button>
       </div>
       {periods.error ? (
@@ -70,11 +75,11 @@ export function AccountingPeriodsPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2">Year</th>
-              <th className="p-2">Month</th>
-              <th className="p-2">Dates</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Actions</th>
+              <th className="p-2">{t("accounting.accountingPeriods.col.year")}</th>
+              <th className="p-2">{t("accounting.accountingPeriods.col.month")}</th>
+              <th className="p-2">{t("accounting.accountingPeriods.col.dates")}</th>
+              <th className="p-2">{t("accounting.accountingPeriods.col.status")}</th>
+              <th className="p-2">{t("accounting.accountingPeriods.col.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -83,7 +88,7 @@ export function AccountingPeriodsPage() {
                 <td className="p-2">{row.year}</td>
                 <td className="p-2">{row.month}</td>
                 <td className="p-2">
-                  {row.startsOn} – {row.endsOn}
+                  {formatDate(row.startsOn)} – {formatDate(row.endsOn)}
                 </td>
                 <td className="p-2">{row.status}</td>
                 <td className="p-2 space-x-2">
@@ -92,7 +97,7 @@ export function AccountingPeriodsPage() {
                     className="rounded border px-2 py-1"
                     onClick={() => setSelectedId(row.id)}
                   >
-                    Checklist
+                    {t("accounting.accountingPeriods.checklist")}
                   </button>
                   {row.status !== "open" ? (
                     <button
@@ -100,7 +105,7 @@ export function AccountingPeriodsPage() {
                       className="rounded border px-2 py-1"
                       onClick={() => openPeriod.mutate(row.id)}
                     >
-                      Open
+                      {t("accounting.accountingPeriods.open")}
                     </button>
                   ) : null}
                   {row.status === "open" ? (
@@ -109,7 +114,7 @@ export function AccountingPeriodsPage() {
                       className="rounded border px-2 py-1"
                       onClick={() => closePeriod.mutate(row.id)}
                     >
-                      Close
+                      {t("accounting.accountingPeriods.close")}
                     </button>
                   ) : null}
                 </td>
@@ -121,7 +126,9 @@ export function AccountingPeriodsPage() {
       {selectedId ? (
         <div className="rounded border bg-white p-4">
           <div className="mb-3 flex items-center gap-3">
-            <h2 className="text-lg font-medium">Close checklist</h2>
+            <h2 className="text-lg font-medium">
+              {t("accounting.accountingPeriods.closeChecklistTitle")}
+            </h2>
             <span
               className={`rounded px-2 py-0.5 text-xs ${
                 checklistData?.canCloseSuggested
@@ -130,8 +137,8 @@ export function AccountingPeriodsPage() {
               }`}
             >
               {checklistData?.canCloseSuggested
-                ? "Ready to close"
-                : "Warnings present"}
+                ? t("accounting.accountingPeriods.readyToClose")
+                : t("accounting.accountingPeriods.warningsPresent")}
             </span>
           </div>
           {checklist.error ? (
@@ -144,7 +151,9 @@ export function AccountingPeriodsPage() {
               </li>
             ))}
             {(checklistData?.warnings ?? []).length === 0 ? (
-              <li className="text-slate-500">No warnings.</li>
+              <li className="text-slate-500">
+                {t("accounting.accountingPeriods.noWarnings")}
+              </li>
             ) : null}
           </ul>
         </div>

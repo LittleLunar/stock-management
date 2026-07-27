@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useBranches, useLocations, useProducts } from "../hooks/masters";
 import { useValuation } from "../hooks/costing";
 import { formatApiError } from "../lib/errors";
@@ -14,6 +15,7 @@ type ValuationRow = {
 };
 
 export function CostValuationPage() {
+  const { t } = useTranslation("costing");
   const { data: products } = useProducts();
   const { data: locations } = useLocations();
   const { data: branches } = useBranches();
@@ -34,9 +36,11 @@ export function CostValuationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Inventory valuation</h1>
+        <h1 className="text-2xl font-semibold">
+          {t("costing.costValuation.title")}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Current or as-of valuation from FIFO cost layers.
+          {t("costing.costValuation.description")}
         </p>
       </div>
       <div className="flex flex-wrap gap-3 rounded border border-slate-200 bg-white p-4">
@@ -45,7 +49,7 @@ export function CostValuationPage() {
           value={branchId}
           onChange={(e) => setBranchId(e.target.value)}
         >
-          <option value="">All branches</option>
+          <option value="">{t("costing.costValuation.allBranches")}</option>
           {(branches ?? []).map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}
@@ -57,7 +61,7 @@ export function CostValuationPage() {
           value={locationId}
           onChange={(e) => setLocationId(e.target.value)}
         >
-          <option value="">All locations</option>
+          <option value="">{t("costing.costValuation.allLocations")}</option>
           {(locations ?? []).map((l) => (
             <option key={l.id} value={l.id}>
               {l.code}
@@ -69,7 +73,7 @@ export function CostValuationPage() {
           value={productId}
           onChange={(e) => setProductId(e.target.value)}
         >
-          <option value="">All products</option>
+          <option value="">{t("costing.costValuation.allProducts")}</option>
           {(products ?? []).map((p) => (
             <option key={p.id} value={p.id}>
               {p.sku}
@@ -87,17 +91,19 @@ export function CostValuationPage() {
         <p className="text-red-700">{formatApiError(valuation.error)}</p>
       ) : null}
       <p className="font-medium">
-        Total value: {valuation.data?.totalValue ?? "—"}
+        {t("costing.costValuation.totalValue", {
+          value: valuation.data?.totalValue ?? "—",
+        })}
       </p>
       <div className="overflow-x-auto rounded border bg-white">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2">Product</th>
-              <th className="p-2">Location</th>
-              <th className="p-2">Qty</th>
-              <th className="p-2">Unit cost</th>
-              <th className="p-2">Value</th>
+              <th className="p-2">{t("costing.costValuation.col.product")}</th>
+              <th className="p-2">{t("costing.costValuation.col.location")}</th>
+              <th className="p-2">{t("costing.costValuation.col.qty")}</th>
+              <th className="p-2">{t("costing.costValuation.col.unitCost")}</th>
+              <th className="p-2">{t("costing.costValuation.col.value")}</th>
             </tr>
           </thead>
           <tbody>
