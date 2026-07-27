@@ -18,6 +18,7 @@
   "org.label": "Org: {{orgId}}",
   "org.namePlaceholder": "Org name",
   "org.create": "Create org",
+  "org.missing": "No organization selected",
   "language.en": "EN",
   "language.th": "ไทย",
   "language.label": "Language",
@@ -28,6 +29,7 @@
   "account.label": "Account",
   "account.menu": "Account menu",
   "account.org": "Org: {{orgId}}",
+  "account.orgName": "{{orgName}}",
   "account.user": "User: {{userId}}",
   "errorBoundary.title": "Something went wrong",
   "errorBoundary.description": "An unexpected error occurred. You can reload the page to continue."

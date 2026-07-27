@@ -23,5 +23,10 @@
   "errors.LOT_QUARANTINED": "ล็อตถูกกักกัน ไม่สามารถขายหรือเบิกได้",
   "errors.LOCATION_QUARANTINED": "ไม่สามารถขายหรือเบิกจากตำแหน่งกักกัน",
   "errors.VALIDATION_ERROR": "การตรวจสอบคำขอล้มเหลว",
-  "errors.INTERNAL_ERROR": "ข้อผิดพลาดภายในเซิร์ฟเวอร์"
+  "errors.INTERNAL_ERROR": "ข้อผิดพลาดภายในเซิร์ฟเวอร์",
+  "errors.INVALID_CREDENTIALS": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+  "errors.EMAIL_NOT_VERIFIED": "กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ",
+  "errors.TOKEN_EXPIRED": "ลิงก์หรือโทเคนหมดอายุแล้ว",
+  "errors.TOKEN_INVALID": "ลิงก์หรือโทเคนไม่ถูกต้อง",
+  "errors.RATE_LIMITED": "พยายามบ่อยเกินไป ลองใหม่ภายหลัง"
 }

@@ -12,9 +12,6 @@ import { branchIdForHeaders } from "../lib/active-branch";
 export function useApiContext(): ApiHeaders {
   return {
     orgId: localStorage.getItem("orgId") ?? "",
-    userId:
-      localStorage.getItem("userId") ??
-      "00000000-0000-0000-0000-000000000001",
     branchId: branchIdForHeaders(
       localStorage.getItem("activeBranchId") ?? "",
     ),

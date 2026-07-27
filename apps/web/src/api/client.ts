@@ -47,12 +47,16 @@ import {
   type UpdateStockCount,
   type UpdateWebhookSubscription,
 } from "@stock-management/shared";
+import { refreshSession } from "../auth/refresh";
+import {
+  getAccessToken,
+  redirectToLogin,
+} from "../auth/session";
 import { env } from "../lib/env";
-import { parseApiError } from "../lib/errors";
+import { parseApiError, ApiError } from "../lib/errors";
 
 export type ApiHeaders = {
   orgId: string;
-  userId: string;
   branchId?: string; // when set → X-Branch-Id
 };
 
@@ -465,7 +469,10 @@ function headers(ctx: ApiHeaders, init?: HeadersInit): Headers {
   const h = new Headers(init);
   h.set("Content-Type", "application/json");
   h.set("X-Org-Id", ctx.orgId);
-  h.set("X-User-Id", ctx.userId);
+  const token = getAccessToken();
+  if (token) {
+    h.set("Authorization", `Bearer ${token}`);
+  }
   if (ctx.branchId) {
     h.set("X-Branch-Id", ctx.branchId);
   }
@@ -475,15 +482,38 @@ function headers(ctx: ApiHeaders, init?: HeadersInit): Headers {
   return h;
 }
 
+function isAuthPath(path: string): boolean {
+  return path.startsWith("/api/v1/auth/");
+}
+
 async function request<T>(
   path: string,
   ctx: ApiHeaders,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${env.VITE_API_URL}${path}`, {
-    ...init,
-    headers: headers(ctx, init?.headers),
-  });
+  const doFetch = () =>
+    fetch(`${env.VITE_API_URL}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: headers(ctx, init?.headers),
+    });
+
+  let res = await doFetch();
+
+  if (res.status === 401 && !isAuthPath(path)) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      res = await doFetch();
+    } else {
+      redirectToLogin();
+      throw new ApiError(401, {
+        code: "UNAUTHORIZED",
+        message: "Session expired",
+        requestId: "unknown",
+      });
+    }
+  }
+
   if (!res.ok) {
     let raw: unknown = await res.text();
     try {
@@ -514,12 +544,11 @@ function withQuery(
 }
 
 export const api = {
-  createOrg: (userId: string, body: CreateOrganization) =>
-    request<Organization>(
-      "/api/v1/orgs",
-      { orgId: "00000000-0000-0000-0000-000000000000", userId },
-      { method: "POST", body: JSON.stringify(body) },
-    ),
+  createOrg: (ctx: ApiHeaders, body: CreateOrganization) =>
+    request<Organization>("/api/v1/orgs", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   listBranches: (ctx: ApiHeaders) => request<Branch[]>("/api/v1/branches", ctx),
   createBranch: (ctx: ApiHeaders, body: CreateBranch) =>
     request<Branch>("/api/v1/branches", ctx, {

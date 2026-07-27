@@ -18,6 +18,7 @@
   "org.label": "องค์กร: {{orgId}}",
   "org.namePlaceholder": "ชื่อองค์กร",
   "org.create": "สร้างองค์กร",
+  "org.missing": "ยังไม่ได้เลือกองค์กร",
   "language.en": "EN",
   "language.th": "ไทย",
   "language.label": "ภาษา",
@@ -28,6 +29,7 @@
   "account.label": "บัญชี",
   "account.menu": "เมนูบัญชี",
   "account.org": "องค์กร: {{orgId}}",
+  "account.orgName": "{{orgName}}",
   "account.user": "ผู้ใช้: {{userId}}",
   "errorBoundary.title": "เกิดข้อผิดพลาด",
   "errorBoundary.description": "เกิดข้อผิดพลาดที่ไม่คาดคิด คุณสามารถโหลดหน้าใหม่เพื่อดำเนินการต่อ"
