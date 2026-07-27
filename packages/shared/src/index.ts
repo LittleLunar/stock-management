@@ -364,3 +364,24 @@ export {
   type CreateWebhookSubscription,
   type UpdateWebhookSubscription,
 } from "./webhooks.js";
+
+export {
+  SignupBodySchema,
+  SignupResponseSchema,
+  LoginBodySchema,
+  AuthSessionResponseSchema,
+  VerifyEmailBodySchema,
+  ResendVerificationBodySchema,
+  ForgotPasswordBodySchema,
+  ResetPasswordBodySchema,
+  AuthMeResponseSchema,
+  type SignupBody,
+  type SignupResponse,
+  type LoginBody,
+  type AuthSessionResponse,
+  type VerifyEmailBody,
+  type ResendVerificationBody,
+  type ForgotPasswordBody,
+  type ResetPasswordBody,
+  type AuthMeResponse,
+} from "./auth.js";

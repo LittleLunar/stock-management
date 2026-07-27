@@ -16,6 +16,8 @@
     "db:clear": "tsx scripts/clear-data.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
     "@stock-management/application": "workspace:*",
     "@stock-management/domain": "workspace:*",
     "@stock-management/shared": "workspace:*",

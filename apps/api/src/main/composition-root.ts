@@ -1,6 +1,7 @@
 import {
   AccountUseCases,
   AccountingPeriodUseCases,
+  AuthUseCases,
   AvailabilityUseCases,
   BranchUseCases,
   CategoryUseCases,
@@ -10,6 +11,7 @@ import {
   CustomerReturnUseCases,
   CustomerUseCases,
   CommitReservation,
+  type AccessTokenSigner,
   type MembershipAccessPort,
   EnsureDefaultChartOfAccounts,
   ExpireReservations,
@@ -66,6 +68,16 @@ import {
 } from "@stock-management/application";
 import { NotFoundError } from "@stock-management/domain";
 import type { Db } from "../infrastructure/db/client.js";
+import type { ApiEnv } from "../infrastructure/config/env.js";
+import {
+  Argon2PasswordHasher,
+  JoseAccessTokenSigner,
+  Sha256OpaqueTokenService,
+  createMailer,
+  DrizzleAuthUserStore,
+  DrizzleEmailTokenStore,
+  DrizzleRefreshTokenStore,
+} from "../infrastructure/auth/index.js";
 import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
@@ -113,6 +125,8 @@ export type AppServices = {
   customers: CustomerUseCases;
   users: UsersUseCases;
   membershipAccess: MembershipAccessPort;
+  auth: AuthUseCases;
+  accessTokens: AccessTokenSigner;
   purchaseOrders: PurchaseOrderUseCases;
   goodsReceipts: GoodsReceiptUseCases;
   postGoodsReceipt: PostGoodsReceipt;
@@ -173,7 +187,7 @@ export type AppServices = {
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
-export function createAppServices(db: Db): AppServices {
+export function createAppServices(db: Db, env: ApiEnv): AppServices {
   const purchaseOrders = new DrizzlePurchaseOrderRepository(db);
   const goodsReceipts = new DrizzleGoodsReceiptRepository(db);
   const stock = new DrizzleStockRepository(db);
@@ -204,6 +218,28 @@ export function createAppServices(db: Db): AppServices {
   );
   const webhooks = new DrizzleWebhookRepository(db);
 
+  const accessTokens = new JoseAccessTokenSigner(
+    env.JWT_ACCESS_SECRET,
+    env.JWT_ACCESS_TTL_SECONDS,
+  );
+  const auth = new AuthUseCases({
+    users: new DrizzleAuthUserStore(db),
+    passwords: new Argon2PasswordHasher(),
+    accessTokens,
+    opaqueTokens: new Sha256OpaqueTokenService(),
+    refreshTokens: new DrizzleRefreshTokenStore(db),
+    emailTokens: new DrizzleEmailTokenStore(db),
+    mailer: createMailer(env),
+    clock: { now: () => new Date() },
+    config: {
+      accessTokenTtlSeconds: env.JWT_ACCESS_TTL_SECONDS,
+      refreshTokenTtlSeconds: env.REFRESH_TTL_SECONDS,
+      emailVerifyTtlSeconds: 24 * 60 * 60,
+      passwordResetTtlSeconds: 60 * 60,
+      appPublicUrl: env.APP_PUBLIC_URL,
+    },
+  });
+
   return {
     org: new OrganizationUseCases(orgRepo),
     branches: new BranchUseCases(new DrizzleBranchRepository(db)),
@@ -214,6 +250,8 @@ export function createAppServices(db: Db): AppServices {
     customers: new CustomerUseCases(customers),
     users: new UsersUseCases(usersRepo),
     membershipAccess: usersRepo,
+    auth,
+    accessTokens,
     purchaseOrders: new PurchaseOrderUseCases(purchaseOrders),
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),
     postGoodsReceipt: new PostGoodsReceipt(unitOfWork, approvalPolicies),

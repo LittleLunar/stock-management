@@ -13,7 +13,7 @@ import {
   type UpdateWebhookSubscriptionInput,
   type WebhookPort,
 } from "@stock-management/application";
-import { createContextPlugin } from "../plugins/context.js";
+import { createTestContextPluginWith } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
 import { webhooksRoutes } from "./webhooks.routes.js";
@@ -148,7 +148,7 @@ describe("webhooks routes", () => {
     apps.push(app);
     registerErrorHandler(app);
     await app.register(requestIdPlugin);
-    await app.register(createContextPlugin(createMembershipAccess()));
+    await app.register(createTestContextPluginWith(createMembershipAccess()));
     const useCases = new WebhookSubscriptionUseCases(port);
     await app.register(webhooksRoutes(useCases), { prefix: "/api/v1" });
     return { app, port };

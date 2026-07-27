@@ -10,6 +10,11 @@ export const ErrorCodeSchema = z.enum([
   "CONFLICT",
   "INTERNAL_ERROR",
   "DOMAIN_ERROR",
+  "INVALID_CREDENTIALS",
+  "EMAIL_NOT_VERIFIED",
+  "TOKEN_EXPIRED",
+  "TOKEN_INVALID",
+  "RATE_LIMITED",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>;
 

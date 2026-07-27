@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import Fastify from "fastify";
+import cookie from "@fastify/cookie";
+import cors from "@fastify/cors";
 import { HealthResponseSchema } from "@stock-management/shared";
 import { loadEnv } from "./infrastructure/config/env.js";
 import { createDb } from "./infrastructure/db/client.js";
@@ -11,6 +13,7 @@ import { createAppServices } from "./main/composition-root.js";
 import { registerErrorHandler } from "./interfaces/plugins/error-handler.js";
 import { createContextPlugin } from "./interfaces/plugins/context.js";
 import { requestIdPlugin } from "./interfaces/plugins/request-id.js";
+import { authRoutes } from "./interfaces/http/auth.routes.js";
 import { orgRoutes } from "./interfaces/http/org.routes.js";
 import { branchesRoutes } from "./interfaces/http/branches.routes.js";
 import { locationsRoutes } from "./interfaces/http/locations.routes.js";
@@ -52,7 +55,7 @@ import { DrizzleWebhookRepository } from "./infrastructure/persistence/webhook.r
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
-const services = createAppServices(db);
+const services = createAppServices(db, env);
 
 const httpPoster: HttpPoster = async (url, init) => {
   const res = await fetch(url, init);
@@ -81,24 +84,42 @@ const app = Fastify({
 
 registerErrorHandler(app);
 await app.register(requestIdPlugin);
-
-app.addHook("onRequest", async (request, reply) => {
-  reply.header("Access-Control-Allow-Origin", "*");
-  reply.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, X-Org-Id, X-User-Id, X-Branch-Id, X-Request-Id",
-  );
-  reply.header("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,OPTIONS");
-  if (request.method === "OPTIONS") {
-    return reply.status(204).send();
-  }
+await app.register(cookie);
+await app.register(cors, {
+  origin: env.WEB_ORIGIN,
+  credentials: true,
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Org-Id",
+    "X-Branch-Id",
+    "X-Request-Id",
+    ...(env.AUTH_STUB ? ["X-User-Id"] : []),
+  ],
+  methods: ["GET", "POST", "PATCH", "PUT", "OPTIONS"],
 });
 
 app.get("/health", async () => {
   return HealthResponseSchema.parse({ ok: true as const });
 });
 
-await app.register(createContextPlugin(services.membershipAccess));
+await app.register(
+  authRoutes(services.auth, {
+    cookieName: env.REFRESH_COOKIE_NAME,
+    secureCookies: env.NODE_ENV === "production",
+    accessTokenVerifier: services.accessTokens,
+  }),
+  { prefix: "/api/v1" },
+);
+
+await app.register(
+  createContextPlugin({
+    membershipAccess: services.membershipAccess,
+    accessTokens: services.accessTokens,
+    authStub: env.AUTH_STUB,
+  }),
+);
+
 await app.register(orgRoutes(services.org), { prefix: "/api/v1" });
 await app.register(branchesRoutes(services.branches), { prefix: "/api/v1" });
 await app.register(locationsRoutes(services.locations), { prefix: "/api/v1" });
