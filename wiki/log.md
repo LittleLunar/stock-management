@@ -7,6 +7,12 @@ updated: 2026-07-27
 
 # Wiki Log
 
+## [2026-07-27] update | Org bootstrap membership + db:clear
+
+Fixed Phase E1 chicken-and-egg: `POST /orgs` now creates stub user + HQ
+`org_admin` membership. Added `scripts/clear-data.sql` and `pnpm db:clear` for
+local row wipe (schema kept). Updated [[Getting Started]], [[index]].
+
 ## [2026-07-27] update | Web app i18n (EN/TH)
 
 Added i18next + react-i18next to `apps/web`: flat dotted keys, `en`/`th`

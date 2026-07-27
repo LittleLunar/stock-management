@@ -9,7 +9,7 @@ updated: 2026-07-27
 
 ## Onboarding
 
-- [[Getting Started]] — how to orient in this repo and wiki
+- [[Getting Started]] — orient in repo/wiki; local bootstrap + `pnpm db:clear`
 - [[overview]] — high-level product synthesis
 
 ## Entities

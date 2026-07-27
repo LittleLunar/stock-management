@@ -49,4 +49,22 @@ describe("resolveRequestContext", () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
+
+  it("HQ org_admin gets empty branchIds and null activeBranchId", async () => {
+    const ctx = await resolveRequestContext({
+      orgId: "org-1",
+      userId: "user-1",
+      headerBranchId: null,
+      findActiveByUser: async () => ({
+        ...membership,
+        role: "org_admin",
+        branchIds: [],
+      }),
+    });
+    expect(ctx).toMatchObject({
+      role: "org_admin",
+      branchIds: [],
+      activeBranchId: null,
+    });
+  });
 });

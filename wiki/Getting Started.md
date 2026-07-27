@@ -24,8 +24,24 @@ updated: 2026-07-27
 | `pnpm dev:api` / `pnpm dev:web` | Run apps |
 | `pnpm typecheck` / `pnpm lint` / `pnpm test` | Quality gates |
 | `pnpm format` | Prettier write |
+| `pnpm db:clear` | Truncate all app rows (`scripts/clear-data.sql`); keeps schema + drizzle migrations |
 
 Env template: `.env.example` (`DATABASE_URL`, `PORT`, `LOG_LEVEL`, `NODE_ENV`, `VITE_API_URL`).
+
+## Local bootstrap (auth stub)
+
+Phase E1 loads membership from the DB for every API call (`X-Org-Id` + `X-User-Id`). Creating an org in the web shell (`POST /api/v1/orgs`) also creates:
+
+- stub user `00000000-0000-0000-0000-000000000001` (`admin@local`)
+- active HQ `org_admin` membership (no `membership_branches` rows = all branches)
+
+If you see `401 UNAUTHORIZED` / `No active membership` with a stale `localStorage` org:
+
+1. Run `pnpm db:clear`
+2. Clear browser `localStorage` keys `orgId`, `userId`, `activeBranchId` on the web origin
+3. Create the org again from the shell form
+
+Do **not** put truncate/seed into drizzle migrations — only generate migrations when the TypeScript schema changes (`pnpm --filter @stock-management/api db:generate` then `db:migrate`).
 
 ## For agents
 
