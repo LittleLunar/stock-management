@@ -199,6 +199,31 @@ export const membershipBranches = pgTable(
   ],
 );
 
+export const membershipInvites = pgTable(
+  "membership_invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    email: text("email").notNull(),
+    role: membershipRoleEnum("role").notNull(),
+    branchIds: jsonb("branch_ids").$type<string[]>().notNull().default([]),
+    tokenHash: text("token_hash").notNull(),
+    invitedBy: uuid("invited_by")
+      .notNull()
+      .references(() => users.id),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    declinedAt: timestamp("declined_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("membership_invites_token_hash_uidx").on(t.tokenHash),
+    index("membership_invites_org_email_idx").on(t.orgId, t.email),
+  ],
+);
+
 export const categories = pgTable(
   "categories",
   {

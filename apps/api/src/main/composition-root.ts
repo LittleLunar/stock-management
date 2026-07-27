@@ -44,6 +44,8 @@ import {
   SupplierReturnUseCases,
   SupplierUseCases,
   UsersUseCases,
+  MembershipInviteUseCases,
+  NoOpEnqueueNotificationIntent,
   ValuationReportUseCases,
   VoidCostRevaluation,
   VoidCustomerReturn,
@@ -78,6 +80,7 @@ import {
   DrizzleEmailTokenStore,
   DrizzleRefreshTokenStore,
 } from "../infrastructure/auth/index.js";
+import { DrizzleMembershipInviteStore } from "../infrastructure/persistence/membership-invite.repository.js";
 import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
@@ -126,6 +129,7 @@ export type AppServices = {
   users: UsersUseCases;
   membershipAccess: MembershipAccessPort;
   auth: AuthUseCases;
+  membershipInvites: MembershipInviteUseCases;
   accessTokens: AccessTokenSigner;
   purchaseOrders: PurchaseOrderUseCases;
   goodsReceipts: GoodsReceiptUseCases;
@@ -222,20 +226,35 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     env.JWT_ACCESS_SECRET,
     env.JWT_ACCESS_TTL_SECONDS,
   );
+  const opaqueTokens = new Sha256OpaqueTokenService();
+  const passwords = new Argon2PasswordHasher();
+  const mailer = createMailer(env);
   const auth = new AuthUseCases({
     users: new DrizzleAuthUserStore(db),
-    passwords: new Argon2PasswordHasher(),
+    passwords,
     accessTokens,
-    opaqueTokens: new Sha256OpaqueTokenService(),
+    opaqueTokens,
     refreshTokens: new DrizzleRefreshTokenStore(db),
     emailTokens: new DrizzleEmailTokenStore(db),
-    mailer: createMailer(env),
+    mailer,
     clock: { now: () => new Date() },
     config: {
       accessTokenTtlSeconds: env.JWT_ACCESS_TTL_SECONDS,
       refreshTokenTtlSeconds: env.REFRESH_TTL_SECONDS,
       emailVerifyTtlSeconds: 24 * 60 * 60,
       passwordResetTtlSeconds: 60 * 60,
+      appPublicUrl: env.APP_PUBLIC_URL,
+    },
+  });
+  const membershipInvites = new MembershipInviteUseCases({
+    invites: new DrizzleMembershipInviteStore(db),
+    passwords,
+    opaqueTokens,
+    mailer,
+    notifications: new NoOpEnqueueNotificationIntent(),
+    clock: { now: () => new Date() },
+    config: {
+      inviteTtlSeconds: 7 * 24 * 60 * 60,
       appPublicUrl: env.APP_PUBLIC_URL,
     },
   });
@@ -251,6 +270,7 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     users: new UsersUseCases(usersRepo),
     membershipAccess: usersRepo,
     auth,
+    membershipInvites,
     accessTokens,
     purchaseOrders: new PurchaseOrderUseCases(purchaseOrders),
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),

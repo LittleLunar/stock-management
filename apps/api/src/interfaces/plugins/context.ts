@@ -43,6 +43,13 @@ function isPublicAuthPath(path: string): boolean {
   return true;
 }
 
+function isPublicInvitePath(path: string): boolean {
+  return (
+    path === "/api/v1/membership-invites/accept" ||
+    path === "/api/v1/membership-invites/decline"
+  );
+}
+
 export type ResolveRequestContextInput = {
   orgId: string;
   userId: string;
@@ -106,6 +113,7 @@ export function createContextPlugin(
       const path = pathOnly(request.url);
       if (path === "/health") return;
       if (isPublicAuthPath(path)) return;
+      if (isPublicInvitePath(path)) return;
       // /auth/me resolves identity inside the auth routes plugin.
       if (path === "/api/v1/auth/me") return;
 

@@ -13,6 +13,8 @@ const REFRESH_EXEMPT_PATHS = new Set([
   "/api/v1/auth/resend-verification",
   "/api/v1/auth/forgot-password",
   "/api/v1/auth/reset-password",
+  "/api/v1/membership-invites/accept",
+  "/api/v1/membership-invites/decline",
 ]);
 
 export function shouldRetryOn401(path: string): boolean {

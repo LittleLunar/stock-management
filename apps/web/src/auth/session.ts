@@ -86,7 +86,8 @@ export function isAuthPublicPath(pathname: string): boolean {
     pathname === "/signup" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
-    pathname === "/verify-email"
+    pathname === "/verify-email" ||
+    pathname === "/accept-invite"
   );
 }
 

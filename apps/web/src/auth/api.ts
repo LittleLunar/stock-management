@@ -1,6 +1,9 @@
 import type {
+  AcceptMembershipInviteBody,
+  AcceptMembershipInviteResponse,
   AuthMeResponse,
   AuthSessionResponse,
+  DeclineMembershipInviteBody,
   ForgotPasswordBody,
   LoginBody,
   ResendVerificationBody,
@@ -10,6 +13,7 @@ import type {
   VerifyEmailBody,
 } from "@stock-management/shared";
 import {
+  AcceptMembershipInviteResponseSchema,
   AuthMeResponseSchema,
   AuthSessionResponseSchema,
   SignupResponseSchema,
@@ -98,4 +102,17 @@ export const authApi = {
       { method: "GET" },
       (raw) => AuthMeResponseSchema.parse(raw),
     ),
+
+  acceptInvite: (body: AcceptMembershipInviteBody) =>
+    authRequest<AcceptMembershipInviteResponse>(
+      "/api/v1/membership-invites/accept",
+      { method: "POST", body: JSON.stringify(body) },
+      (raw) => AcceptMembershipInviteResponseSchema.parse(raw),
+    ),
+
+  declineInvite: (body: DeclineMembershipInviteBody) =>
+    authRequest<void>("/api/v1/membership-invites/decline", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

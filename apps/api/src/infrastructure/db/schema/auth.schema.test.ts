@@ -3,6 +3,7 @@ import {
   authEmailTokenPurposeEnum,
   authEmailTokens,
   authRefreshTokens,
+  membershipInvites,
   users,
 } from "./index.js";
 
@@ -33,5 +34,19 @@ describe("auth schema", () => {
     expect(authEmailTokens.tokenHash).toBeDefined();
     expect(authEmailTokens.expiresAt).toBeDefined();
     expect(authEmailTokens.usedAt).toBeDefined();
+  });
+});
+
+describe("membership_invites schema", () => {
+  it("defines invite lifecycle columns", () => {
+    expect(membershipInvites.orgId).toBeDefined();
+    expect(membershipInvites.email).toBeDefined();
+    expect(membershipInvites.role).toBeDefined();
+    expect(membershipInvites.branchIds).toBeDefined();
+    expect(membershipInvites.tokenHash).toBeDefined();
+    expect(membershipInvites.invitedBy).toBeDefined();
+    expect(membershipInvites.expiresAt).toBeDefined();
+    expect(membershipInvites.acceptedAt).toBeDefined();
+    expect(membershipInvites.declinedAt).toBeDefined();
   });
 });

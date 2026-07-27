@@ -37,6 +37,7 @@ describe("isAuthPublicPath", () => {
   it("recognizes public auth routes", () => {
     expect(isAuthPublicPath("/login")).toBe(true);
     expect(isAuthPublicPath("/verify-email")).toBe(true);
+    expect(isAuthPublicPath("/accept-invite")).toBe(true);
     expect(isAuthPublicPath("/")).toBe(false);
   });
 });

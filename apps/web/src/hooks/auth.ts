@@ -57,6 +57,18 @@ export function useVerifyEmail() {
   });
 }
 
+export function useAcceptInvite() {
+  return useMutation({
+    mutationFn: authApi.acceptInvite,
+  });
+}
+
+export function useDeclineInvite() {
+  return useMutation({
+    mutationFn: authApi.declineInvite,
+  });
+}
+
 export function useLogout() {
   const qc = useQueryClient();
   return useMutation({

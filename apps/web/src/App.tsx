@@ -61,6 +61,7 @@ import { SupplierInvoiceDetailPage } from "./pages/SupplierInvoiceDetailPage";
 import { SupplierInvoicesPage } from "./pages/SupplierInvoicesPage";
 import { TrialBalancePage } from "./pages/TrialBalancePage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 import { WebhookSubscriptionsPage } from "./pages/WebhookSubscriptionsPage";
 
 const queryClient = new QueryClient({
@@ -545,6 +546,16 @@ const verifyEmailRoute = createRoute({
   component: VerifyEmailPage,
 });
 
+const acceptInviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accept-invite",
+  validateSearch: (search: Record<string, unknown>): { token?: string } => {
+    const token = typeof search.token === "string" ? search.token : undefined;
+    return token !== undefined ? { token } : {};
+  },
+  component: AcceptInvitePage,
+});
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -737,6 +748,7 @@ const routeTree = rootRoute.addChildren([
   forgotPasswordRoute,
   resetPasswordRoute,
   verifyEmailRoute,
+  acceptInviteRoute,
   indexRoute,
   branchesRoute,
   locationsRoute,
