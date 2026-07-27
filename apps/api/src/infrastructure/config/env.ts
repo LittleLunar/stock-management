@@ -25,6 +25,25 @@ const EnvSchema = z.object({
     .int()
     .positive()
     .default(60_000),
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(1)
+    .default("dev-only-jwt-access-secret-change-me"),
+  JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  REFRESH_COOKIE_NAME: z.string().min(1).default("refresh_token"),
+  REFRESH_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(14 * 24 * 60 * 60),
+  AUTH_STUB: booleanFromEnv,
+  APP_PUBLIC_URL: z.string().min(1).default("http://localhost:5173"),
+  WEB_ORIGIN: z.string().min(1).default("http://localhost:5173"),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
 });
 
 export type ApiEnv = z.infer<typeof EnvSchema>;

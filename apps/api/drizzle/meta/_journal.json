@@ -85,6 +85,13 @@
       "when": 1785168000000,
       "tag": "0011_phase_e3_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785222000000,
+      "tag": "0012_auth",
+      "breakpoints": true
     }
   ]
 }

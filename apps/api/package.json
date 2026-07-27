@@ -19,9 +19,11 @@
     "@stock-management/application": "workspace:*",
     "@stock-management/domain": "workspace:*",
     "@stock-management/shared": "workspace:*",
+    "argon2": "^0.45.1",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.2.1",
     "fastify-plugin": "^6.0.0",
+    "jose": "^6.2.4",
     "postgres": "^3.4.9",
     "zod": "^3.24.1"
   },

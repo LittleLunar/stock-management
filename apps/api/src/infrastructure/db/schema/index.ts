@@ -103,10 +103,60 @@ export const users = pgTable(
       .references(() => organizations.id),
     email: text("email").notNull(),
     name: text("name").notNull(),
+    passwordHash: text("password_hash"),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     status: masterStatusEnum("status").notNull().default("active"),
     ...timestamps,
   },
-  (t) => [uniqueIndex("users_org_email_uidx").on(t.orgId, t.email)],
+  (t) => [
+    uniqueIndex("users_org_email_uidx").on(t.orgId, t.email),
+    uniqueIndex("users_email_uidx").on(t.email),
+  ],
+);
+
+export const authEmailTokenPurposeEnum = pgEnum("auth_email_token_purpose", [
+  "verify_email",
+  "reset_password",
+]);
+
+export const authRefreshTokens = pgTable(
+  "auth_refresh_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text("token_hash").notNull(),
+    familyId: uuid("family_id").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("auth_refresh_tokens_token_hash_uidx").on(t.tokenHash),
+    index("auth_refresh_tokens_user_idx").on(t.userId),
+    index("auth_refresh_tokens_family_idx").on(t.familyId),
+  ],
+);
+
+export const authEmailTokens = pgTable(
+  "auth_email_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    purpose: authEmailTokenPurposeEnum("purpose").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("auth_email_tokens_token_hash_uidx").on(t.tokenHash),
+    index("auth_email_tokens_user_purpose_idx").on(t.userId, t.purpose),
+  ],
 );
 
 export const memberships = pgTable(

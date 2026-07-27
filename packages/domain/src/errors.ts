@@ -197,3 +197,38 @@ export class LocationQuarantinedError extends DomainError {
     this.name = "LocationQuarantinedError";
   }
 }
+
+export class InvalidCredentialsError extends DomainError {
+  constructor(message = "Invalid email or password") {
+    super(message, "INVALID_CREDENTIALS");
+    this.name = "InvalidCredentialsError";
+  }
+}
+
+export class EmailNotVerifiedError extends DomainError {
+  constructor(message = "Email is not verified") {
+    super(message, "EMAIL_NOT_VERIFIED");
+    this.name = "EmailNotVerifiedError";
+  }
+}
+
+export class TokenExpiredError extends DomainError {
+  constructor(message = "Token has expired") {
+    super(message, "TOKEN_EXPIRED");
+    this.name = "TokenExpiredError";
+  }
+}
+
+export class TokenInvalidError extends DomainError {
+  constructor(message = "Token is invalid") {
+    super(message, "TOKEN_INVALID");
+    this.name = "TokenInvalidError";
+  }
+}
+
+export class RateLimitedError extends DomainError {
+  constructor(message = "Too many requests") {
+    super(message, "RATE_LIMITED");
+    this.name = "RateLimitedError";
+  }
+}
