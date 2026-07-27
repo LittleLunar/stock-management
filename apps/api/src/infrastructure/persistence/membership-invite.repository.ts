@@ -1,9 +1,9 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type {
   MembershipInviteRecord,
   MembershipInviteStore,
 } from "@stock-management/application";
-import { ConflictError } from "@stock-management/domain";
+import { ConflictError, InvalidStateError } from "@stock-management/domain";
 import type { MembershipRole } from "@stock-management/domain";
 import type { Db } from "../db/client.js";
 import {
@@ -34,6 +34,16 @@ function toInvite(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** Claim only while neither accepted nor declined and not past expires_at. */
+function pendingUnexpiredWhere(id: string, now: Date) {
+  return and(
+    eq(membershipInvites.id, id),
+    isNull(membershipInvites.acceptedAt),
+    isNull(membershipInvites.declinedAt),
+    gt(membershipInvites.expiresAt, now),
+  );
 }
 
 export class DrizzleMembershipInviteStore implements MembershipInviteStore {
@@ -109,18 +119,15 @@ export class DrizzleMembershipInviteStore implements MembershipInviteStore {
       );
   }
 
-  async markAccepted(id: string, acceptedAt: Date): Promise<void> {
-    await this.db
-      .update(membershipInvites)
-      .set({ acceptedAt, updatedAt: acceptedAt })
-      .where(eq(membershipInvites.id, id));
-  }
-
   async markDeclined(id: string, declinedAt: Date): Promise<void> {
-    await this.db
+    const [row] = await this.db
       .update(membershipInvites)
       .set({ declinedAt, updatedAt: declinedAt })
-      .where(eq(membershipInvites.id, id));
+      .where(pendingUnexpiredWhere(id, declinedAt))
+      .returning({ id: membershipInvites.id });
+    if (!row) {
+      throw new InvalidStateError("Invite is no longer pending");
+    }
   }
 
   async acceptCreateUserAndMembership(input: {
@@ -135,6 +142,19 @@ export class DrizzleMembershipInviteStore implements MembershipInviteStore {
   }): Promise<{ userId: string; membershipId: string }> {
     try {
       return await this.db.transaction(async (tx) => {
+        const [claimed] = await tx
+          .update(membershipInvites)
+          .set({
+            acceptedAt: input.acceptedAt,
+            updatedAt: input.acceptedAt,
+          })
+          .where(pendingUnexpiredWhere(input.inviteId, input.acceptedAt))
+          .returning({ id: membershipInvites.id });
+
+        if (!claimed) {
+          throw new InvalidStateError("Invite is no longer pending");
+        }
+
         const [user] = await tx
           .insert(users)
           .values({
@@ -167,17 +187,10 @@ export class DrizzleMembershipInviteStore implements MembershipInviteStore {
           );
         }
 
-        await tx
-          .update(membershipInvites)
-          .set({
-            acceptedAt: input.acceptedAt,
-            updatedAt: input.acceptedAt,
-          })
-          .where(eq(membershipInvites.id, input.inviteId));
-
         return { userId: user.id, membershipId: membership.id };
       });
     } catch (err) {
+      if (err instanceof InvalidStateError) throw err;
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes("users_email_uidx") || message.includes("unique")) {
         throw new ConflictError("Email already registered");

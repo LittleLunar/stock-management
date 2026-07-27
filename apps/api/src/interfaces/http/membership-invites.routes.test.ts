@@ -13,7 +13,7 @@ import {
   type OpaqueTokenService,
   type PasswordHasher,
 } from "@stock-management/application";
-import { ConflictError } from "@stock-management/domain";
+import { ConflictError, InvalidStateError } from "@stock-management/domain";
 import { membershipInviteRoutes } from "./membership-invites.routes.js";
 import {
   createTestContextPlugin,
@@ -88,30 +88,35 @@ function createInviteHarness() {
         }
       }
     },
-    async markAccepted(id, acceptedAt) {
-      const row = invites.get(id);
-      if (row) {
-        row.acceptedAt = acceptedAt;
-        row.updatedAt = acceptedAt;
-      }
-    },
     async markDeclined(id, declinedAt) {
       const row = invites.get(id);
-      if (row) {
-        row.declinedAt = declinedAt;
-        row.updatedAt = declinedAt;
+      if (
+        !row ||
+        row.acceptedAt ||
+        row.declinedAt ||
+        row.expiresAt.getTime() <= declinedAt.getTime()
+      ) {
+        throw new InvalidStateError("Invite is no longer pending");
       }
+      row.declinedAt = declinedAt;
+      row.updatedAt = declinedAt;
     },
     async acceptCreateUserAndMembership(input) {
+      const row = invites.get(input.inviteId);
+      if (
+        !row ||
+        row.acceptedAt ||
+        row.declinedAt ||
+        row.expiresAt.getTime() <= input.acceptedAt.getTime()
+      ) {
+        throw new InvalidStateError("Invite is no longer pending");
+      }
       if (registeredEmails.has(input.email)) {
         throw new ConflictError("Email already registered");
       }
       registeredEmails.add(input.email);
-      const row = invites.get(input.inviteId);
-      if (row) {
-        row.acceptedAt = input.acceptedAt;
-        row.updatedAt = input.acceptedAt;
-      }
+      row.acceptedAt = input.acceptedAt;
+      row.updatedAt = input.acceptedAt;
       return { userId: randomUUID(), membershipId: randomUUID() };
     },
     async findOrgName() {

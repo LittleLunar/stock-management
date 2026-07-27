@@ -87,22 +87,34 @@ function createHarness(overrides?: Partial<MembershipInviteDeps>) {
         }
       }
     },
-    async markAccepted(id, acceptedAt) {
-      const row = invites.get(id);
-      if (!row) return;
-      row.acceptedAt = acceptedAt;
-      row.updatedAt = acceptedAt;
-    },
     async markDeclined(id, declinedAt) {
       const row = invites.get(id);
-      if (!row) return;
+      if (
+        !row ||
+        row.acceptedAt ||
+        row.declinedAt ||
+        row.expiresAt.getTime() <= declinedAt.getTime()
+      ) {
+        throw new InvalidStateError("Invite is no longer pending");
+      }
       row.declinedAt = declinedAt;
       row.updatedAt = declinedAt;
     },
     async acceptCreateUserAndMembership(input) {
+      const row = invites.get(input.inviteId);
+      if (
+        !row ||
+        row.acceptedAt ||
+        row.declinedAt ||
+        row.expiresAt.getTime() <= input.acceptedAt.getTime()
+      ) {
+        throw new InvalidStateError("Invite is no longer pending");
+      }
       if (usersByEmail.has(input.email)) {
         throw new ConflictError("Email already registered");
       }
+      row.acceptedAt = input.acceptedAt;
+      row.updatedAt = input.acceptedAt;
       const userId = randomUUID();
       const membershipId = randomUUID();
       usersByEmail.set(input.email, {
@@ -116,11 +128,6 @@ function createHarness(overrides?: Partial<MembershipInviteDeps>) {
         createdAt: input.acceptedAt,
         updatedAt: input.acceptedAt,
       });
-      const row = invites.get(input.inviteId);
-      if (row) {
-        row.acceptedAt = input.acceptedAt;
-        row.updatedAt = input.acceptedAt;
-      }
       return { userId, membershipId };
     },
     async findOrgName(orgId) {
@@ -178,6 +185,7 @@ function createHarness(overrides?: Partial<MembershipInviteDeps>) {
 
   return {
     useCases: new MembershipInviteUseCases(deps),
+    store,
     mailLog,
     notificationLog,
     invites,
@@ -342,5 +350,66 @@ describe("MembershipInviteUseCases", () => {
     await expect(
       h.useCases.declineInvite({ token: created.token }),
     ).rejects.toBeInstanceOf(TokenExpiredError);
+  });
+
+  it("atomic accept claim fails after decline without creating a user", async () => {
+    const h = createHarness();
+    const created = await h.useCases.createInvite({
+      orgId: ORG_ID,
+      actorUserId: ADMIN_ID,
+      actorRole: "org_admin",
+      email: "race@example.com",
+      role: "warehouse",
+    });
+
+    await h.store.markDeclined(created.id, FIXED_NOW);
+
+    await expect(
+      h.store.acceptCreateUserAndMembership({
+        inviteId: created.id,
+        orgId: ORG_ID,
+        email: "race@example.com",
+        name: "Race",
+        passwordHash: "hash:password12",
+        role: "warehouse",
+        branchIds: [],
+        acceptedAt: FIXED_NOW,
+      }),
+    ).rejects.toBeInstanceOf(InvalidStateError);
+
+    expect(h.usersByEmail.size).toBe(0);
+    const row = h.invites.get(created.id);
+    expect(row?.declinedAt).toEqual(FIXED_NOW);
+    expect(row?.acceptedAt).toBeNull();
+  });
+
+  it("atomic decline fails after accept claim", async () => {
+    const h = createHarness();
+    const created = await h.useCases.createInvite({
+      orgId: ORG_ID,
+      actorUserId: ADMIN_ID,
+      actorRole: "org_admin",
+      email: "won@example.com",
+      role: "accountant",
+    });
+
+    await h.store.acceptCreateUserAndMembership({
+      inviteId: created.id,
+      orgId: ORG_ID,
+      email: "won@example.com",
+      name: "Winner",
+      passwordHash: "hash:password12",
+      role: "accountant",
+      branchIds: [],
+      acceptedAt: FIXED_NOW,
+    });
+
+    await expect(
+      h.store.markDeclined(created.id, FIXED_NOW),
+    ).rejects.toBeInstanceOf(InvalidStateError);
+
+    const row = h.invites.get(created.id);
+    expect(row?.acceptedAt).toEqual(FIXED_NOW);
+    expect(row?.declinedAt).toBeNull();
   });
 });

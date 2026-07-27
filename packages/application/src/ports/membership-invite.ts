@@ -83,13 +83,16 @@ export interface MembershipInviteStore {
     at: Date,
   ): Promise<void>;
 
-  markAccepted(id: string, acceptedAt: Date): Promise<void>;
-
+  /**
+   * Atomically mark declined only if still pending and not expired.
+   * @throws InvalidStateError if already finalized or expired
+   */
   markDeclined(id: string, declinedAt: Date): Promise<void>;
 
   /**
-   * Create invitee user + membership and mark invite accepted in one
-   * transaction. Email is treated as verified via the invite token.
+   * Claim invite (pending + unexpired) then create invitee user + membership
+   * in one transaction. Email is treated as verified via the invite token.
+   * @throws InvalidStateError if invite already finalized or expired
    */
   acceptCreateUserAndMembership(input: {
     inviteId: string;
