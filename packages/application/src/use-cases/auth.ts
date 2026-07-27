@@ -19,6 +19,13 @@ function addSeconds(date: Date, seconds: number): Date {
   return new Date(date.getTime() + seconds * 1000);
 }
 
+/**
+ * Valid Argon2id hash of a fixed dummy secret. Used when the email is unknown
+ * or the user has no password hash so verify still runs (timing oracle mitigation).
+ */
+export const LOGIN_DUMMY_PASSWORD_HASH =
+  "$argon2id$v=19$m=65536,p=4,t=3$yCMi7gJkV4lNWimFjoQMIw$mPAMMEdkKxFjRO+ekVPiLpC4XufkzXhwyFwYBr25QL8";
+
 export class AuthUseCases {
   constructor(private readonly deps: AuthDeps) {}
 
@@ -60,15 +67,9 @@ export class AuthUseCases {
   }): Promise<AuthSession> {
     const email = input.email.trim().toLowerCase();
     const user = await this.deps.users.findByEmail(email);
-    if (!user?.passwordHash) {
-      throw new InvalidCredentialsError();
-    }
-
-    const ok = await this.deps.passwords.verify(
-      input.password,
-      user.passwordHash,
-    );
-    if (!ok) {
+    const passwordHash = user?.passwordHash ?? LOGIN_DUMMY_PASSWORD_HASH;
+    const ok = await this.deps.passwords.verify(input.password, passwordHash);
+    if (!user?.passwordHash || !ok) {
       throw new InvalidCredentialsError();
     }
 

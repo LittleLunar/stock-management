@@ -1,12 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
 import * as argon2 from "argon2";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, errors as joseErrors, jwtVerify } from "jose";
 import type {
   AccessTokenSigner,
   OpaqueTokenService,
   PasswordHasher,
 } from "@stock-management/application";
-import { TokenInvalidError } from "@stock-management/domain";
+import {
+  TokenExpiredError,
+  TokenInvalidError,
+} from "@stock-management/domain";
 
 export class Argon2PasswordHasher implements PasswordHasher {
   hash(password: string): Promise<string> {
@@ -56,7 +59,12 @@ export class JoseAccessTokenSigner implements AccessTokenSigner {
       }
       return { sub, email };
     } catch (err) {
-      if (err instanceof TokenInvalidError) throw err;
+      if (err instanceof TokenInvalidError || err instanceof TokenExpiredError) {
+        throw err;
+      }
+      if (err instanceof joseErrors.JWTExpired) {
+        throw new TokenExpiredError();
+      }
       throw new TokenInvalidError();
     }
   }

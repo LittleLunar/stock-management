@@ -25,7 +25,7 @@ import type {
   AccessTokenSigner,
   AuthUserStore,
 } from "../ports/auth.js";
-import { AuthUseCases } from "./auth.js";
+import { AuthUseCases, LOGIN_DUMMY_PASSWORD_HASH } from "./auth.js";
 
 const FIXED_NOW = new Date("2026-07-27T10:00:00.000Z");
 
@@ -46,6 +46,7 @@ function createHarness(overrides?: Partial<AuthDeps>) {
   const refreshRows: RefreshTokenRecord[] = [];
   const emailRows: EmailTokenRecord[] = [];
   const mailLog: MailMessage[] = [];
+  const verifyCalls: { password: string; hash: string }[] = [];
   let now = new Date(FIXED_NOW);
   let tokenSeq = 0;
 
@@ -113,6 +114,7 @@ function createHarness(overrides?: Partial<AuthDeps>) {
       return `hash:${password}`;
     },
     async verify(password, hash) {
+      verifyCalls.push({ password, hash });
       return hash === `hash:${password}`;
     },
   };
@@ -236,6 +238,7 @@ function createHarness(overrides?: Partial<AuthDeps>) {
     refreshRows,
     emailRows,
     mailLog,
+    verifyCalls,
     setNow(d: Date) {
       now = d;
     },
@@ -343,6 +346,30 @@ describe("AuthUseCases", () => {
       await expect(
         h.uc.login({ email: "missing@example.com", password: "x" }),
       ).rejects.toBeInstanceOf(InvalidCredentialsError);
+    });
+
+    it("still verifies password against dummy hash for unknown email", async () => {
+      const h = createHarness();
+      await expect(
+        h.uc.login({ email: "missing@example.com", password: "x" }),
+      ).rejects.toBeInstanceOf(InvalidCredentialsError);
+      expect(h.verifyCalls).toEqual([
+        { password: "x", hash: LOGIN_DUMMY_PASSWORD_HASH },
+      ]);
+    });
+
+    it("still verifies password against dummy hash when passwordHash is null", async () => {
+      const h = createHarness();
+      h.seedVerifiedUser({
+        email: "nopw@example.com",
+        passwordHash: null,
+      });
+      await expect(
+        h.uc.login({ email: "nopw@example.com", password: "x" }),
+      ).rejects.toBeInstanceOf(InvalidCredentialsError);
+      expect(h.verifyCalls).toEqual([
+        { password: "x", hash: LOGIN_DUMMY_PASSWORD_HASH },
+      ]);
     });
 
     it("throws EmailNotVerified when email not verified", async () => {
