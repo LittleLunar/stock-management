@@ -47,5 +47,6 @@
   "account.orgName": "{{orgName}}",
   "account.user": "ผู้ใช้: {{userId}}",
   "errorBoundary.title": "เกิดข้อผิดพลาด",
-  "errorBoundary.description": "เกิดข้อผิดพลาดที่ไม่คาดคิด คุณสามารถโหลดหน้าใหม่เพื่อดำเนินการต่อ"
+  "errorBoundary.description": "เกิดข้อผิดพลาดที่ไม่คาดคิด คุณสามารถโหลดหน้าใหม่เพื่อดำเนินการต่อ",
+  "account.preferences": "การตั้งค่าการแจ้งเตือน"
 }

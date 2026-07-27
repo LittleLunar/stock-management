@@ -7,6 +7,10 @@ updated: 2026-07-27
 
 # Wiki Log
 
+## [2026-07-27] update | Auth + notifications finalize (Task 8)
+
+Preferences UI (`/notification-preferences`), EN/TH i18n, `docs/FEATURES.md` cross-cutting inventory, and wiki status refresh for [[Authentication]] / [[Notifications]] / [[Getting Started]] / [[Phase A]] / [[Feature Phases]]. Parked: approval.assigned heuristics; invite accept password; earlier task minors.
+
 ## [2026-07-27] ingest | Auth + notifications design specs
 
 Added design specs for [[Authentication]] and [[Notifications]] (email/password JWT +

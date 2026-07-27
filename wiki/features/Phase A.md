@@ -14,7 +14,7 @@ Platform skeleton — multi-branch foundation, no stock yet.
 
 Migrating to [[Clean Architecture]] complete (2026-07-26): packages-first (`domain` / `application`), API adapters under `infrastructure` + `interfaces/http`. Masters UI remains thin HTTP client.
 
-**Auth:** historically a header stub (`X-Org-Id` + `X-User-Id`). Real email/password JWT auth is designed and planned — see [[Authentication]] (implementation in progress on `feature/auth-and-notifications`).
+**Auth:** email/password JWT + rotating refresh cookie — see [[Authentication]] (shipped with [[Notifications]] on `feature/auth-and-notifications`). Legacy header stub retired for identity.
 
 ## Features
 
@@ -24,7 +24,7 @@ Migrating to [[Clean Architecture]] complete (2026-07-26): packages-first (`doma
 - Users & roles (branch-scoped memberships)
 - Products (SKU, UOM, barcodes, lot/serial/expiry flags)
 - Categories, suppliers (and customer stub)
-- App shell (layout; auth stub until JWT replaces it)
+- App shell (layout; JWT auth pages + session)
 
 ## Architecture
 

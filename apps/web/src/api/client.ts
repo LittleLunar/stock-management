@@ -1000,6 +1000,27 @@ export const api = {
           : { "Content-Type": "application/json" },
       },
     ),
+  getNotificationPreferences: (ctx: ApiHeaders) =>
+    request<NotificationPreferenceDto[]>(
+      "/api/v1/notification-preferences",
+      ctx,
+    ),
+  putNotificationPreferences: (
+    ctx: ApiHeaders,
+    preferences: Array<{
+      eventType: string;
+      channel: "in_app" | "email";
+      enabled: boolean;
+    }>,
+  ) =>
+    request<NotificationPreferenceDto[]>(
+      "/api/v1/notification-preferences",
+      ctx,
+      {
+        method: "PUT",
+        body: JSON.stringify({ preferences }),
+      },
+    ),
 };
 
 export type NotificationActionDto = {
@@ -1021,4 +1042,14 @@ export type NotificationDto = {
   readAt: string | null;
   dismissedAt: string | null;
   createdAt: string;
+};
+
+export type NotificationPreferenceDto = {
+  id?: string;
+  userId?: string;
+  orgId?: string;
+  eventType: string;
+  channel: "in_app" | "email";
+  enabled: boolean;
+  source?: "preference" | "default";
 };

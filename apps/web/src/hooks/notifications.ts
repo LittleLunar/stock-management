@@ -201,3 +201,31 @@ export function useNotificationSocket(onEvent?: (msg: unknown) => void) {
 
   return { connected };
 }
+
+export function useNotificationPreferences(enabled = true) {
+  const ctx = useApiContext();
+  return useQuery({
+    queryKey: ["notification-preferences", ctx.orgId],
+    queryFn: () => api.getNotificationPreferences(ctx),
+    enabled: enabled && Boolean(ctx.orgId) && Boolean(getAccessToken()),
+  });
+}
+
+export function usePutNotificationPreferences() {
+  const ctx = useApiContext();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (
+      preferences: Array<{
+        eventType: string;
+        channel: "in_app" | "email";
+        enabled: boolean;
+      }>,
+    ) => api.putNotificationPreferences(ctx, preferences),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: ["notification-preferences", ctx.orgId],
+      });
+    },
+  });
+}

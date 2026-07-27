@@ -10,6 +10,10 @@ source_count: 1
 
 In-app + email notifications for [[Stock Management System]], delivered outbox-first through a **decorator** channel chain. Depends on real users from [[Authentication]].
 
+## Status
+
+**Implemented** (2026-07-27) on `feature/auth-and-notifications`: outbox dispatch, decorator channels, REST + WebSocket, signed actions, preferences UI (`/notification-preferences` from account menu).
+
 ## Locked model
 
 | Topic | Choice |
@@ -17,8 +21,9 @@ In-app + email notifications for [[Stock Management System]], delivered outbox-f
 | Channels v1 | In-app + email |
 | Pattern | Decorator channels + Strategy event policies |
 | Transport | Postgres outbox (`notification.dispatch`) |
-| Realtime | Fastify WebSocket |
+| Realtime | Fastify WebSocket + poll fallback |
 | Server actions | Approval approve/reject; invite accept/decline (signed tokens) |
+| Preferences | Per-user per-event channel toggles (defaults from policy) |
 
 ## Pipeline
 
@@ -31,7 +36,14 @@ Ops: document posted/voided, stock low, approval assigned.
 
 ## UX
 
-Shell notification bell (badge + popover); preferences for channel toggles; WebSocket with poll fallback.
+Shell notification bell (badge + popover); account **Notification preferences** page; `/notification-action` for email CTAs; WebSocket with 30s poll fallback.
+
+## Parked follow-ups
+
+- `approval.assigned` recipient resolution uses coarse role heuristics until approval policies carry eligible roles/users
+- Invite accept via signed action token still requires name + password (create-user path)
+- Email-only invites (no `userId`) keep opaque invite URLs
+- Earlier task minors: inactive login gate, refresh rotate transaction, unique→Conflict mapping, drop sync invite Mailer when email channel fully covers invites
 
 ## Related
 
@@ -46,3 +58,4 @@ Shell notification bell (badge + popover); preferences for channel toggles; WebS
 ## Sources
 
 - Planning decision 2026-07-27 (auth + notifications brainstorming; WS + server actions)
+- Implementation finalize Task 8 (2026-07-27)

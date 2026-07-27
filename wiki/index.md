@@ -9,7 +9,7 @@ updated: 2026-07-27
 
 ## Onboarding
 
-- [[Getting Started]] — orient in repo/wiki; local bootstrap + `pnpm db:clear`; auth stub until JWT
+- [[Getting Started]] — orient in repo/wiki; local bootstrap + `pnpm db:clear`; JWT auth + notifications
 - [[overview]] — high-level product synthesis
 
 ## Entities

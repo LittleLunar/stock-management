@@ -39,4 +39,4 @@ F  POS / external channels on same APIs
 **Phase E:** complete (E1–E3, 2026-07-27) — branch ACL/UX; replenishment/reservations/approvals; webhooks (HMAC outbox), FEFO/quarantine hard-block, barcode lookup + scan UX.  
 Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md` · Master: `docs/superpowers/plans/2026-07-26-phase-e-multi-branch.md` · Deep: E1 / E2 / E3 under `docs/superpowers/plans/2026-07-26-phase-e*.md`
 
-**Cross-cutting (post-E):** [[Authentication]] + [[Notifications]] — design specs approved 2026-07-27; plan `docs/superpowers/plans/2026-07-27-auth-and-notifications.md`. Replaces auth stub; adds in-app/email decorator channels, WebSocket, signed approval/invite actions. **Then:** [[Phase F]].
+**Cross-cutting (post-E):** [[Authentication]] + [[Notifications]] — **implemented** 2026-07-27 (`feature/auth-and-notifications`). JWT auth, invites, outbox decorator channels, WebSocket, signed actions, preferences UI. Plan: `docs/superpowers/plans/2026-07-27-auth-and-notifications.md`. **Next:** [[Phase F]].

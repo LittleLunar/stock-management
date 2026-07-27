@@ -47,5 +47,6 @@
   "account.orgName": "{{orgName}}",
   "account.user": "User: {{userId}}",
   "errorBoundary.title": "Something went wrong",
-  "errorBoundary.description": "An unexpected error occurred. You can reload the page to continue."
+  "errorBoundary.description": "An unexpected error occurred. You can reload the page to continue.",
+  "account.preferences": "Notification preferences"
 }

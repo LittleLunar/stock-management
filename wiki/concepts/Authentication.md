@@ -13,6 +13,10 @@ Email/password auth for [[Stock Management System]], replacing the Phase A–E h
 > [!important]
 > Access identity comes from a **JWT Bearer** token. Tenant context still uses **`X-Org-Id`** / optional **`X-Branch-Id`** resolved against [[Org Branch Location]] membership. Do not trust client-supplied `X-User-Id` in production.
 
+## Status
+
+**Implemented** (2026-07-27) on `feature/auth-and-notifications`. Header stub no longer used for identity.
+
 ## Locked model
 
 | Topic | Choice |
@@ -29,6 +33,7 @@ Email/password auth for [[Stock Management System]], replacing the Phase A–E h
 2. Verify email → login issues access JWT + refresh cookie
 3. API calls: `Authorization: Bearer` + `X-Org-Id` (+ optional `X-Branch-Id`)
 4. Refresh rotates cookie; failed refresh → web redirects to login
+5. Invites: create → email/link → accept (name+password) / decline
 
 ## CA placement
 
@@ -36,7 +41,7 @@ Email/password auth for [[Stock Management System]], replacing the Phase A–E h
 - Use cases + ports (`PasswordHasher`, token stores, `Mailer`): `packages/application`
 - Argon2 / JWT / Drizzle / mailer adapters: `apps/api` infrastructure
 - Thin routes + context plugin: `apps/api` HTTP
-- Web: `/login`, `/signup`, forgot/reset/verify pages; session client
+- Web: `/login`, `/signup`, forgot/reset/verify/accept-invite pages; session client
 
 ## Related
 
@@ -50,3 +55,4 @@ Email/password auth for [[Stock Management System]], replacing the Phase A–E h
 ## Sources
 
 - Planning decision 2026-07-27 (auth + notifications brainstorming)
+- Implementation finalize Task 8 (2026-07-27)

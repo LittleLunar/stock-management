@@ -49,6 +49,10 @@ export function AccountMenu() {
       <Dropdown.Popover placement="bottom end" className="min-w-52">
         <Dropdown.Menu
           onAction={(key) => {
+            if (key === "preferences") {
+              void navigate({ to: "/notification-preferences" });
+              return;
+            }
             if (key === "logout") {
               logout.mutate(undefined, {
                 onSuccess: () => {
@@ -80,6 +84,11 @@ export function AccountMenu() {
               }
             />
           ) : null}
+          <Dropdown.Item
+            id="preferences"
+            textValue={t("account.preferences")}
+            label={t("account.preferences")}
+          />
           <Dropdown.Item
             id="logout"
             textValue={ta("auth.logout")}

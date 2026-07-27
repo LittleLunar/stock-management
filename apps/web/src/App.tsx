@@ -63,6 +63,7 @@ import { TrialBalancePage } from "./pages/TrialBalancePage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { AcceptInvitePage } from "./pages/AcceptInvitePage";
 import { NotificationActionPage } from "./pages/NotificationActionPage";
+import { NotificationPreferencesPage } from "./pages/NotificationPreferencesPage";
 import { WebhookSubscriptionsPage } from "./pages/WebhookSubscriptionsPage";
 
 const queryClient = new QueryClient({
@@ -753,6 +754,12 @@ const webhooksRoute = createRoute({
   component: WebhookSubscriptionsPage,
 });
 
+const notificationPreferencesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/notification-preferences",
+  component: NotificationPreferencesPage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   signupRoute,
@@ -792,6 +799,7 @@ const routeTree = rootRoute.addChildren([
   balanceSheetRoute,
   approvalPoliciesRoute,
   webhooksRoute,
+  notificationPreferencesRoute,
 ]);
 
 const router = createRouter({ routeTree });

@@ -38,5 +38,22 @@
   "settings.webhooks.selectRequired": "URL, secret (min 8), and at least one event type required",
   "settings.webhooks.createSuccess": "Webhook subscription created",
   "settings.webhooks.activateSuccess": "Subscription activated",
-  "settings.webhooks.deactivateSuccess": "Subscription deactivated"
+  "settings.webhooks.deactivateSuccess": "Subscription deactivated",
+  "settings.notificationPreferences.title": "Notification preferences",
+  "settings.notificationPreferences.description": "Choose which events reach you in-app and by email for this organization.",
+  "settings.notificationPreferences.loading": "Loading…",
+  "settings.notificationPreferences.saveSuccess": "Preferences saved",
+  "settings.notificationPreferences.col.event": "Event",
+  "settings.notificationPreferences.channel.inApp": "In-app",
+  "settings.notificationPreferences.channel.email": "Email",
+  "settings.notificationPreferences.event.user.welcome": "Welcome",
+  "settings.notificationPreferences.event.user.email_verified": "Email verified",
+  "settings.notificationPreferences.event.auth.password_changed": "Password changed",
+  "settings.notificationPreferences.event.membership.invite_received": "Invite received",
+  "settings.notificationPreferences.event.membership.invite_accepted": "Invite accepted",
+  "settings.notificationPreferences.event.membership.invite_declined": "Invite declined",
+  "settings.notificationPreferences.event.document.posted": "Document posted",
+  "settings.notificationPreferences.event.document.voided": "Document voided",
+  "settings.notificationPreferences.event.stock.low": "Low stock",
+  "settings.notificationPreferences.event.approval.assigned": "Approval assigned"
 }
