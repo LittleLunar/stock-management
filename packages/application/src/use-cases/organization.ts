@@ -1,6 +1,9 @@
 import { NotFoundError, UnauthorizedError } from "@stock-management/domain";
 import type { CreateOrganizationInput, UpdateOrganizationInput } from "../dto/inputs.js";
-import type { OrganizationRepository } from "../ports/repositories.js";
+import type {
+  OrganizationOwnerInput,
+  OrganizationRepository,
+} from "../ports/repositories.js";
 
 export class OrganizationUseCases {
   constructor(private readonly repo: OrganizationRepository) {}
@@ -25,5 +28,9 @@ export class OrganizationUseCases {
 
   create(input: CreateOrganizationInput) {
     return this.repo.create(input);
+  }
+
+  createWithOwner(input: CreateOrganizationInput, owner: OrganizationOwnerInput) {
+    return this.repo.createWithOwner(input, owner);
   }
 }

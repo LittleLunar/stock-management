@@ -10,6 +10,9 @@ updated: 2026-07-27
 
 Multi-branch retail hardening.
 
+> [!note]
+> Local org create bootstraps stub admin membership — see [[Getting Started]].
+
 ## Status
 
 **Complete (E1–E3, 2026-07-27).** Slice order was **E1 → E2 → E3**.
@@ -43,7 +46,7 @@ Design: `docs/superpowers/specs/2026-07-26-phase-e-multi-branch-design.md`
 
 ## E1 shipped notes (2026-07-27)
 
-- **Context ACL** — `Membership.branchIds` (empty = HQ); `assertBranchAccess` / `resolveActiveBranch` / `canPerform` in domain; HTTP `RequestContext` loads role + branch grants from DB and optional `X-Branch-Id`. No membership → 401; bad branch / role denial → 403.
+- **Context ACL** — `Membership.branchIds` (empty = HQ); `assertBranchAccess` / `resolveActiveBranch` / `canPerform` in domain; HTTP `RequestContext` loads role + branch grants from DB and optional `X-Branch-Id`. No membership → 401; bad branch / role denial → 403. Local bootstrap: `POST /orgs` creates stub user + HQ `org_admin` membership (see [[Getting Started]]).
 - **List filters** — document lists use server `BranchListFilter`; client cannot widen scope.
 - **Write gates** — create/post gated by role matrix + branch assert when scoped.
 - **Transfer columns** — migration `0009_phase_e1_branch_hardening.sql` adds `stock_transfers.from_branch_id` / `to_branch_id` (set from locations).

@@ -10,7 +10,11 @@ export function orgRoutes(useCases: OrganizationUseCases): FastifyPluginAsync {
   return async (app) => {
     app.post("/orgs", async (request) => {
       const body = CreateOrganizationSchema.parse(request.body);
-      return useCases.create(body);
+      return useCases.createWithOwner(body, {
+        userId: request.ctx.userId,
+        email: "admin@local",
+        name: "Admin",
+      });
     });
 
     app.get<{ Params: { orgId: string } }>("/orgs/:orgId", async (request) => {

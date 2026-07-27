@@ -28,10 +28,21 @@ import type {
   UpdateSupplierInput,
 } from "../dto/inputs.js";
 
+export type OrganizationOwnerInput = {
+  userId: string;
+  email: string;
+  name: string;
+};
+
 export interface OrganizationRepository {
   findById(id: string): Promise<Organization | null>;
   update(id: string, input: UpdateOrganizationInput): Promise<Organization | null>;
   create(input: CreateOrganizationInput): Promise<Organization>;
+  /** Create org + owner user + active HQ org_admin membership in one transaction. */
+  createWithOwner(
+    input: CreateOrganizationInput,
+    owner: OrganizationOwnerInput,
+  ): Promise<Organization>;
 }
 
 export interface BranchRepository {
