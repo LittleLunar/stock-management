@@ -51,7 +51,13 @@ export type NotificationDeliveryContext = {
   actions: NotificationAction[];
   /** Set by InApp decorator after insert so email CTAs can reference the row. */
   notificationId?: string;
+  /** Safe extras for channel logic (never include secrets). */
   payload?: Record<string, unknown>;
+  /**
+   * Idempotency key for in-app writes across outbox retries
+   * (typically `${outboxEventId}:${userId|email}`).
+   */
+  deliveryKey?: string;
 };
 
 export interface NotificationChannel {
@@ -74,6 +80,16 @@ export interface NotificationRepository {
     data: NotificationData;
     actions: NotificationAction[];
   }): Promise<Notification>;
+
+  /**
+   * Lookup prior in-app row for the same outbox delivery (retry safety).
+   * Match is on `data.deliveryKey`.
+   */
+  findByDeliveryKey(
+    orgId: string,
+    userId: string,
+    deliveryKey: string,
+  ): Promise<Notification | null>;
 
   listForUser(
     orgId: string,

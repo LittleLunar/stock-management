@@ -70,10 +70,10 @@ describe("processOutboxBatch", () => {
     expect(info).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: "evt-1",
-        payload: { documentId: "gr-1" },
       }),
       "outbox event processed",
     );
+    expect(info.mock.calls[0]?.[0]).not.toHaveProperty("payload");
   });
 
   it("invokes processJournal before markProcessed", async () => {

@@ -71,9 +71,9 @@ export class MembershipInviteUseCases {
 
     const orgName =
       (await this.deps.invites.findOrgName(input.orgId)) ?? "your organization";
-    const acceptUrl = `${this.deps.config.appPublicUrl.replace(/\/$/, "")}/accept-invite?token=${encodeURIComponent(rawToken)}`;
 
-    // Invite email is delivered via EmailChannelDecorator (outbox), not sync Mailer.
+    // Invite email is delivered via EmailChannelDecorator (outbox).
+    // Do not put raw accept tokens / acceptUrl into the outbox payload.
     await this.deps.notifications.enqueue({
       eventType: "membership.invite_received",
       orgId: input.orgId,
@@ -84,7 +84,6 @@ export class MembershipInviteUseCases {
         role: input.role,
         branchIds,
         orgName,
-        acceptUrl,
         expiresAt: expiresAt.toISOString(),
       },
     });

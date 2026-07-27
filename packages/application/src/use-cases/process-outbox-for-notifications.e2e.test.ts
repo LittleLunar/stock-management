@@ -27,6 +27,9 @@ describe("notification.dispatch end-to-end (decorators)", () => {
         rows.push(row);
         return row;
       },
+      async findByDeliveryKey(_org, _user, key) {
+        return rows.find((r) => r.data.deliveryKey === key) ?? null;
+      },
       async listForUser() {
         return rows;
       },

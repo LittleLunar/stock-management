@@ -89,6 +89,15 @@ export interface MembershipInviteStore {
   findOrgName(orgId: string): Promise<string | null>;
 
   emailRegistered(email: string): Promise<boolean>;
+
+  /**
+   * Rotate the invite's opaque token (pending invites only).
+   * Used at email-send time so raw tokens never live on the outbox.
+   */
+  rotateTokenHash(
+    id: string,
+    tokenHash: string,
+  ): Promise<MembershipInviteRecord | null>;
 }
 
 export type MembershipInviteClock = {

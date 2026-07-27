@@ -120,6 +120,25 @@ export class DrizzleNotificationRepository implements NotificationRepository {
     return row ? mapRow(row) : null;
   }
 
+  async findByDeliveryKey(
+    orgId: string,
+    userId: string,
+    deliveryKey: string,
+  ): Promise<Notification | null> {
+    const [row] = await this.db
+      .select()
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.orgId, orgId),
+          eq(notifications.userId, userId),
+          sql`${notifications.data}->>'deliveryKey' = ${deliveryKey}`,
+        ),
+      )
+      .limit(1);
+    return row ? mapRow(row) : null;
+  }
+
   async markRead(
     orgId: string,
     userId: string,

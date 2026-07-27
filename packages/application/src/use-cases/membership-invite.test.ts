@@ -136,6 +136,22 @@ function createHarness(overrides?: Partial<MembershipInviteDeps>) {
     async emailRegistered(email) {
       return usersByEmail.has(email.toLowerCase());
     },
+    async rotateTokenHash(id, tokenHash) {
+      const row = invites.get(id);
+      if (
+        !row ||
+        row.acceptedAt ||
+        row.declinedAt ||
+        row.expiresAt.getTime() <= now.getTime()
+      ) {
+        return null;
+      }
+      invitesByHash.delete(row.tokenHash);
+      row.tokenHash = tokenHash;
+      row.updatedAt = now;
+      invitesByHash.set(tokenHash, id);
+      return row;
+    },
   };
 
   const passwords: PasswordHasher = {
@@ -231,12 +247,13 @@ describe("MembershipInviteUseCases", () => {
         actorId: ADMIN_ID,
         recipientHints: { email: "teammate@example.com" },
         payload: expect.objectContaining({
-          acceptUrl: expect.stringContaining(
-            "/accept-invite?token=invite-raw-1",
-          ),
+          orgName: "Acme Stock",
+          role: "warehouse",
         }),
       }),
     ]);
+    expect(h.notificationLog[0]?.payload).not.toHaveProperty("acceptUrl");
+    expect(h.notificationLog[0]?.payload).not.toHaveProperty("token");
   });
 
   it("forbids non-admin create", async () => {

@@ -91,6 +91,7 @@ import { DrizzleNotificationRepository } from "../infrastructure/persistence/not
 import { DrizzleNotificationPreferenceRepository } from "../infrastructure/persistence/notification-preference.repository.js";
 import { DrizzleNotificationRecipientDirectory } from "../infrastructure/persistence/notification-recipient.directory.js";
 import { DrizzleOutboxRepository } from "../infrastructure/persistence/outbox.repository.js";
+import { RotatingInviteAcceptLinkResolver } from "../infrastructure/notifications/invite-accept-link.js";
 import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
@@ -250,12 +251,20 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
   const notificationPreferenceRepo =
     new DrizzleNotificationPreferenceRepository(db);
   const notificationDirectory = new DrizzleNotificationRecipientDirectory(db);
+  const membershipInviteStore = new DrizzleMembershipInviteStore(db);
   const notificationChannel: NotificationChannel = new InAppChannelDecorator(
     new EmailChannelDecorator(
       new BaseNotificationChannel(),
       mailer,
       notificationPreferenceRepo,
-      { appPublicUrl: env.APP_PUBLIC_URL },
+      {
+        appPublicUrl: env.APP_PUBLIC_URL,
+        inviteAcceptLinks: new RotatingInviteAcceptLinkResolver(
+          membershipInviteStore,
+          opaqueTokens,
+          env.APP_PUBLIC_URL,
+        ),
+      },
     ),
     notificationRepo,
     notificationPreferenceRepo,
@@ -287,7 +296,7 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     },
   });
   const membershipInvites = new MembershipInviteUseCases({
-    invites: new DrizzleMembershipInviteStore(db),
+    invites: membershipInviteStore,
     passwords,
     opaqueTokens,
     mailer,

@@ -22,7 +22,9 @@ import { DrizzleWebhookRepository } from "./infrastructure/persistence/webhook.r
 import { DrizzleNotificationRepository } from "./infrastructure/persistence/notification.repository.js";
 import { DrizzleNotificationPreferenceRepository } from "./infrastructure/persistence/notification-preference.repository.js";
 import { DrizzleNotificationRecipientDirectory } from "./infrastructure/persistence/notification-recipient.directory.js";
-import { createMailer } from "./infrastructure/auth/index.js";
+import { createMailer, Sha256OpaqueTokenService } from "./infrastructure/auth/index.js";
+import { RotatingInviteAcceptLinkResolver } from "./infrastructure/notifications/invite-accept-link.js";
+import { DrizzleMembershipInviteStore } from "./infrastructure/persistence/membership-invite.repository.js";
 import { OutboxPoller } from "./infrastructure/workers/outbox-poller.js";
 import { ReservationExpirePoller } from "./infrastructure/workers/reservation-expire-poller.js";
 import { createAppServices } from "./main/composition-root.js";
@@ -206,7 +208,14 @@ const outboxPoller = env.OUTBOX_POLLER_ENABLED
               new BaseNotificationChannel(),
               createMailer(env),
               preferenceRepo,
-              { appPublicUrl: env.APP_PUBLIC_URL },
+              {
+                appPublicUrl: env.APP_PUBLIC_URL,
+                inviteAcceptLinks: new RotatingInviteAcceptLinkResolver(
+                  new DrizzleMembershipInviteStore(db),
+                  new Sha256OpaqueTokenService(),
+                  env.APP_PUBLIC_URL,
+                ),
+              },
             ),
             notificationRepo,
             preferenceRepo,

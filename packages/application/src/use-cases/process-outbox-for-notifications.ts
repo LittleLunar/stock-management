@@ -32,24 +32,18 @@ export class ProcessOutboxForNotifications {
     private readonly registry: NotificationEventPolicyRegistry = new NotificationEventPolicyRegistry(),
   ) {}
 
-  async execute(event: OutboxNotificationEvent): Promise<void> {
-    const intents = await this.toIntents(event);
-    for (const intent of intents) {
-      await this.dispatchIntent(intent);
-    }
-  }
-
-  async dispatchIntent(intent: NotificationIntent): Promise<void> {
-    const policy = this.registry.require(intent.eventType);
-    await this.deliverWithPolicy(policy, intent);
-  }
-
   private async deliverWithPolicy(
     policy: NotificationEventPolicy,
     intent: NotificationIntent,
+    outboxEventId?: string,
   ): Promise<void> {
     const resolved = await policy.resolve(intent, this.directory);
     for (const recipient of resolved.recipients) {
+      const recipientKey =
+        recipient.userId ?? `email:${recipient.email.toLowerCase()}`;
+      const deliveryKey = outboxEventId
+        ? `${outboxEventId}:${recipientKey}`
+        : undefined;
       await this.channel.deliver({
         orgId: intent.orgId,
         eventType: intent.eventType,
@@ -58,8 +52,24 @@ export class ProcessOutboxForNotifications {
         body: resolved.body,
         data: resolved.data,
         actions: resolved.actions,
-        payload: intent.payload,
+        payload: sanitizeIntentPayload(intent.payload),
+        deliveryKey,
       });
+    }
+  }
+
+  async dispatchIntent(
+    intent: NotificationIntent,
+    outboxEventId?: string,
+  ): Promise<void> {
+    const policy = this.registry.require(intent.eventType);
+    await this.deliverWithPolicy(policy, intent, outboxEventId);
+  }
+
+  async execute(event: OutboxNotificationEvent): Promise<void> {
+    const intents = await this.toIntents(event);
+    for (const intent of intents) {
+      await this.dispatchIntent(intent, event.id);
     }
   }
 
@@ -158,6 +168,21 @@ function omitKeys(
   const out = { ...obj };
   for (const k of keys) delete out[k];
   return out;
+}
+
+/** Strip secrets before handing payload to channel CTA helpers. */
+function sanitizeIntentPayload(
+  payload: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!payload) return undefined;
+  return omitKeys(payload, [
+    "acceptUrl",
+    "token",
+    "rawToken",
+    "password",
+    "passwordHash",
+    "inviteToken",
+  ]);
 }
 
 /** Writes `notification.dispatch` intents onto the outbox. */

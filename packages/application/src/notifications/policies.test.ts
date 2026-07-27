@@ -91,13 +91,25 @@ describe("NotificationEventPolicyRegistry", () => {
       orgId: "org-1",
       actorId: "admin-1",
       recipientHints: { email: "new@example.com" },
-      payload: { acceptUrl: "http://x/accept?token=t" },
+      entityRef: { type: "membership_invite", id: "inv-1" },
+      payload: {
+        orgName: "Acme",
+        acceptUrl: "http://x/accept?token=SECRET",
+        password: "nope",
+      },
     };
     const resolved = await registry
       .require("membership.invite_received")
       .resolve(intent, directory);
     expect(resolved.recipients).toEqual([{ email: "new@example.com" }]);
     expect(resolved.actions.map((a) => a.id)).toEqual(["accept", "decline"]);
+    expect(resolved.data).toEqual({
+      deepLink: "/accept-invite",
+      entityIds: { membership_invite: "inv-1" },
+      orgName: "Acme",
+    });
+    expect(resolved.data).not.toHaveProperty("acceptUrl");
+    expect(resolved.data).not.toHaveProperty("password");
   });
 
   it("resolves document.posted to org_admin and branch managers for branch", async () => {

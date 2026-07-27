@@ -216,4 +216,20 @@ export class DrizzleMembershipInviteStore implements MembershipInviteStore {
       .limit(1);
     return Boolean(row);
   }
+
+  async rotateTokenHash(
+    id: string,
+    tokenHash: string,
+  ): Promise<MembershipInviteRecord | null> {
+    const now = new Date();
+    const [row] = await this.db
+      .update(membershipInvites)
+      .set({
+        tokenHash,
+        updatedAt: now,
+      })
+      .where(pendingUnexpiredWhere(id, now))
+      .returning();
+    return row ? toInvite(row) : null;
+  }
 }

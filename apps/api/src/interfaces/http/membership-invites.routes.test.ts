@@ -125,6 +125,14 @@ function createInviteHarness() {
     async emailRegistered(email) {
       return registeredEmails.has(email.toLowerCase());
     },
+    async rotateTokenHash(id, tokenHash) {
+      const row = invites.get(id);
+      if (!row || row.acceptedAt || row.declinedAt) return null;
+      invitesByHash.delete(row.tokenHash);
+      row.tokenHash = tokenHash;
+      invitesByHash.set(tokenHash, id);
+      return row;
+    },
   };
 
   const opaqueTokens: OpaqueTokenService = {

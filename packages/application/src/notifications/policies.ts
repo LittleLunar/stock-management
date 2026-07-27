@@ -7,7 +7,10 @@ import type {
   NotificationRecipientDirectory,
   NotificationUserRef,
 } from "../ports/notification.js";
-import type { NotificationEventType } from "@stock-management/domain";
+import type {
+  NotificationData,
+  NotificationEventType,
+} from "@stock-management/domain";
 import { NOTIFICATION_CHANNEL_DEFAULTS } from "@stock-management/domain";
 
 function defaultChannels(eventType: NotificationEventType) {
@@ -81,6 +84,51 @@ function dedupeRecipients(
   return result;
 }
 
+function whitelistNotificationData(
+  intent: NotificationIntent,
+  deepLink?: string,
+): NotificationData {
+  const payload = intent.payload ?? {};
+  const safe: NotificationData = {};
+
+  if (deepLink) safe.deepLink = deepLink;
+
+  if (intent.entityRef) {
+    safe.entityIds = {
+      [intent.entityRef.type]: intent.entityRef.id,
+    };
+  }
+
+  // Explicit safe allowlist — never acceptUrl, token, password, etc.
+  const allowKeys = [
+    "orgName",
+    "branchId",
+    "productId",
+    "sku",
+    "email",
+    "role",
+    "documentType",
+  ] as const;
+  for (const key of allowKeys) {
+    const value = payload[key];
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      safe[key] = value;
+    }
+  }
+
+  if (Array.isArray(payload.branchIds)) {
+    safe.branchIds = payload.branchIds.filter(
+      (id): id is string => typeof id === "string",
+    );
+  }
+
+  return safe;
+}
+
 function templatePolicy(
   eventType: NotificationEventType,
   title: string,
@@ -101,17 +149,7 @@ function templatePolicy(
         recipients,
         title,
         body: body(intent),
-        data: {
-          ...(link ? { deepLink: link } : {}),
-          ...(intent.entityRef
-            ? {
-                entityIds: {
-                  [intent.entityRef.type]: intent.entityRef.id,
-                },
-              }
-            : {}),
-          ...(intent.payload ?? {}),
-        },
+        data: whitelistNotificationData(intent, link),
         actions: actions ?? (link ? [{ id: "open", label: "Open", kind: "open" }] : []),
         defaultChannels: defaultChannels(eventType),
       };
@@ -182,10 +220,8 @@ export const notificationEventPolicies: NotificationEventPolicy[] = [
       { id: "accept", label: "Accept", kind: "server" },
       { id: "decline", label: "Decline", kind: "server" },
     ],
-    (intent) =>
-      typeof intent.payload?.acceptUrl === "string"
-        ? intent.payload.acceptUrl
-        : "/accept-invite",
+    // Deep link without secret token; EmailChannelDecorator builds accept URL at send time.
+    () => "/accept-invite",
   ),
   templatePolicy(
     "membership.invite_accepted",
@@ -246,6 +282,8 @@ export const notificationEventPolicies: NotificationEventPolicy[] = [
     "Approval needed",
     (intent) =>
       `${intent.entityRef?.type ?? "Document"} needs your approval.`,
+    // TODO(notifications): prefer approval-policy eligible approvers once the
+    // policy model exposes approver roles/users (today: required boolean only).
     (intent, directory) =>
       stakeholders(intent, directory, [
         "org_admin",
@@ -259,6 +297,7 @@ export const notificationEventPolicies: NotificationEventPolicy[] = [
   ),
 ];
 
+export { whitelistNotificationData };
 export class NotificationEventPolicyRegistry {
   private readonly byType: Map<NotificationEventType, NotificationEventPolicy>;
 
