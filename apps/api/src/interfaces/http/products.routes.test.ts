@@ -2,9 +2,7 @@ import Fastify from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   ProductUseCases,
-  type CreateProductInput,
   type ProductRepository,
-  type UpdateProductInput,
 } from "@stock-management/application";
 import type { Product, ProductBarcode } from "@stock-management/domain";
 import { productsRoutes } from "./products.routes.js";
@@ -72,10 +70,10 @@ function createRepo(
         (row) => row.orgId === orgId && row.productId === productId,
       );
     },
-    async create(_orgId: string, _input: CreateProductInput) {
+    async create() {
       throw new Error("not implemented");
     },
-    async update(_orgId: string, _id: string, _input: UpdateProductInput) {
+    async update() {
       throw new Error("not implemented");
     },
   };

@@ -53,7 +53,7 @@ export class ProcessOutboxForWebhooks {
       const rawBody = JSON.stringify(envelope);
       const signature = webhookSignatureHeader(rawBody, sub.secret);
 
-      let delivery =
+      const delivery =
         existing ??
         (await this.webhooks.insertDelivery({
           orgId: event.orgId,
