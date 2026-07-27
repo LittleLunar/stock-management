@@ -398,3 +398,13 @@ export {
   type AcceptMembershipInviteResponse,
   type DeclineMembershipInviteBody,
 } from "./membership-invite.js";
+
+export {
+  NotificationEventTypeSchema,
+  NotificationChannelSchema,
+  NotificationActionSchema,
+  NotificationSchema,
+  NotificationListQuerySchema,
+  PutNotificationPreferencesSchema,
+  type PutNotificationPreferences,
+} from "./notifications.js";

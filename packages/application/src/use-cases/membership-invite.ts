@@ -73,20 +73,20 @@ export class MembershipInviteUseCases {
       (await this.deps.invites.findOrgName(input.orgId)) ?? "your organization";
     const acceptUrl = `${this.deps.config.appPublicUrl.replace(/\/$/, "")}/accept-invite?token=${encodeURIComponent(rawToken)}`;
 
-    await this.deps.mailer.send({
-      to: email,
-      subject: `You're invited to join ${orgName}`,
-      text: `You have been invited to join ${orgName}.\n\nAccept: ${acceptUrl}\n\nThis invite expires at ${expiresAt.toISOString()}.`,
-      html: `<p>You have been invited to join <strong>${orgName}</strong>.</p><p><a href="${acceptUrl}">Accept invitation</a></p><p>This invite expires at ${expiresAt.toISOString()}.</p>`,
-    });
-
+    // Invite email is delivered via EmailChannelDecorator (outbox), not sync Mailer.
     await this.deps.notifications.enqueue({
       eventType: "membership.invite_received",
       orgId: input.orgId,
       actorId: input.actorUserId,
       entityRef: { type: "membership_invite", id: row.id },
       recipientHints: { email },
-      payload: { role: input.role, branchIds },
+      payload: {
+        role: input.role,
+        branchIds,
+        orgName,
+        acceptUrl,
+        expiresAt: expiresAt.toISOString(),
+      },
     });
 
     return {

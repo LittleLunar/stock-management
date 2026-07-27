@@ -58,6 +58,14 @@ export class AuthUseCases {
       path: "/verify-email",
     });
 
+    await this.deps.notifications?.enqueue({
+      eventType: "user.welcome",
+      orgId: created.orgId,
+      actorId: created.userId,
+      entityRef: { type: "user", id: created.userId },
+      recipientHints: { userId: created.userId },
+    });
+
     return created;
   }
 
@@ -127,6 +135,16 @@ export class AuthUseCases {
       record.userId,
       this.deps.clock.now(),
     );
+    const user = await this.deps.users.findById(record.userId);
+    if (user) {
+      await this.deps.notifications?.enqueue({
+        eventType: "user.email_verified",
+        orgId: user.orgId,
+        actorId: user.id,
+        entityRef: { type: "user", id: user.id },
+        recipientHints: { userId: user.id },
+      });
+    }
   }
 
   async resendVerification(input: { email: string }): Promise<void> {
@@ -179,6 +197,16 @@ export class AuthUseCases {
       record.userId,
       this.deps.clock.now(),
     );
+    const user = await this.deps.users.findById(record.userId);
+    if (user) {
+      await this.deps.notifications?.enqueue({
+        eventType: "auth.password_changed",
+        orgId: user.orgId,
+        actorId: user.id,
+        entityRef: { type: "user", id: user.id },
+        recipientHints: { userId: user.id },
+      });
+    }
   }
 
   async getMe(input: { userId: string }): Promise<MeResult> {

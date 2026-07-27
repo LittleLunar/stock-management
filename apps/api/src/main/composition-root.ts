@@ -13,6 +13,7 @@ import {
   CommitReservation,
   type AccessTokenSigner,
   type MembershipAccessPort,
+  type NotificationChannel,
   EnsureDefaultChartOfAccounts,
   ExpireReservations,
   GoodsReceiptUseCases,
@@ -30,6 +31,7 @@ import {
   PostSupplierReturn,
   ProcessOutboxForJournals,
   ProcessOutboxForWebhooks,
+  ProcessOutboxForNotifications,
   ProductUseCases,
   PurchaseOrderUseCases,
   ReceiveStockTransfer,
@@ -45,7 +47,11 @@ import {
   SupplierUseCases,
   UsersUseCases,
   MembershipInviteUseCases,
-  NoOpEnqueueNotificationIntent,
+  NotificationUseCases,
+  OutboxEnqueueNotificationIntent,
+  BaseNotificationChannel,
+  InAppChannelDecorator,
+  EmailChannelDecorator,
   ValuationReportUseCases,
   VoidCostRevaluation,
   VoidCustomerReturn,
@@ -81,6 +87,10 @@ import {
   DrizzleRefreshTokenStore,
 } from "../infrastructure/auth/index.js";
 import { DrizzleMembershipInviteStore } from "../infrastructure/persistence/membership-invite.repository.js";
+import { DrizzleNotificationRepository } from "../infrastructure/persistence/notification.repository.js";
+import { DrizzleNotificationPreferenceRepository } from "../infrastructure/persistence/notification-preference.repository.js";
+import { DrizzleNotificationRecipientDirectory } from "../infrastructure/persistence/notification-recipient.directory.js";
+import { DrizzleOutboxRepository } from "../infrastructure/persistence/outbox.repository.js";
 import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
@@ -130,6 +140,9 @@ export type AppServices = {
   membershipAccess: MembershipAccessPort;
   auth: AuthUseCases;
   membershipInvites: MembershipInviteUseCases;
+  notifications: NotificationUseCases;
+  notificationChannel: NotificationChannel;
+  processOutboxForNotifications: ProcessOutboxForNotifications;
   accessTokens: AccessTokenSigner;
   purchaseOrders: PurchaseOrderUseCases;
   goodsReceipts: GoodsReceiptUseCases;
@@ -229,6 +242,32 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
   const opaqueTokens = new Sha256OpaqueTokenService();
   const passwords = new Argon2PasswordHasher();
   const mailer = createMailer(env);
+  const outbox = new DrizzleOutboxRepository(db);
+  const enqueueNotifications = new OutboxEnqueueNotificationIntent((event) =>
+    outbox.enqueue(event),
+  );
+  const notificationRepo = new DrizzleNotificationRepository(db);
+  const notificationPreferenceRepo =
+    new DrizzleNotificationPreferenceRepository(db);
+  const notificationDirectory = new DrizzleNotificationRecipientDirectory(db);
+  const notificationChannel: NotificationChannel = new InAppChannelDecorator(
+    new EmailChannelDecorator(
+      new BaseNotificationChannel(),
+      mailer,
+      notificationPreferenceRepo,
+      { appPublicUrl: env.APP_PUBLIC_URL },
+    ),
+    notificationRepo,
+    notificationPreferenceRepo,
+  );
+  const processOutboxForNotifications = new ProcessOutboxForNotifications(
+    notificationChannel,
+    notificationDirectory,
+  );
+  const notificationUseCases = new NotificationUseCases(
+    notificationRepo,
+    notificationPreferenceRepo,
+  );
   const auth = new AuthUseCases({
     users: new DrizzleAuthUserStore(db),
     passwords,
@@ -237,6 +276,7 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     refreshTokens: new DrizzleRefreshTokenStore(db),
     emailTokens: new DrizzleEmailTokenStore(db),
     mailer,
+    notifications: enqueueNotifications,
     clock: { now: () => new Date() },
     config: {
       accessTokenTtlSeconds: env.JWT_ACCESS_TTL_SECONDS,
@@ -251,7 +291,7 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     passwords,
     opaqueTokens,
     mailer,
-    notifications: new NoOpEnqueueNotificationIntent(),
+    notifications: enqueueNotifications,
     clock: { now: () => new Date() },
     config: {
       inviteTtlSeconds: 7 * 24 * 60 * 60,
@@ -271,8 +311,14 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     membershipAccess: usersRepo,
     auth,
     membershipInvites,
+    notifications: notificationUseCases,
+    notificationChannel,
+    processOutboxForNotifications,
     accessTokens,
-    purchaseOrders: new PurchaseOrderUseCases(purchaseOrders),
+    purchaseOrders: new PurchaseOrderUseCases(
+      purchaseOrders,
+      enqueueNotifications,
+    ),
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),
     postGoodsReceipt: new PostGoodsReceipt(unitOfWork, approvalPolicies),
     voidGoodsReceipt: new VoidGoodsReceipt(unitOfWork),
@@ -285,7 +331,10 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     shipStockTransfer: new ShipStockTransfer(unitOfWork),
     receiveStockTransfer: new ReceiveStockTransfer(unitOfWork),
     voidStockTransfer: new VoidStockTransfer(unitOfWork),
-    stockAdjustments: new StockAdjustmentUseCases(stockAdjustments),
+    stockAdjustments: new StockAdjustmentUseCases(
+      stockAdjustments,
+      enqueueNotifications,
+    ),
     postStockAdjustment: new PostStockAdjustment(unitOfWork, approvalPolicies),
     voidStockAdjustment: new VoidStockAdjustment(unitOfWork),
     stockCounts: new StockCountUseCases(stockCounts, stock),

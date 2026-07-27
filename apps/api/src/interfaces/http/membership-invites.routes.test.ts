@@ -237,7 +237,7 @@ describe("membershipInviteRoutes", () => {
     };
     expect(created.email).toBe("teammate@example.com");
     expect(created.role).toBe("warehouse");
-    expect(harness.mailLog).toHaveLength(1);
+    expect(harness.mailLog).toHaveLength(0);
     expect(
       harness.notificationLog.some(
         (n) => n.eventType === "membership.invite_received",

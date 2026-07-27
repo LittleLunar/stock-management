@@ -1745,3 +1745,68 @@ export const webhookDeliveries = pgTable(
     index("webhook_deliveries_org_idx").on(t.orgId),
   ],
 );
+
+export const notificationChannelEnum = pgEnum("notification_channel", [
+  "in_app",
+  "email",
+]);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    eventType: text("event_type").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+    actions: jsonb("actions")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default([]),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("notifications_user_org_created_idx").on(
+      t.userId,
+      t.orgId,
+      t.createdAt,
+    ),
+    index("notifications_user_org_unread_idx")
+      .on(t.userId, t.orgId)
+      .where(sql`${t.readAt} is null`),
+  ],
+);
+
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    eventType: text("event_type").notNull(),
+    channel: notificationChannelEnum("channel").notNull(),
+    enabled: boolean("enabled").notNull(),
+  },
+  (t) => [
+    uniqueIndex("notification_preferences_user_org_event_channel_uidx").on(
+      t.userId,
+      t.orgId,
+      t.eventType,
+      t.channel,
+    ),
+  ],
+);

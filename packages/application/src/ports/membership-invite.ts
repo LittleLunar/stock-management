@@ -1,5 +1,9 @@
 import type { MembershipRole } from "@stock-management/domain";
 import type { Mailer, OpaqueTokenService, PasswordHasher } from "./auth.js";
+import type { EnqueueNotificationIntent } from "./notification.js";
+
+export type { EnqueueNotificationIntent, NotificationIntent } from "./notification.js";
+export { NoOpEnqueueNotificationIntent } from "./notification.js";
 
 export type MembershipInviteRecord = {
   id: string;
@@ -34,29 +38,6 @@ export type MembershipInviteAccepted = {
   orgId: string;
   email: string;
 };
-
-export type NotificationIntentEventType =
-  | "membership.invite_received"
-  | "membership.invite_accepted"
-  | "membership.invite_declined";
-
-export type NotificationIntent = {
-  eventType: NotificationIntentEventType;
-  orgId: string;
-  actorId: string;
-  entityRef: { type: "membership_invite"; id: string };
-  recipientHints?: { email?: string; userId?: string };
-  payload?: Record<string, unknown>;
-};
-
-/** Stub-ready port; Task 6 wires outbox dispatch. */
-export interface EnqueueNotificationIntent {
-  enqueue(intent: NotificationIntent): Promise<void>;
-}
-
-export class NoOpEnqueueNotificationIntent implements EnqueueNotificationIntent {
-  async enqueue(_intent: NotificationIntent): Promise<void> {}
-}
 
 export interface MembershipInviteStore {
   insert(input: {
@@ -123,6 +104,7 @@ export type MembershipInviteDeps = {
   invites: MembershipInviteStore;
   passwords: PasswordHasher;
   opaqueTokens: OpaqueTokenService;
+  /** Kept for tests/compat; invite emails go through notification email channel. */
   mailer: Mailer;
   notifications: EnqueueNotificationIntent;
   clock: MembershipInviteClock;

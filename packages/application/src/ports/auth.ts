@@ -1,4 +1,5 @@
 import type { Membership, MembershipRole, MasterStatus } from "@stock-management/domain";
+import type { EnqueueNotificationIntent } from "./notification.js";
 
 export type EmailTokenPurpose = "verify_email" | "reset_password";
 
@@ -154,6 +155,7 @@ export type AuthDeps = {
   refreshTokens: RefreshTokenStore;
   emailTokens: EmailTokenStore;
   mailer: Mailer;
+  notifications?: EnqueueNotificationIntent;
   clock: AuthClock;
   config: AuthConfig;
 };

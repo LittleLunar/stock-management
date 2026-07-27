@@ -210,7 +210,7 @@ function createHarness(overrides?: Partial<MembershipInviteDeps>) {
 }
 
 describe("MembershipInviteUseCases", () => {
-  it("creates invite, emails invitee, and enqueues invite_received", async () => {
+  it("creates invite, enqueues invite_received (email via notification channel)", async () => {
     const h = createHarness();
     const created = await h.useCases.createInvite({
       orgId: ORG_ID,
@@ -223,17 +223,18 @@ describe("MembershipInviteUseCases", () => {
 
     expect(created.email).toBe("teammate@example.com");
     expect(created.token).toBe("invite-raw-1");
-    expect(h.mailLog).toHaveLength(1);
-    expect(h.mailLog[0]?.to).toBe("teammate@example.com");
-    expect(h.mailLog[0]?.text).toContain(
-      "/accept-invite?token=invite-raw-1",
-    );
+    expect(h.mailLog).toHaveLength(0);
     expect(h.notificationLog).toEqual([
       expect.objectContaining({
         eventType: "membership.invite_received",
         orgId: ORG_ID,
         actorId: ADMIN_ID,
         recipientHints: { email: "teammate@example.com" },
+        payload: expect.objectContaining({
+          acceptUrl: expect.stringContaining(
+            "/accept-invite?token=invite-raw-1",
+          ),
+        }),
       }),
     ]);
   });

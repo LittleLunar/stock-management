@@ -3,10 +3,26 @@ import { randomUUID } from "node:crypto";
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import {
+  EnsureDefaultChartOfAccounts,
+  ProcessOutboxForJournals,
+  ProcessOutboxForWebhooks,
+  ProcessOutboxForNotifications,
+  BaseNotificationChannel,
+  InAppChannelDecorator,
+  EmailChannelDecorator,
+  type HttpPoster,
+} from "@stock-management/application";
 import { HealthResponseSchema } from "@stock-management/shared";
 import { loadEnv } from "./infrastructure/config/env.js";
 import { createDb } from "./infrastructure/db/client.js";
 import { DrizzleOutboxRepository } from "./infrastructure/persistence/outbox.repository.js";
+import { DrizzleAccountingRepository } from "./infrastructure/persistence/accounting.repository.js";
+import { DrizzleWebhookRepository } from "./infrastructure/persistence/webhook.repository.js";
+import { DrizzleNotificationRepository } from "./infrastructure/persistence/notification.repository.js";
+import { DrizzleNotificationPreferenceRepository } from "./infrastructure/persistence/notification-preference.repository.js";
+import { DrizzleNotificationRecipientDirectory } from "./infrastructure/persistence/notification-recipient.directory.js";
+import { createMailer } from "./infrastructure/auth/index.js";
 import { OutboxPoller } from "./infrastructure/workers/outbox-poller.js";
 import { ReservationExpirePoller } from "./infrastructure/workers/reservation-expire-poller.js";
 import { createAppServices } from "./main/composition-root.js";
@@ -23,6 +39,7 @@ import { suppliersRoutes } from "./interfaces/http/suppliers.routes.js";
 import { customersRoutes } from "./interfaces/http/customers.routes.js";
 import { usersRoutes } from "./interfaces/http/users.routes.js";
 import { membershipInviteRoutes } from "./interfaces/http/membership-invites.routes.js";
+import { notificationsRoutes } from "./interfaces/http/notifications.routes.js";
 import { approvalPoliciesRoutes } from "./interfaces/http/approval-policies.routes.js";
 import { webhooksRoutes } from "./interfaces/http/webhooks.routes.js";
 import { purchaseOrdersRoutes } from "./interfaces/http/purchase-orders.routes.js";
@@ -45,14 +62,6 @@ import {
   apReportsRoutes,
   supplierInvoicesRoutes,
 } from "./interfaces/http/supplier-invoices.routes.js";
-import { DrizzleAccountingRepository } from "./infrastructure/persistence/accounting.repository.js";
-import {
-  EnsureDefaultChartOfAccounts,
-  ProcessOutboxForJournals,
-  ProcessOutboxForWebhooks,
-  type HttpPoster,
-} from "@stock-management/application";
-import { DrizzleWebhookRepository } from "./infrastructure/persistence/webhook.repository.js";
 
 const env = loadEnv();
 const db = createDb(env.DATABASE_URL);
@@ -134,6 +143,9 @@ await app.register(usersRoutes(services.users), { prefix: "/api/v1" });
 await app.register(membershipInviteRoutes(services.membershipInvites), {
   prefix: "/api/v1",
 });
+await app.register(notificationsRoutes(services.notifications), {
+  prefix: "/api/v1",
+});
 await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
   prefix: "/api/v1",
 });
@@ -185,6 +197,24 @@ const outboxPoller = env.OUTBOX_POLLER_ENABLED
             new DrizzleWebhookRepository(tx),
             httpPoster,
           );
+          const notificationRepo = new DrizzleNotificationRepository(tx);
+          const preferenceRepo = new DrizzleNotificationPreferenceRepository(
+            tx,
+          );
+          const notificationChannel = new InAppChannelDecorator(
+            new EmailChannelDecorator(
+              new BaseNotificationChannel(),
+              createMailer(env),
+              preferenceRepo,
+              { appPublicUrl: env.APP_PUBLIC_URL },
+            ),
+            notificationRepo,
+            preferenceRepo,
+          );
+          const notifications = new ProcessOutboxForNotifications(
+            notificationChannel,
+            new DrizzleNotificationRecipientDirectory(tx),
+          );
           return fn({
             store,
             processJournal: async (event) => {
@@ -192,6 +222,9 @@ const outboxPoller = env.OUTBOX_POLLER_ENABLED
             },
             processWebhooks: async (event) => {
               await webhooks.execute(event);
+            },
+            processNotifications: async (event) => {
+              await notifications.execute(event);
             },
           });
         }),
