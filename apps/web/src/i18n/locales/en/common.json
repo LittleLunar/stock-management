@@ -21,6 +21,14 @@
   "language.en": "EN",
   "language.th": "ไทย",
   "language.label": "Language",
+  "nav.openMenu": "Open navigation",
+  "nav.closeMenu": "Close navigation",
+  "notifications.label": "Notifications",
+  "notifications.empty": "No notifications",
+  "account.label": "Account",
+  "account.menu": "Account menu",
+  "account.org": "Org: {{orgId}}",
+  "account.user": "User: {{userId}}",
   "errorBoundary.title": "Something went wrong",
   "errorBoundary.description": "An unexpected error occurred. You can reload the page to continue."
 }

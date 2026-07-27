@@ -1,11 +1,19 @@
 @import "tailwindcss";
+@import "@heroui/styles";
 
 :root {
   color-scheme: light;
+  --app-brand: #0f5c5c;
+  --app-brand-fg: #f4faf9;
+  --app-surface: #ffffff;
+  --app-canvas: #f4f6f8;
+  --app-border: #e2e8f0;
+  --app-muted: #64748b;
+  --app-ink: #1a2332;
   font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   line-height: 1.5;
-  background: #f4f6f8;
-  color: #1a2332;
+  background: var(--app-canvas);
+  color: var(--app-ink);
 }
 
 body {

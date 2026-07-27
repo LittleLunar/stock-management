@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  Outlet,
   RouterProvider,
   createRootRoute,
   createRoute,
@@ -10,7 +9,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CreateBranchSchema,
   CreateCustomerSchema,
-  CreateOrganizationSchema,
   CreateProductSchema,
   CreateSupplierSchema,
 } from "@stock-management/shared";
@@ -19,11 +17,9 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Toaster, toast } from "sonner";
 import { z } from "zod";
-import { api } from "./api/client";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { LanguageSwitcher } from "./components/LanguageSwitcher";
-import { SidebarNav } from "./components/SidebarNav";
 import { formatApiError } from "./lib/errors";
+import { AppShell } from "./layout/AppShell";
 import {
   useBranches,
   useCreateBranch,
@@ -83,104 +79,6 @@ const LocationFormSchema = z.object({
   code: z.string().min(1).max(64),
   name: z.string().min(1).max(256),
 });
-
-function BranchSwitcher() {
-  const { t } = useTranslation("common");
-  const { data: branches } = useBranches();
-  const [active, setActive] = useState(
-    () => localStorage.getItem("activeBranchId") ?? "",
-  );
-  return (
-    <label className="mt-4 block text-xs text-slate-500">
-      {t("branch.label")}
-      <select
-        className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm text-slate-900"
-        value={active}
-        onChange={(e) => {
-          const v = e.target.value;
-          setActive(v);
-          if (v) localStorage.setItem("activeBranchId", v);
-          else localStorage.removeItem("activeBranchId");
-          window.location.reload(); // simplest cache bust for query keys
-        }}
-      >
-        <option value="">{t("branch.all")}</option>
-        {(branches ?? []).map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.code} — {b.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function Shell() {
-  const { t } = useTranslation("common");
-  const orgId = localStorage.getItem("orgId") ?? "";
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(CreateOrganizationSchema),
-    defaultValues: { name: "Demo Shop" },
-  });
-
-  async function bootstrap(values: z.infer<typeof CreateOrganizationSchema>) {
-    try {
-      const userId = "00000000-0000-0000-0000-000000000001";
-      localStorage.setItem("userId", userId);
-      const org = await api.createOrg(userId, values);
-      localStorage.setItem("orgId", org.id);
-      window.location.reload();
-    } catch (err) {
-      toast.error(formatApiError(err));
-    }
-  }
-
-  return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
-      <aside className="w-56 shrink-0 border-r border-slate-200 bg-white px-4 py-6">
-        <p className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-teal-800">
-          {t("brand.name")}
-        </p>
-        <SidebarNav />
-        <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
-          {orgId ? (
-            <>
-              <p className="break-all">{t("org.label", { orgId })}</p>
-              <BranchSwitcher />
-              <LanguageSwitcher />
-            </>
-          ) : (
-            <form className="space-y-2" onSubmit={handleSubmit(bootstrap)}>
-              <input
-                className="w-full rounded border border-slate-300 px-2 py-1"
-                placeholder={t("org.namePlaceholder")}
-                {...register("name")}
-              />
-              {errors.name && (
-                <p className="text-red-700">{errors.name.message}</p>
-              )}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full rounded bg-teal-800 px-2 py-1 text-white disabled:opacity-50"
-              >
-                {t("org.create")}
-              </button>
-              <LanguageSwitcher />
-            </form>
-          )}
-        </div>
-      </aside>
-      <main className="flex-1 px-8 py-6">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
 
 function DashboardPage() {
   const { t } = useTranslation("masters");
@@ -589,7 +487,7 @@ function CustomersPage() {
 }
 
 const rootRoute = createRootRoute({
-  component: Shell,
+  component: AppShell,
 });
 
 const indexRoute = createRoute({
