@@ -50,6 +50,14 @@ function isPublicInvitePath(path: string): boolean {
   );
 }
 
+function isPublicNotificationActionPath(path: string): boolean {
+  return path === "/api/v1/notification-actions/execute";
+}
+
+function isNotificationWsPath(path: string): boolean {
+  return path === "/api/v1/notifications/ws";
+}
+
 export type ResolveRequestContextInput = {
   orgId: string;
   userId: string;
@@ -114,6 +122,9 @@ export function createContextPlugin(
       if (path === "/health") return;
       if (isPublicAuthPath(path)) return;
       if (isPublicInvitePath(path)) return;
+      if (isPublicNotificationActionPath(path)) return;
+      // WS authenticates via query access_token inside the route handler.
+      if (isNotificationWsPath(path)) return;
       // /auth/me resolves identity inside the auth routes plugin.
       if (path === "/api/v1/auth/me") return;
 

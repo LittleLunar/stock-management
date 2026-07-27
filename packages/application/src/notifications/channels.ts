@@ -3,9 +3,11 @@ import {
   type NotificationEventType,
 } from "@stock-management/domain";
 import type {
+  ActionTokenSigner,
   NotificationChannel,
   NotificationDeliveryContext,
   NotificationPreferenceRepository,
+  NotificationPublisher,
   NotificationRepository,
 } from "../ports/notification.js";
 import type { Mailer } from "../ports/auth.js";
@@ -25,6 +27,7 @@ export class InAppChannelDecorator implements NotificationChannel {
     private readonly inner: NotificationChannel,
     private readonly notifications: NotificationRepository,
     private readonly preferences: NotificationPreferenceRepository,
+    private readonly publisher?: NotificationPublisher,
   ) {}
 
   async deliver(ctx: NotificationDeliveryContext): Promise<void> {
@@ -64,6 +67,18 @@ export class InAppChannelDecorator implements NotificationChannel {
           actions: ctx.actions,
         });
         next.notificationId = row.id;
+        this.publisher?.publish(ctx.recipient.userId, ctx.orgId, {
+          type: "notification.created",
+          notification: row,
+        });
+        const count = await this.notifications.unreadCount(
+          ctx.orgId,
+          ctx.recipient.userId,
+        );
+        this.publisher?.publish(ctx.recipient.userId, ctx.orgId, {
+          type: "unread-count",
+          count,
+        });
       }
     }
     await this.inner.deliver(next);
@@ -79,6 +94,7 @@ export class EmailChannelDecorator implements NotificationChannel {
       appPublicUrl?: string;
       subjectFor?: (eventType: NotificationEventType, title: string) => string;
       inviteAcceptLinks?: InviteAcceptLinkResolver;
+      actionTokens?: ActionTokenSigner;
     },
   ) {}
 
@@ -123,8 +139,37 @@ async function resolveEmailCta(
   options?: {
     appPublicUrl?: string;
     inviteAcceptLinks?: InviteAcceptLinkResolver;
+    actionTokens?: ActionTokenSigner;
   },
 ): Promise<string | undefined> {
+  // Prefer signed action-token execute URL when we have an in-app row + server action.
+  const serverAction = ctx.actions.find((a) => a.kind === "server");
+  if (
+    serverAction &&
+    ctx.notificationId &&
+    ctx.recipient.userId &&
+    options?.actionTokens &&
+    options.appPublicUrl
+  ) {
+    const entityRef =
+      ctx.data.entityIds && Object.keys(ctx.data.entityIds).length > 0
+        ? {
+            type: Object.keys(ctx.data.entityIds)[0]!,
+            id: Object.values(ctx.data.entityIds)[0]!,
+          }
+        : undefined;
+    if (entityRef) {
+      const token = await options.actionTokens.sign({
+        notificationId: ctx.notificationId,
+        actionId: serverAction.id,
+        userId: ctx.recipient.userId,
+        orgId: ctx.orgId,
+        entityRef,
+      });
+      return `${options.appPublicUrl.replace(/\/$/, "")}/notification-action?token=${encodeURIComponent(token)}`;
+    }
+  }
+
   // Never trust acceptUrl/token from payload (may be stale/secret-bearing).
   if (
     ctx.eventType === "membership.invite_received" &&

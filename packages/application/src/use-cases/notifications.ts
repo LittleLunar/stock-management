@@ -9,6 +9,7 @@ import {
   type NotificationPreference,
 } from "@stock-management/domain";
 import type {
+  NotificationPublisher,
   NotificationPreferenceRepository,
   NotificationRepository,
 } from "../ports/notification.js";
@@ -24,6 +25,7 @@ export class NotificationUseCases {
   constructor(
     private readonly notifications: NotificationRepository,
     private readonly preferences: NotificationPreferenceRepository,
+    private readonly publisher?: NotificationPublisher,
   ) {}
 
   list(
@@ -43,17 +45,47 @@ export class NotificationUseCases {
     if (!row) throw new NotFoundError("Notification");
     if (!row.readAt) {
       await this.notifications.markRead(orgId, userId, id, new Date());
+      this.publisher?.publish(userId, orgId, {
+        type: "notification.read",
+        id,
+      });
+      const count = await this.notifications.unreadCount(orgId, userId);
+      this.publisher?.publish(userId, orgId, {
+        type: "unread-count",
+        count,
+      });
     }
   }
 
-  markAllRead(orgId: string, userId: string) {
-    return this.notifications.markAllRead(orgId, userId, new Date());
+  async markAllRead(orgId: string, userId: string) {
+    const updated = await this.notifications.markAllRead(
+      orgId,
+      userId,
+      new Date(),
+    );
+    if (updated > 0) {
+      this.publisher?.publish(userId, orgId, {
+        type: "notifications.read_all",
+      });
+      this.publisher?.publish(userId, orgId, {
+        type: "unread-count",
+        count: 0,
+      });
+    }
+    return updated;
   }
 
   async dismiss(orgId: string, userId: string, id: string) {
     const row = await this.notifications.findById(orgId, userId, id);
     if (!row) throw new NotFoundError("Notification");
     await this.notifications.dismiss(orgId, userId, id, new Date());
+    if (!row.readAt) {
+      const count = await this.notifications.unreadCount(orgId, userId);
+      this.publisher?.publish(userId, orgId, {
+        type: "unread-count",
+        count,
+      });
+    }
   }
 
   async getPreferences(

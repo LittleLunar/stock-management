@@ -52,6 +52,7 @@ import {
   BaseNotificationChannel,
   InAppChannelDecorator,
   EmailChannelDecorator,
+  ExecuteNotificationAction,
   ValuationReportUseCases,
   VoidCostRevaluation,
   VoidCustomerReturn,
@@ -80,6 +81,7 @@ import type { ApiEnv } from "../infrastructure/config/env.js";
 import {
   Argon2PasswordHasher,
   JoseAccessTokenSigner,
+  JoseActionTokenSigner,
   Sha256OpaqueTokenService,
   createMailer,
   DrizzleAuthUserStore,
@@ -92,6 +94,7 @@ import { DrizzleNotificationPreferenceRepository } from "../infrastructure/persi
 import { DrizzleNotificationRecipientDirectory } from "../infrastructure/persistence/notification-recipient.directory.js";
 import { DrizzleOutboxRepository } from "../infrastructure/persistence/outbox.repository.js";
 import { RotatingInviteAcceptLinkResolver } from "../infrastructure/notifications/invite-accept-link.js";
+import { WsNotificationHub } from "../infrastructure/notifications/ws-hub.js";
 import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
@@ -142,7 +145,10 @@ export type AppServices = {
   auth: AuthUseCases;
   membershipInvites: MembershipInviteUseCases;
   notifications: NotificationUseCases;
+  executeNotificationAction: ExecuteNotificationAction;
   notificationChannel: NotificationChannel;
+  notificationHub: WsNotificationHub;
+  actionTokens: JoseActionTokenSigner;
   processOutboxForNotifications: ProcessOutboxForNotifications;
   accessTokens: AccessTokenSigner;
   purchaseOrders: PurchaseOrderUseCases;
@@ -252,6 +258,11 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     new DrizzleNotificationPreferenceRepository(db);
   const notificationDirectory = new DrizzleNotificationRecipientDirectory(db);
   const membershipInviteStore = new DrizzleMembershipInviteStore(db);
+  const notificationHub = new WsNotificationHub();
+  const actionTokens = new JoseActionTokenSigner(
+    env.ACTION_TOKEN_SECRET,
+    env.ACTION_TOKEN_TTL_SECONDS,
+  );
   const notificationChannel: NotificationChannel = new InAppChannelDecorator(
     new EmailChannelDecorator(
       new BaseNotificationChannel(),
@@ -264,10 +275,12 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
           opaqueTokens,
           env.APP_PUBLIC_URL,
         ),
+        actionTokens,
       },
     ),
     notificationRepo,
     notificationPreferenceRepo,
+    notificationHub,
   );
   const processOutboxForNotifications = new ProcessOutboxForNotifications(
     notificationChannel,
@@ -276,6 +289,7 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
   const notificationUseCases = new NotificationUseCases(
     notificationRepo,
     notificationPreferenceRepo,
+    notificationHub,
   );
   const auth = new AuthUseCases({
     users: new DrizzleAuthUserStore(db),
@@ -308,6 +322,23 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     },
   });
 
+  const purchaseOrderUseCases = new PurchaseOrderUseCases(
+    purchaseOrders,
+    enqueueNotifications,
+  );
+  const stockAdjustmentUseCases = new StockAdjustmentUseCases(
+    stockAdjustments,
+    enqueueNotifications,
+  );
+  const executeNotificationAction = new ExecuteNotificationAction({
+    tokens: actionTokens,
+    notifications: notificationRepo,
+    publisher: notificationHub,
+    purchaseOrders: purchaseOrderUseCases,
+    stockAdjustments: stockAdjustmentUseCases,
+    membershipInvites,
+  });
+
   return {
     org: new OrganizationUseCases(orgRepo),
     branches: new BranchUseCases(new DrizzleBranchRepository(db)),
@@ -321,13 +352,13 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     auth,
     membershipInvites,
     notifications: notificationUseCases,
+    executeNotificationAction,
     notificationChannel,
+    notificationHub,
+    actionTokens,
     processOutboxForNotifications,
     accessTokens,
-    purchaseOrders: new PurchaseOrderUseCases(
-      purchaseOrders,
-      enqueueNotifications,
-    ),
+    purchaseOrders: purchaseOrderUseCases,
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),
     postGoodsReceipt: new PostGoodsReceipt(unitOfWork, approvalPolicies),
     voidGoodsReceipt: new VoidGoodsReceipt(unitOfWork),
@@ -340,10 +371,7 @@ export function createAppServices(db: Db, env: ApiEnv): AppServices {
     shipStockTransfer: new ShipStockTransfer(unitOfWork),
     receiveStockTransfer: new ReceiveStockTransfer(unitOfWork),
     voidStockTransfer: new VoidStockTransfer(unitOfWork),
-    stockAdjustments: new StockAdjustmentUseCases(
-      stockAdjustments,
-      enqueueNotifications,
-    ),
+    stockAdjustments: stockAdjustmentUseCases,
     postStockAdjustment: new PostStockAdjustment(unitOfWork, approvalPolicies),
     voidStockAdjustment: new VoidStockAdjustment(unitOfWork),
     stockCounts: new StockCountUseCases(stockCounts, stock),

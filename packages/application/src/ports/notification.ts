@@ -167,4 +167,42 @@ export interface NotificationEventPolicy {
   ): Promise<EventPolicyResolved>;
 }
 
+export type NotificationActionTokenClaims = {
+  notificationId: string;
+  actionId: string;
+  userId: string;
+  orgId: string;
+  entityRef: NotificationEntityRef;
+};
+
+export interface ActionTokenSigner {
+  sign(claims: NotificationActionTokenClaims): Promise<string>;
+  verify(token: string): Promise<NotificationActionTokenClaims>;
+}
+
+export type NotificationRealtimeMessage =
+  | {
+      type: "notification.created";
+      notification: Notification;
+    }
+  | { type: "notification.read"; id: string }
+  | { type: "notifications.read_all" }
+  | { type: "unread-count"; count: number };
+
+export interface NotificationPublisher {
+  publish(
+    userId: string,
+    orgId: string,
+    message: NotificationRealtimeMessage,
+  ): void;
+}
+
+export class NoOpNotificationPublisher implements NotificationPublisher {
+  publish(
+    _userId: string,
+    _orgId: string,
+    _message: NotificationRealtimeMessage,
+  ): void {}
+}
+
 export type { Mailer };

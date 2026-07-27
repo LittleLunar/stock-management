@@ -5,6 +5,7 @@ import {
   NotFoundError,
   assertCanApproveAdjustment,
   assertCanPostAdjustment,
+  assertCanRejectAdjustment,
   assertCanSubmitAdjustment,
   assertLayersFullyOpen,
   assertLotSerialRules,
@@ -92,6 +93,13 @@ export class StockAdjustmentUseCases {
     const adj = await this.get(orgId, id);
     assertCanApproveAdjustment(adj);
     return this.repo.updateStatus(orgId, id, "approved", new Date());
+  }
+
+  /** Reject pending approval — returns the document to draft. */
+  async reject(orgId: string, id: string) {
+    const adj = await this.get(orgId, id);
+    assertCanRejectAdjustment(adj);
+    return this.repo.updateStatus(orgId, id, "draft", new Date());
   }
 }
 

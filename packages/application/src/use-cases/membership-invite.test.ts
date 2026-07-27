@@ -61,6 +61,9 @@ function createHarness(overrides?: Partial<MembershipInviteDeps>) {
       const id = invitesByHash.get(tokenHash);
       return id ? (invites.get(id) ?? null) : null;
     },
+    async findById(id) {
+      return invites.get(id) ?? null;
+    },
     async findPendingByOrgEmail(orgId, email) {
       for (const row of invites.values()) {
         if (

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import websocket from "@fastify/websocket";
 import {
   EnsureDefaultChartOfAccounts,
   ProcessOutboxForJournals,
@@ -22,7 +23,10 @@ import { DrizzleWebhookRepository } from "./infrastructure/persistence/webhook.r
 import { DrizzleNotificationRepository } from "./infrastructure/persistence/notification.repository.js";
 import { DrizzleNotificationPreferenceRepository } from "./infrastructure/persistence/notification-preference.repository.js";
 import { DrizzleNotificationRecipientDirectory } from "./infrastructure/persistence/notification-recipient.directory.js";
-import { createMailer, Sha256OpaqueTokenService } from "./infrastructure/auth/index.js";
+import {
+  createMailer,
+  Sha256OpaqueTokenService,
+} from "./infrastructure/auth/index.js";
 import { RotatingInviteAcceptLinkResolver } from "./infrastructure/notifications/invite-accept-link.js";
 import { DrizzleMembershipInviteStore } from "./infrastructure/persistence/membership-invite.repository.js";
 import { OutboxPoller } from "./infrastructure/workers/outbox-poller.js";
@@ -41,7 +45,11 @@ import { suppliersRoutes } from "./interfaces/http/suppliers.routes.js";
 import { customersRoutes } from "./interfaces/http/customers.routes.js";
 import { usersRoutes } from "./interfaces/http/users.routes.js";
 import { membershipInviteRoutes } from "./interfaces/http/membership-invites.routes.js";
-import { notificationsRoutes } from "./interfaces/http/notifications.routes.js";
+import {
+  notificationActionRoutes,
+  notificationsRoutes,
+  notificationWsRoutes,
+} from "./interfaces/http/notifications.routes.js";
 import { approvalPoliciesRoutes } from "./interfaces/http/approval-policies.routes.js";
 import { webhooksRoutes } from "./interfaces/http/webhooks.routes.js";
 import { purchaseOrdersRoutes } from "./interfaces/http/purchase-orders.routes.js";
@@ -97,6 +105,7 @@ const app = Fastify({
 registerErrorHandler(app);
 await app.register(requestIdPlugin);
 await app.register(cookie);
+await app.register(websocket);
 await app.register(cors, {
   origin: env.WEB_ORIGIN,
   credentials: true,
@@ -145,9 +154,23 @@ await app.register(usersRoutes(services.users), { prefix: "/api/v1" });
 await app.register(membershipInviteRoutes(services.membershipInvites), {
   prefix: "/api/v1",
 });
-await app.register(notificationsRoutes(services.notifications), {
+await app.register(
+  notificationsRoutes(services.notifications, {
+    actionTokens: services.actionTokens,
+  }),
+  { prefix: "/api/v1" },
+);
+await app.register(notificationActionRoutes(services.executeNotificationAction), {
   prefix: "/api/v1",
 });
+await app.register(
+  notificationWsRoutes({
+    accessTokens: services.accessTokens,
+    hub: services.notificationHub,
+    membershipAccess: services.membershipAccess,
+  }),
+  { prefix: "/api/v1" },
+);
 await app.register(purchaseOrdersRoutes(services.purchaseOrders), {
   prefix: "/api/v1",
 });
@@ -215,10 +238,12 @@ const outboxPoller = env.OUTBOX_POLLER_ENABLED
                   new Sha256OpaqueTokenService(),
                   env.APP_PUBLIC_URL,
                 ),
+                actionTokens: services.actionTokens,
               },
             ),
             notificationRepo,
             preferenceRepo,
+            services.notificationHub,
           );
           const notifications = new ProcessOutboxForNotifications(
             notificationChannel,

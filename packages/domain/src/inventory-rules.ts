@@ -149,6 +149,16 @@ export function assertCanApproveAdjustment(
   }
 }
 
+export function assertCanRejectAdjustment(
+  adj: Pick<StockAdjustment, "status">,
+): void {
+  if (adj.status !== "pending_approval") {
+    throw new InvalidStateError(
+      `Cannot reject stock adjustment in status ${adj.status}`,
+    );
+  }
+}
+
 export function assertCanPostAdjustment(
   adj: Pick<StockAdjustment, "status">,
   policy: Pick<ApprovalPolicy, "required">,

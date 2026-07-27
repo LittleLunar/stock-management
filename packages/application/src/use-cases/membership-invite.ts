@@ -145,6 +145,52 @@ export class MembershipInviteUseCases {
   async declineInvite(input: { token: string }): Promise<{ inviteId: string }> {
     const now = this.deps.clock.now();
     const invite = await this.loadByRawToken(input.token);
+    return this.finalizeDecline(invite, now);
+  }
+
+  async declineInviteById(inviteId: string): Promise<{ inviteId: string }> {
+    const now = this.deps.clock.now();
+    const invite = await this.deps.invites.findById(inviteId);
+    if (!invite) {
+      throw new TokenInvalidError("Invite is invalid");
+    }
+    return this.finalizeDecline(invite, now);
+  }
+
+  /**
+   * Accept by invite id (notification action tokens). Rotates a fresh opaque
+   * token then runs the normal accept path so create-user stays atomic.
+   */
+  async acceptInviteById(input: {
+    inviteId: string;
+    name: string;
+    password: string;
+  }): Promise<MembershipInviteAccepted> {
+    const now = this.deps.clock.now();
+    const invite = await this.deps.invites.findById(input.inviteId);
+    if (!invite) {
+      throw new TokenInvalidError("Invite is invalid");
+    }
+    assertPending(invite, now);
+    const rawToken = this.deps.opaqueTokens.issue();
+    const rotated = await this.deps.invites.rotateTokenHash(
+      invite.id,
+      this.deps.opaqueTokens.hash(rawToken),
+    );
+    if (!rotated) {
+      throw new InvalidStateError("Invite is no longer pending");
+    }
+    return this.acceptInvite({
+      token: rawToken,
+      name: input.name,
+      password: input.password,
+    });
+  }
+
+  private async finalizeDecline(
+    invite: MembershipInviteRecord,
+    now: Date,
+  ): Promise<{ inviteId: string }> {
     assertPending(invite, now);
 
     await this.deps.invites.markDeclined(invite.id, now);

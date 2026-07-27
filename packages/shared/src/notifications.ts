@@ -59,3 +59,19 @@ export const PutNotificationPreferencesSchema = z.object({
 export type PutNotificationPreferences = z.infer<
   typeof PutNotificationPreferencesSchema
 >;
+
+export const ExecuteNotificationActionBodySchema = z.object({
+  token: z.string().min(1),
+  name: z.string().min(1).optional(),
+  password: z.string().min(8).optional(),
+});
+export type ExecuteNotificationActionBody = z.infer<
+  typeof ExecuteNotificationActionBodySchema
+>;
+
+/** API-facing action with optional signed token for server actions. */
+export const NotificationActionWithTokenSchema = NotificationActionSchema.extend(
+  {
+    token: z.string().optional(),
+  },
+);

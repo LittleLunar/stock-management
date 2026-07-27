@@ -403,8 +403,11 @@ export {
   NotificationEventTypeSchema,
   NotificationChannelSchema,
   NotificationActionSchema,
+  NotificationActionWithTokenSchema,
   NotificationSchema,
   NotificationListQuerySchema,
   PutNotificationPreferencesSchema,
+  ExecuteNotificationActionBodySchema,
   type PutNotificationPreferences,
+  type ExecuteNotificationActionBody,
 } from "./notifications.js";

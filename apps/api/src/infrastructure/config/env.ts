@@ -39,6 +39,15 @@ const EnvSchema = z.object({
   AUTH_STUB: booleanFromEnv,
   APP_PUBLIC_URL: z.string().min(1).default("http://localhost:5173"),
   WEB_ORIGIN: z.string().min(1).default("http://localhost:5173"),
+  ACTION_TOKEN_SECRET: z
+    .string()
+    .min(1)
+    .default("dev-only-action-token-secret-change-me"),
+  ACTION_TOKEN_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(7 * 24 * 60 * 60),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().optional(),
   SMTP_USER: z.string().optional(),

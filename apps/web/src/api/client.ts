@@ -956,4 +956,69 @@ export const api = {
       }`,
       ctx,
     ),
+  listNotifications: (
+    ctx: ApiHeaders,
+    query: { includeDismissed?: boolean; limit?: number; offset?: number } = {},
+  ) =>
+    request<NotificationDto[]>(
+      withQuery("/api/v1/notifications", {
+        includeDismissed:
+          query.includeDismissed === undefined
+            ? undefined
+            : String(query.includeDismissed),
+        limit: query.limit === undefined ? undefined : String(query.limit),
+        offset: query.offset === undefined ? undefined : String(query.offset),
+      }),
+      ctx,
+    ),
+  unreadNotificationCount: (ctx: ApiHeaders) =>
+    request<{ count: number }>("/api/v1/notifications/unread-count", ctx),
+  markNotificationRead: (ctx: ApiHeaders, id: string) =>
+    request<{ ok: true }>(`/api/v1/notifications/${id}/read`, ctx, {
+      method: "POST",
+    }),
+  markAllNotificationsRead: (ctx: ApiHeaders) =>
+    request<{ updated: number }>("/api/v1/notifications/read-all", ctx, {
+      method: "POST",
+    }),
+  dismissNotification: (ctx: ApiHeaders, id: string) =>
+    request<{ ok: true }>(`/api/v1/notifications/${id}/dismiss`, ctx, {
+      method: "POST",
+    }),
+  executeNotificationAction: (
+    body: { token: string; name?: string; password?: string },
+    ctx?: ApiHeaders,
+  ) =>
+    request<{ ok: true; notificationId: string; actionId: string }>(
+      "/api/v1/notification-actions/execute",
+      ctx ?? { orgId: "" },
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: ctx?.orgId
+          ? undefined
+          : { "Content-Type": "application/json" },
+      },
+    ),
+};
+
+export type NotificationActionDto = {
+  id: string;
+  label: string;
+  kind: "open" | "server";
+  token?: string;
+};
+
+export type NotificationDto = {
+  id: string;
+  orgId: string;
+  userId: string;
+  eventType: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown>;
+  actions: NotificationActionDto[];
+  readAt: string | null;
+  dismissedAt: string | null;
+  createdAt: string;
 };

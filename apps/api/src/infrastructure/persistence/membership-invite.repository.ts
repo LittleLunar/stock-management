@@ -82,6 +82,15 @@ export class DrizzleMembershipInviteStore implements MembershipInviteStore {
     return row ? toInvite(row) : null;
   }
 
+  async findById(id: string): Promise<MembershipInviteRecord | null> {
+    const [row] = await this.db
+      .select()
+      .from(membershipInvites)
+      .where(eq(membershipInvites.id, id))
+      .limit(1);
+    return row ? toInvite(row) : null;
+  }
+
   async findPendingByOrgEmail(
     orgId: string,
     email: string,

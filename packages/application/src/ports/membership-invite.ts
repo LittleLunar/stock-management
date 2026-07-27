@@ -52,6 +52,8 @@ export interface MembershipInviteStore {
 
   findByTokenHash(tokenHash: string): Promise<MembershipInviteRecord | null>;
 
+  findById(id: string): Promise<MembershipInviteRecord | null>;
+
   findPendingByOrgEmail(
     orgId: string,
     email: string,
