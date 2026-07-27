@@ -47,13 +47,8 @@ import {
   type UpdateStockCount,
   type UpdateWebhookSubscription,
 } from "@stock-management/shared";
-import { refreshSession } from "../auth/refresh";
-import {
-  getAccessToken,
-  redirectToLogin,
-} from "../auth/session";
-import { env } from "../lib/env";
-import { parseApiError, ApiError } from "../lib/errors";
+import { fetchWithAuthRetry, parseJsonResponse } from "../auth/http";
+import { getAccessToken } from "../auth/session";
 
 export type ApiHeaders = {
   orgId: string;
@@ -482,51 +477,17 @@ function headers(ctx: ApiHeaders, init?: HeadersInit): Headers {
   return h;
 }
 
-function isAuthPath(path: string): boolean {
-  return path.startsWith("/api/v1/auth/");
-}
-
 async function request<T>(
   path: string,
   ctx: ApiHeaders,
   init?: RequestInit,
 ): Promise<T> {
-  const doFetch = () =>
-    fetch(`${env.VITE_API_URL}${path}`, {
-      ...init,
-      credentials: "include",
-      headers: headers(ctx, init?.headers),
-    });
-
-  let res = await doFetch();
-
-  if (res.status === 401 && !isAuthPath(path)) {
-    const refreshed = await refreshSession();
-    if (refreshed) {
-      res = await doFetch();
-    } else {
-      redirectToLogin();
-      throw new ApiError(401, {
-        code: "UNAUTHORIZED",
-        message: "Session expired",
-        requestId: "unknown",
-      });
-    }
-  }
-
-  if (!res.ok) {
-    let raw: unknown = await res.text();
-    try {
-      raw = JSON.parse(raw as string);
-    } catch {
-      // keep text body
-    }
-    throw parseApiError(res.status, raw);
-  }
-  if (res.status === 204) {
-    return undefined as T;
-  }
-  return res.json() as Promise<T>;
+  const res = await fetchWithAuthRetry({
+    path,
+    init,
+    buildHeaders: () => headers(ctx, init?.headers),
+  });
+  return parseJsonResponse(res);
 }
 
 function withQuery(

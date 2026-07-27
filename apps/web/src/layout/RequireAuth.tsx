@@ -1,22 +1,18 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ensureAccessToken } from "../auth/refresh";
-import { getAccessToken, redirectToLogin } from "../auth/session";
+import { restoreSession } from "../auth/restore";
+import { redirectToLogin } from "../auth/session";
 import { AppShell } from "./AppShell";
 
-/** Authed app: ensure session (refresh once), else redirect to /login?next=. */
+/** Authed app: restore session + org from /me, else redirect to /login?next=. */
 export function RequireAuth() {
   const { t } = useTranslation("auth");
-  const [ready, setReady] = useState(() => Boolean(getAccessToken()));
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      if (getAccessToken()) {
-        if (!cancelled) setReady(true);
-        return;
-      }
-      const ok = await ensureAccessToken();
+      const ok = await restoreSession();
       if (cancelled) return;
       if (!ok) {
         redirectToLogin();

@@ -14,49 +14,33 @@ import {
   AuthSessionResponseSchema,
   SignupResponseSchema,
 } from "@stock-management/shared";
-import { env } from "../lib/env";
-import { parseApiError } from "../lib/errors";
 import { getAccessToken, setAccessToken } from "./session";
+import { fetchWithAuthRetry, parseJsonResponse } from "./http";
 
 async function authRequest<T>(
   path: string,
   init?: RequestInit,
   parse?: (raw: unknown) => T,
 ): Promise<T> {
-  const headers = new Headers(init?.headers);
-  if (!headers.has("Content-Type") && init?.body) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (!headers.has("X-Request-Id")) {
-    headers.set("X-Request-Id", crypto.randomUUID());
-  }
-  const token = getAccessToken();
-  if (token && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  const res = await fetch(`${env.VITE_API_URL}${path}`, {
-    ...init,
-    credentials: "include",
-    headers,
+  const res = await fetchWithAuthRetry({
+    path,
+    init,
+    buildHeaders: () => {
+      const headers = new Headers(init?.headers);
+      if (!headers.has("Content-Type") && init?.body) {
+        headers.set("Content-Type", "application/json");
+      }
+      if (!headers.has("X-Request-Id")) {
+        headers.set("X-Request-Id", crypto.randomUUID());
+      }
+      const token = getAccessToken();
+      if (token && !headers.has("Authorization")) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+      return headers;
+    },
   });
-
-  if (!res.ok) {
-    let raw: unknown = await res.text();
-    try {
-      raw = JSON.parse(raw as string);
-    } catch {
-      // keep text
-    }
-    throw parseApiError(res.status, raw);
-  }
-
-  if (res.status === 204) {
-    return undefined as T;
-  }
-
-  const json: unknown = await res.json();
-  return parse ? parse(json) : (json as T);
+  return parseJsonResponse(res, parse);
 }
 
 function storeSession(session: AuthSessionResponse): AuthSessionResponse {

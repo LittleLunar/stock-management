@@ -6,21 +6,10 @@ import type {
   SignupBody,
 } from "@stock-management/shared";
 import { authApi } from "../auth/api";
-import { refreshSession } from "../auth/refresh";
-import {
-  clearSession,
-  getAccessToken,
-  setOrgContext,
-} from "../auth/session";
+import { applyMeOrgContext, restoreSession } from "../auth/restore";
+import { clearSession, getAccessToken } from "../auth/session";
 
-export async function applyMeOrgContext(): Promise<void> {
-  const me = await authApi.me();
-  const membership = me.memberships[0];
-  if (membership) {
-    setOrgContext(membership.orgId, membership.orgName);
-  }
-  return;
-}
+export { applyMeOrgContext, restoreSession };
 
 export function useMe(enabled = true) {
   return useQuery({
@@ -85,10 +74,7 @@ export function useLogout() {
 export function useEnsureSession() {
   return useQuery({
     queryKey: ["auth", "session"],
-    queryFn: async () => {
-      if (getAccessToken()) return true;
-      return refreshSession();
-    },
+    queryFn: () => restoreSession(),
     staleTime: Infinity,
     retry: false,
   });
