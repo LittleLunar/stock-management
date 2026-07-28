@@ -33,7 +33,7 @@ export function Icon({
   name,
   size = 20,
   className,
-  strokeWidth = 1.5,
+  strokeWidth = 2.5,
   "aria-hidden": ariaHidden = true,
 }: IconProps) {
   return (
