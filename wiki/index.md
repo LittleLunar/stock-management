@@ -9,7 +9,7 @@ updated: 2026-07-27
 
 ## Onboarding
 
-- [[Getting Started]] — orient in repo/wiki; local bootstrap + `pnpm db:clear`
+- [[Getting Started]] — orient in repo/wiki; local bootstrap + `pnpm db:clear`; JWT auth + notifications
 - [[overview]] — high-level product synthesis
 
 ## Entities
@@ -23,7 +23,7 @@ updated: 2026-07-27
 
 ## Concepts
 
-- [[Tech Stack]] — Fastify, Drizzle, Postgres, Vite/React, TanStack, Tailwind, i18next EN/TH, Vitest, Prettier, Pino
+- [[Tech Stack]] — Fastify, Drizzle, Postgres, Vite/React, TanStack, Tailwind, i18next EN/TH, Argon2/JWT auth, outbox notifications, Vitest, Prettier, Pino
 - [[Clean Architecture]] — mandatory Full CA for Phases A–F (`domain` / `application` packages)
 - [[SOLID and Design Patterns]] — SOLID within Clean Architecture
 - [[Domain Model]] — core entities and relationships
@@ -32,6 +32,8 @@ updated: 2026-07-27
 - [[FIFO Costing]] — cost layers and valuation
 - [[Inventory Accounting]] — GL, GRNI, COGS, AP
 - [[POS Integration Boundary]] — inventory as platform; POS as consumer
+- [[Authentication]] — email/password JWT + rotating refresh cookie (replaces header stub)
+- [[Notifications]] — in-app + email decorator channels, outbox, WebSocket, signed actions
 
 ## Features (phases)
 

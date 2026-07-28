@@ -10,9 +10,13 @@ import type {
 } from "../dto/inputs.js";
 import type { BranchListFilter } from "../access/list-scope.js";
 import type { PurchaseOrderPort } from "../ports/inventory.js";
+import type { EnqueueNotificationIntent } from "../ports/notification.js";
 
 export class PurchaseOrderUseCases {
-  constructor(private readonly repo: PurchaseOrderPort) {}
+  constructor(
+    private readonly repo: PurchaseOrderPort,
+    private readonly notifications?: EnqueueNotificationIntent,
+  ) {}
 
   list(orgId: string, filter?: BranchListFilter) {
     return this.repo.list(orgId, filter);
@@ -41,7 +45,14 @@ export class PurchaseOrderUseCases {
   async submit(orgId: string, id: string) {
     const purchaseOrder = await this.get(orgId, id);
     assertCanSubmitPo(purchaseOrder);
-    return this.repo.updateStatus(orgId, id, "submitted");
+    const updated = await this.repo.updateStatus(orgId, id, "submitted");
+    await this.notifications?.enqueue({
+      eventType: "approval.assigned",
+      orgId,
+      entityRef: { type: "purchase_order", id },
+      payload: { branchId: purchaseOrder.branchId },
+    });
+    return updated;
   }
 
   async approve(orgId: string, id: string) {

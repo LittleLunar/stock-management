@@ -85,6 +85,27 @@
       "when": 1785168000000,
       "tag": "0011_phase_e3_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785222000000,
+      "tag": "0012_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785225600000,
+      "tag": "0013_membership_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785230000000,
+      "tag": "0014_notifications",
+      "breakpoints": true
     }
   ]
 }

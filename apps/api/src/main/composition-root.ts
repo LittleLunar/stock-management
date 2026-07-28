@@ -1,6 +1,7 @@
 import {
   AccountUseCases,
   AccountingPeriodUseCases,
+  AuthUseCases,
   AvailabilityUseCases,
   BranchUseCases,
   CategoryUseCases,
@@ -10,7 +11,9 @@ import {
   CustomerReturnUseCases,
   CustomerUseCases,
   CommitReservation,
+  type AccessTokenSigner,
   type MembershipAccessPort,
+  type NotificationChannel,
   EnsureDefaultChartOfAccounts,
   ExpireReservations,
   GoodsReceiptUseCases,
@@ -28,6 +31,7 @@ import {
   PostSupplierReturn,
   ProcessOutboxForJournals,
   ProcessOutboxForWebhooks,
+  ProcessOutboxForNotifications,
   ProductUseCases,
   PurchaseOrderUseCases,
   ReceiveStockTransfer,
@@ -42,6 +46,13 @@ import {
   SupplierReturnUseCases,
   SupplierUseCases,
   UsersUseCases,
+  MembershipInviteUseCases,
+  NotificationUseCases,
+  OutboxEnqueueNotificationIntent,
+  BaseNotificationChannel,
+  InAppChannelDecorator,
+  EmailChannelDecorator,
+  ExecuteNotificationAction,
   ValuationReportUseCases,
   VoidCostRevaluation,
   VoidCustomerReturn,
@@ -66,6 +77,24 @@ import {
 } from "@stock-management/application";
 import { NotFoundError } from "@stock-management/domain";
 import type { Db } from "../infrastructure/db/client.js";
+import type { ApiEnv } from "../infrastructure/config/env.js";
+import {
+  Argon2PasswordHasher,
+  JoseAccessTokenSigner,
+  JoseActionTokenSigner,
+  Sha256OpaqueTokenService,
+  createMailer,
+  DrizzleAuthUserStore,
+  DrizzleEmailTokenStore,
+  DrizzleRefreshTokenStore,
+} from "../infrastructure/auth/index.js";
+import { DrizzleMembershipInviteStore } from "../infrastructure/persistence/membership-invite.repository.js";
+import { DrizzleNotificationRepository } from "../infrastructure/persistence/notification.repository.js";
+import { DrizzleNotificationPreferenceRepository } from "../infrastructure/persistence/notification-preference.repository.js";
+import { DrizzleNotificationRecipientDirectory } from "../infrastructure/persistence/notification-recipient.directory.js";
+import { DrizzleOutboxRepository } from "../infrastructure/persistence/outbox.repository.js";
+import { RotatingInviteAcceptLinkResolver } from "../infrastructure/notifications/invite-accept-link.js";
+import { WsNotificationHub } from "../infrastructure/notifications/ws-hub.js";
 import { DrizzleCloseChecklistRepository } from "../infrastructure/persistence/close-checklist.repository.js";
 import { DrizzleAccountingRepository } from "../infrastructure/persistence/accounting.repository.js";
 import { DrizzleApRepository } from "../infrastructure/persistence/ap.repository.js";
@@ -113,6 +142,15 @@ export type AppServices = {
   customers: CustomerUseCases;
   users: UsersUseCases;
   membershipAccess: MembershipAccessPort;
+  auth: AuthUseCases;
+  membershipInvites: MembershipInviteUseCases;
+  notifications: NotificationUseCases;
+  executeNotificationAction: ExecuteNotificationAction;
+  notificationChannel: NotificationChannel;
+  notificationHub: WsNotificationHub;
+  actionTokens: JoseActionTokenSigner;
+  processOutboxForNotifications: ProcessOutboxForNotifications;
+  accessTokens: AccessTokenSigner;
   purchaseOrders: PurchaseOrderUseCases;
   goodsReceipts: GoodsReceiptUseCases;
   postGoodsReceipt: PostGoodsReceipt;
@@ -173,7 +211,7 @@ export type AppServices = {
 };
 
 /** Composition root: wire infrastructure adapters to application use cases. */
-export function createAppServices(db: Db): AppServices {
+export function createAppServices(db: Db, env: ApiEnv): AppServices {
   const purchaseOrders = new DrizzlePurchaseOrderRepository(db);
   const goodsReceipts = new DrizzleGoodsReceiptRepository(db);
   const stock = new DrizzleStockRepository(db);
@@ -204,6 +242,105 @@ export function createAppServices(db: Db): AppServices {
   );
   const webhooks = new DrizzleWebhookRepository(db);
 
+  const accessTokens = new JoseAccessTokenSigner(
+    env.JWT_ACCESS_SECRET,
+    env.JWT_ACCESS_TTL_SECONDS,
+  );
+  const opaqueTokens = new Sha256OpaqueTokenService();
+  const passwords = new Argon2PasswordHasher();
+  const mailer = createMailer(env);
+  const outbox = new DrizzleOutboxRepository(db);
+  const enqueueNotifications = new OutboxEnqueueNotificationIntent((event) =>
+    outbox.enqueue(event),
+  );
+  const notificationRepo = new DrizzleNotificationRepository(db);
+  const notificationPreferenceRepo =
+    new DrizzleNotificationPreferenceRepository(db);
+  const notificationDirectory = new DrizzleNotificationRecipientDirectory(db);
+  const membershipInviteStore = new DrizzleMembershipInviteStore(db);
+  const notificationHub = new WsNotificationHub();
+  const actionTokens = new JoseActionTokenSigner(
+    env.ACTION_TOKEN_SECRET,
+    env.ACTION_TOKEN_TTL_SECONDS,
+  );
+  const notificationChannel: NotificationChannel = new InAppChannelDecorator(
+    new EmailChannelDecorator(
+      new BaseNotificationChannel(),
+      mailer,
+      notificationPreferenceRepo,
+      {
+        appPublicUrl: env.APP_PUBLIC_URL,
+        inviteAcceptLinks: new RotatingInviteAcceptLinkResolver(
+          membershipInviteStore,
+          opaqueTokens,
+          env.APP_PUBLIC_URL,
+        ),
+        actionTokens,
+      },
+    ),
+    notificationRepo,
+    notificationPreferenceRepo,
+    notificationHub,
+    actionTokens,
+  );
+  const processOutboxForNotifications = new ProcessOutboxForNotifications(
+    notificationChannel,
+    notificationDirectory,
+  );
+  const notificationUseCases = new NotificationUseCases(
+    notificationRepo,
+    notificationPreferenceRepo,
+    notificationHub,
+  );
+  const auth = new AuthUseCases({
+    users: new DrizzleAuthUserStore(db),
+    passwords,
+    accessTokens,
+    opaqueTokens,
+    refreshTokens: new DrizzleRefreshTokenStore(db),
+    emailTokens: new DrizzleEmailTokenStore(db),
+    mailer,
+    notifications: enqueueNotifications,
+    clock: { now: () => new Date() },
+    config: {
+      accessTokenTtlSeconds: env.JWT_ACCESS_TTL_SECONDS,
+      refreshTokenTtlSeconds: env.REFRESH_TTL_SECONDS,
+      emailVerifyTtlSeconds: 24 * 60 * 60,
+      passwordResetTtlSeconds: 60 * 60,
+      appPublicUrl: env.APP_PUBLIC_URL,
+    },
+  });
+  const membershipInvites = new MembershipInviteUseCases({
+    invites: membershipInviteStore,
+    passwords,
+    opaqueTokens,
+    mailer,
+    notifications: enqueueNotifications,
+    clock: { now: () => new Date() },
+    config: {
+      inviteTtlSeconds: 7 * 24 * 60 * 60,
+      appPublicUrl: env.APP_PUBLIC_URL,
+    },
+  });
+
+  const purchaseOrderUseCases = new PurchaseOrderUseCases(
+    purchaseOrders,
+    enqueueNotifications,
+  );
+  const stockAdjustmentUseCases = new StockAdjustmentUseCases(
+    stockAdjustments,
+    enqueueNotifications,
+  );
+  const executeNotificationAction = new ExecuteNotificationAction({
+    tokens: actionTokens,
+    notifications: notificationRepo,
+    publisher: notificationHub,
+    membershipAccess: usersRepo,
+    purchaseOrders: purchaseOrderUseCases,
+    stockAdjustments: stockAdjustmentUseCases,
+    membershipInvites,
+  });
+
   return {
     org: new OrganizationUseCases(orgRepo),
     branches: new BranchUseCases(new DrizzleBranchRepository(db)),
@@ -214,7 +351,16 @@ export function createAppServices(db: Db): AppServices {
     customers: new CustomerUseCases(customers),
     users: new UsersUseCases(usersRepo),
     membershipAccess: usersRepo,
-    purchaseOrders: new PurchaseOrderUseCases(purchaseOrders),
+    auth,
+    membershipInvites,
+    notifications: notificationUseCases,
+    executeNotificationAction,
+    notificationChannel,
+    notificationHub,
+    actionTokens,
+    processOutboxForNotifications,
+    accessTokens,
+    purchaseOrders: purchaseOrderUseCases,
     goodsReceipts: new GoodsReceiptUseCases(goodsReceipts),
     postGoodsReceipt: new PostGoodsReceipt(unitOfWork, approvalPolicies),
     voidGoodsReceipt: new VoidGoodsReceipt(unitOfWork),
@@ -227,7 +373,7 @@ export function createAppServices(db: Db): AppServices {
     shipStockTransfer: new ShipStockTransfer(unitOfWork),
     receiveStockTransfer: new ReceiveStockTransfer(unitOfWork),
     voidStockTransfer: new VoidStockTransfer(unitOfWork),
-    stockAdjustments: new StockAdjustmentUseCases(stockAdjustments),
+    stockAdjustments: stockAdjustmentUseCases,
     postStockAdjustment: new PostStockAdjustment(unitOfWork, approvalPolicies),
     voidStockAdjustment: new VoidStockAdjustment(unitOfWork),
     stockCounts: new StockCountUseCases(stockCounts, stock),

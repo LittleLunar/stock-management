@@ -396,7 +396,11 @@ export interface SerialPort {
 
 export type OutboxEventInput = {
   orgId: string;
-  eventType: "document.posted" | "document.voided" | "stock.changed";
+  eventType:
+    | "document.posted"
+    | "document.voided"
+    | "stock.changed"
+    | "notification.dispatch";
   aggregateType: string;
   aggregateId: string;
   payload: Record<string, unknown>;

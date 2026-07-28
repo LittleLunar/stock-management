@@ -1,15 +1,9 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { CreateOrganizationSchema } from "@stock-management/shared";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
-import { z } from "zod";
-import { api } from "../api/client";
+import { getOrgId, getOrgName } from "../auth/session";
 import { SidebarNav } from "../components/SidebarNav";
 import { useBranches } from "../hooks/masters";
-import { formatApiError } from "../lib/errors";
-import { Button, Input, Select } from "../ui";
+import { Select } from "../ui";
 
 const ALL_BRANCHES = "__all__";
 
@@ -45,45 +39,6 @@ function BranchSwitcher() {
   );
 }
 
-function OrgBootstrap() {
-  const { t } = useTranslation("common");
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({
-    resolver: zodResolver(CreateOrganizationSchema),
-    defaultValues: { name: "Demo Shop" },
-  });
-
-  async function bootstrap(values: z.infer<typeof CreateOrganizationSchema>) {
-    try {
-      const userId = "00000000-0000-0000-0000-000000000001";
-      localStorage.setItem("userId", userId);
-      const org = await api.createOrg(userId, values);
-      localStorage.setItem("orgId", org.id);
-      window.location.reload();
-    } catch (err) {
-      toast.error(formatApiError(err));
-    }
-  }
-
-  return (
-    <form className="space-y-2" onSubmit={handleSubmit(bootstrap)}>
-      <Input
-        placeholder={t("org.namePlaceholder")}
-        {...register("name")}
-      />
-      {errors.name && (
-        <p className="text-xs text-red-700">{errors.name.message}</p>
-      )}
-      <Button type="submit" fullWidth size="sm" isDisabled={isSubmitting}>
-        {t("org.create")}
-      </Button>
-    </form>
-  );
-}
-
 type AppSidebarProps = {
   className?: string;
   onNavigate?: () => void;
@@ -91,7 +46,8 @@ type AppSidebarProps = {
 
 export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
   const { t } = useTranslation("common");
-  const orgId = localStorage.getItem("orgId") ?? "";
+  const orgId = getOrgId();
+  const orgName = getOrgName();
 
   return (
     <aside
@@ -106,13 +62,18 @@ export function AppSidebar({ className, onNavigate }: AppSidebarProps) {
       <div className="border-t border-[var(--app-border)] px-3 py-4 text-xs text-[var(--app-muted)]">
         {orgId ? (
           <>
-            <p className="break-all">{t("org.label", { orgId })}</p>
+            <p className="break-all font-medium text-[var(--app-ink)]">
+              {orgName || t("org.label", { orgId })}
+            </p>
+            {!orgName ? (
+              <p className="mt-1 break-all opacity-70">{orgId}</p>
+            ) : null}
             <div className="mt-3">
               <BranchSwitcher />
             </div>
           </>
         ) : (
-          <OrgBootstrap />
+          <p>{t("org.missing")}</p>
         )}
       </div>
     </aside>

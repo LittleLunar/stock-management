@@ -28,6 +28,19 @@ async function branchIdsFor(
   return rows.map((r) => r.branchId);
 }
 
+function toUser(row: typeof users.$inferSelect): User {
+  return {
+    id: row.id,
+    orgId: row.orgId,
+    email: row.email,
+    name: row.name,
+    status: row.status as User["status"],
+    emailVerifiedAt: row.emailVerifiedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 function toMembership(
   row: typeof memberships.$inferSelect,
   branchIds: string[],
@@ -49,10 +62,9 @@ export class DrizzleUsersRepository
 {
   constructor(private readonly db: Db) {}
 
-  listUsers(orgId: string): Promise<User[]> {
-    return this.db.select().from(users).where(eq(users.orgId, orgId)) as Promise<
-      User[]
-    >;
+  async listUsers(orgId: string): Promise<User[]> {
+    const rows = await this.db.select().from(users).where(eq(users.orgId, orgId));
+    return rows.map(toUser);
   }
 
   async createUser(orgId: string, input: CreateUserInput): Promise<User> {
@@ -65,7 +77,7 @@ export class DrizzleUsersRepository
         status: input.status ?? "active",
       })
       .returning();
-    return row as User;
+    return toUser(row);
   }
 
   async listMemberships(orgId: string): Promise<Membership[]> {

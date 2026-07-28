@@ -38,5 +38,22 @@
   "settings.webhooks.selectRequired": "ต้องระบุ URL รหัสลับ (อย่างน้อย 8 ตัว) และประเภทเหตุการณ์อย่างน้อยหนึ่งรายการ",
   "settings.webhooks.createSuccess": "สร้างการสมัครเว็บฮุกแล้ว",
   "settings.webhooks.activateSuccess": "เปิดใช้งานการสมัครแล้ว",
-  "settings.webhooks.deactivateSuccess": "ปิดใช้งานการสมัครแล้ว"
+  "settings.webhooks.deactivateSuccess": "ปิดใช้งานการสมัครแล้ว",
+  "settings.notificationPreferences.title": "การตั้งค่าการแจ้งเตือน",
+  "settings.notificationPreferences.description": "เลือกเหตุการณ์ที่จะแจ้งในแอปและทางอีเมลสำหรับองค์กรนี้",
+  "settings.notificationPreferences.loading": "กำลังโหลด…",
+  "settings.notificationPreferences.saveSuccess": "บันทึกการตั้งค่าแล้ว",
+  "settings.notificationPreferences.col.event": "เหตุการณ์",
+  "settings.notificationPreferences.channel.inApp": "ในแอป",
+  "settings.notificationPreferences.channel.email": "อีเมล",
+  "settings.notificationPreferences.event.user.welcome": "ยินดีต้อนรับ",
+  "settings.notificationPreferences.event.user.email_verified": "ยืนยันอีเมลแล้ว",
+  "settings.notificationPreferences.event.auth.password_changed": "เปลี่ยนรหัสผ่าน",
+  "settings.notificationPreferences.event.membership.invite_received": "ได้รับคำเชิญ",
+  "settings.notificationPreferences.event.membership.invite_accepted": "ยอมรับคำเชิญ",
+  "settings.notificationPreferences.event.membership.invite_declined": "ปฏิเสธคำเชิญ",
+  "settings.notificationPreferences.event.document.posted": "โพสต์เอกสาร",
+  "settings.notificationPreferences.event.document.voided": "ยกเลิกเอกสาร",
+  "settings.notificationPreferences.event.stock.low": "สต็อกต่ำ",
+  "settings.notificationPreferences.event.approval.assigned": "มอบหมายการอนุมัติ"
 }

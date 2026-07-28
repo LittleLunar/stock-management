@@ -103,10 +103,60 @@ export const users = pgTable(
       .references(() => organizations.id),
     email: text("email").notNull(),
     name: text("name").notNull(),
+    passwordHash: text("password_hash"),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     status: masterStatusEnum("status").notNull().default("active"),
     ...timestamps,
   },
-  (t) => [uniqueIndex("users_org_email_uidx").on(t.orgId, t.email)],
+  (t) => [
+    uniqueIndex("users_org_email_uidx").on(t.orgId, t.email),
+    uniqueIndex("users_email_uidx").on(t.email),
+  ],
+);
+
+export const authEmailTokenPurposeEnum = pgEnum("auth_email_token_purpose", [
+  "verify_email",
+  "reset_password",
+]);
+
+export const authRefreshTokens = pgTable(
+  "auth_refresh_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text("token_hash").notNull(),
+    familyId: uuid("family_id").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("auth_refresh_tokens_token_hash_uidx").on(t.tokenHash),
+    index("auth_refresh_tokens_user_idx").on(t.userId),
+    index("auth_refresh_tokens_family_idx").on(t.familyId),
+  ],
+);
+
+export const authEmailTokens = pgTable(
+  "auth_email_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    purpose: authEmailTokenPurposeEnum("purpose").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("auth_email_tokens_token_hash_uidx").on(t.tokenHash),
+    index("auth_email_tokens_user_purpose_idx").on(t.userId, t.purpose),
+  ],
 );
 
 export const memberships = pgTable(
@@ -146,6 +196,31 @@ export const membershipBranches = pgTable(
       t.membershipId,
       t.branchId,
     ),
+  ],
+);
+
+export const membershipInvites = pgTable(
+  "membership_invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    email: text("email").notNull(),
+    role: membershipRoleEnum("role").notNull(),
+    branchIds: jsonb("branch_ids").$type<string[]>().notNull().default([]),
+    tokenHash: text("token_hash").notNull(),
+    invitedBy: uuid("invited_by")
+      .notNull()
+      .references(() => users.id),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    declinedAt: timestamp("declined_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("membership_invites_token_hash_uidx").on(t.tokenHash),
+    index("membership_invites_org_email_idx").on(t.orgId, t.email),
   ],
 );
 
@@ -1668,5 +1743,70 @@ export const webhookDeliveries = pgTable(
       t.outboxEventId,
     ),
     index("webhook_deliveries_org_idx").on(t.orgId),
+  ],
+);
+
+export const notificationChannelEnum = pgEnum("notification_channel", [
+  "in_app",
+  "email",
+]);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    eventType: text("event_type").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
+    actions: jsonb("actions")
+      .$type<Array<Record<string, unknown>>>()
+      .notNull()
+      .default([]),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("notifications_user_org_created_idx").on(
+      t.userId,
+      t.orgId,
+      t.createdAt,
+    ),
+    index("notifications_user_org_unread_idx")
+      .on(t.userId, t.orgId)
+      .where(sql`${t.readAt} is null`),
+  ],
+);
+
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id),
+    eventType: text("event_type").notNull(),
+    channel: notificationChannelEnum("channel").notNull(),
+    enabled: boolean("enabled").notNull(),
+  },
+  (t) => [
+    uniqueIndex("notification_preferences_user_org_event_channel_uidx").on(
+      t.userId,
+      t.orgId,
+      t.eventType,
+      t.channel,
+    ),
   ],
 );

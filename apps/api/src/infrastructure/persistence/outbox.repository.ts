@@ -1,4 +1,4 @@
-import { and, asc, eq, lte, sql } from "drizzle-orm";
+import { and, asc, eq, lte } from "drizzle-orm";
 import type { OutboxEventInput, OutboxPort } from "@stock-management/application";
 import type { DbClient } from "../db/client.js";
 import { outboxEvents } from "../db/schema/index.js";
@@ -6,6 +6,9 @@ import type {
   OutboxPollerStore,
   PendingOutboxEvent,
 } from "../workers/outbox-poller.js";
+
+export const OUTBOX_MAX_ATTEMPTS = 5;
+export const OUTBOX_RETRY_DELAY_MS = 30_000;
 
 export class DrizzleOutboxRepository
   implements OutboxPort, OutboxPollerStore
@@ -59,13 +62,29 @@ export class DrizzleOutboxRepository
       .where(eq(outboxEvents.id, id));
   }
 
+  /**
+   * Retry-friendly failure: keep pending with backoff until max attempts,
+   * then terminal failed. Lets notification channel retries re-run after
+   * partial in-app success (idempotent via deliveryKey).
+   */
   async markFailed(id: string, error: string): Promise<void> {
+    const [row] = await this.db
+      .select({ attempts: outboxEvents.attempts })
+      .from(outboxEvents)
+      .where(eq(outboxEvents.id, id))
+      .limit(1);
+    const nextAttempts = (row?.attempts ?? 0) + 1;
+    const terminal = nextAttempts >= OUTBOX_MAX_ATTEMPTS;
+
     await this.db
       .update(outboxEvents)
       .set({
-        status: "failed",
+        status: terminal ? "failed" : "pending",
         lastError: error,
-        attempts: sql`${outboxEvents.attempts} + 1`,
+        attempts: nextAttempts,
+        availableAt: terminal
+          ? new Date()
+          : new Date(Date.now() + OUTBOX_RETRY_DELAY_MS),
         updatedAt: new Date(),
       })
       .where(eq(outboxEvents.id, id));

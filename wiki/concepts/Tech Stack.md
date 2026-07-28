@@ -3,7 +3,7 @@ tags:
   - concept
 created: 2026-07-25
 updated: 2026-07-27
-source_count: 4
+source_count: 5
 ---
 
 # Tech Stack
@@ -19,6 +19,9 @@ Locked stack for [[Stock Management System]].
 | Forms | react-hook-form + Zod resolvers |
 | UI | Tailwind; Sonner toasts |
 | i18n | i18next + react-i18next (`en` / `th`); flat dotted keys; locale in `localStorage` |
+| Auth | Argon2 passwords; access JWT Bearer; HTTP-only rotating refresh cookie (`@fastify/cookie`) — see [[Authentication]] |
+| Notifications | Outbox → decorator channels (in-app + email); WebSocket (`@fastify/websocket`) — see [[Notifications]] |
+| Mail | Shared `Mailer` port (dev console/file transport + SMTP) |
 | Logging | Fastify/Pino (pretty in dev); `x-request-id` correlation |
 | Validation | Zod (HTTP DTOs + env + shared error envelope) |
 | Tests | Vitest |
@@ -40,6 +43,8 @@ All application code follows [[Clean Architecture]]. SOLID applies within that s
 
 Spec: `docs/superpowers/specs/2026-07-26-dx-foundation-design.md`
 Web i18n: `docs/superpowers/specs/2026-07-27-web-i18n-design.md`
+Auth: `docs/superpowers/specs/2026-07-27-authentication-design.md`
+Notifications: `docs/superpowers/specs/2026-07-27-notifications-design.md`
 
 ## Explicitly rejected
 
@@ -49,6 +54,8 @@ Web i18n: `docs/superpowers/specs/2026-07-27-web-i18n-design.md`
 - Microservices day one
 - Legacy API `modules/` service/repository layout as the target shape
 - Biome as ESLint replacement (CA `no-restricted-imports` stays on ESLint)
+- OAuth as day-one auth (deferred; password first)
+- Push/SMS notification channels in v1 (decorator seam only)
 
 ## Sources
 
@@ -56,3 +63,4 @@ Web i18n: `docs/superpowers/specs/2026-07-27-web-i18n-design.md`
 - Planning decision 2026-07-26 (Full Clean Architecture packages)
 - Planning decision 2026-07-26 (DX foundation tooling)
 - Planning decision 2026-07-27 (web EN/TH i18n)
+- Planning decision 2026-07-27 (auth + notifications)

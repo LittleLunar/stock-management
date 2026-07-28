@@ -19,7 +19,7 @@ import { Toaster, toast } from "sonner";
 import { z } from "zod";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { formatApiError } from "./lib/errors";
-import { AppShell } from "./layout/AppShell";
+import { RootLayout } from "./layout/RootLayout";
 import {
   useBranches,
   useCreateBranch,
@@ -36,10 +36,14 @@ import { CustomerReturnsPage } from "./pages/CustomerReturnsPage";
 import { CogsReportPage } from "./pages/CogsReportPage";
 import { CostRevaluationsPage } from "./pages/CostRevaluationsPage";
 import { CostValuationPage } from "./pages/CostValuationPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { GoodsReceiptsPage } from "./pages/GoodsReceiptsPage";
 import { LandedCostsPage } from "./pages/LandedCostsPage";
+import { LoginPage } from "./pages/LoginPage";
 import { PurchaseOrdersPage } from "./pages/PurchaseOrdersPage";
 import { ReservationsPage } from "./pages/ReservationsPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { SignupPage } from "./pages/SignupPage";
 import { StockAdjustmentsPage } from "./pages/StockAdjustmentsPage";
 import { StockCountsPage } from "./pages/StockCountsPage";
 import { StockIssuesPage } from "./pages/StockIssuesPage";
@@ -56,6 +60,10 @@ import { PnlReportPage } from "./pages/PnlReportPage";
 import { SupplierInvoiceDetailPage } from "./pages/SupplierInvoiceDetailPage";
 import { SupplierInvoicesPage } from "./pages/SupplierInvoicesPage";
 import { TrialBalancePage } from "./pages/TrialBalancePage";
+import { VerifyEmailPage } from "./pages/VerifyEmailPage";
+import { AcceptInvitePage } from "./pages/AcceptInvitePage";
+import { NotificationActionPage } from "./pages/NotificationActionPage";
+import { NotificationPreferencesPage } from "./pages/NotificationPreferencesPage";
 import { WebhookSubscriptionsPage } from "./pages/WebhookSubscriptionsPage";
 
 const queryClient = new QueryClient({
@@ -487,7 +495,77 @@ function CustomersPage() {
 }
 
 const rootRoute = createRootRoute({
-  component: AppShell,
+  component: RootLayout,
+});
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  validateSearch: (search: Record<string, unknown>): {
+    next?: string;
+    verified?: string;
+  } => {
+    const next = typeof search.next === "string" ? search.next : undefined;
+    const verified =
+      typeof search.verified === "string" ? search.verified : undefined;
+    return {
+      ...(next !== undefined ? { next } : {}),
+      ...(verified !== undefined ? { verified } : {}),
+    };
+  },
+  component: LoginPage,
+});
+
+const signupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/signup",
+  component: SignupPage,
+});
+
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: ForgotPasswordPage,
+});
+
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reset-password",
+  validateSearch: (search: Record<string, unknown>): { token?: string } => {
+    const token = typeof search.token === "string" ? search.token : undefined;
+    return token !== undefined ? { token } : {};
+  },
+  component: ResetPasswordPage,
+});
+
+const verifyEmailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/verify-email",
+  validateSearch: (search: Record<string, unknown>): { token?: string } => {
+    const token = typeof search.token === "string" ? search.token : undefined;
+    return token !== undefined ? { token } : {};
+  },
+  component: VerifyEmailPage,
+});
+
+const acceptInviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/accept-invite",
+  validateSearch: (search: Record<string, unknown>): { token?: string } => {
+    const token = typeof search.token === "string" ? search.token : undefined;
+    return token !== undefined ? { token } : {};
+  },
+  component: AcceptInvitePage,
+});
+
+const notificationActionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/notification-action",
+  validateSearch: (search: Record<string, unknown>): { token?: string } => {
+    const token = typeof search.token === "string" ? search.token : undefined;
+    return token !== undefined ? { token } : {};
+  },
+  component: NotificationActionPage,
 });
 
 const indexRoute = createRoute({
@@ -676,7 +754,20 @@ const webhooksRoute = createRoute({
   component: WebhookSubscriptionsPage,
 });
 
+const notificationPreferencesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/notification-preferences",
+  component: NotificationPreferencesPage,
+});
+
 const routeTree = rootRoute.addChildren([
+  loginRoute,
+  signupRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
+  verifyEmailRoute,
+  acceptInviteRoute,
+  notificationActionRoute,
   indexRoute,
   branchesRoute,
   locationsRoute,
@@ -708,6 +799,7 @@ const routeTree = rootRoute.addChildren([
   balanceSheetRoute,
   approvalPoliciesRoute,
   webhooksRoute,
+  notificationPreferencesRoute,
 ]);
 
 const router = createRouter({ routeTree });

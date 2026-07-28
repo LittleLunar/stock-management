@@ -47,12 +47,11 @@ import {
   type UpdateStockCount,
   type UpdateWebhookSubscription,
 } from "@stock-management/shared";
-import { env } from "../lib/env";
-import { parseApiError } from "../lib/errors";
+import { fetchWithAuthRetry, parseJsonResponse } from "../auth/http";
+import { getAccessToken } from "../auth/session";
 
 export type ApiHeaders = {
   orgId: string;
-  userId: string;
   branchId?: string; // when set → X-Branch-Id
 };
 
@@ -465,7 +464,10 @@ function headers(ctx: ApiHeaders, init?: HeadersInit): Headers {
   const h = new Headers(init);
   h.set("Content-Type", "application/json");
   h.set("X-Org-Id", ctx.orgId);
-  h.set("X-User-Id", ctx.userId);
+  const token = getAccessToken();
+  if (token) {
+    h.set("Authorization", `Bearer ${token}`);
+  }
   if (ctx.branchId) {
     h.set("X-Branch-Id", ctx.branchId);
   }
@@ -480,23 +482,12 @@ async function request<T>(
   ctx: ApiHeaders,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(`${env.VITE_API_URL}${path}`, {
-    ...init,
-    headers: headers(ctx, init?.headers),
+  const res = await fetchWithAuthRetry({
+    path,
+    init,
+    buildHeaders: () => headers(ctx, init?.headers),
   });
-  if (!res.ok) {
-    let raw: unknown = await res.text();
-    try {
-      raw = JSON.parse(raw as string);
-    } catch {
-      // keep text body
-    }
-    throw parseApiError(res.status, raw);
-  }
-  if (res.status === 204) {
-    return undefined as T;
-  }
-  return res.json() as Promise<T>;
+  return parseJsonResponse(res);
 }
 
 function withQuery(
@@ -514,12 +505,11 @@ function withQuery(
 }
 
 export const api = {
-  createOrg: (userId: string, body: CreateOrganization) =>
-    request<Organization>(
-      "/api/v1/orgs",
-      { orgId: "00000000-0000-0000-0000-000000000000", userId },
-      { method: "POST", body: JSON.stringify(body) },
-    ),
+  createOrg: (ctx: ApiHeaders, body: CreateOrganization) =>
+    request<Organization>("/api/v1/orgs", ctx, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   listBranches: (ctx: ApiHeaders) => request<Branch[]>("/api/v1/branches", ctx),
   createBranch: (ctx: ApiHeaders, body: CreateBranch) =>
     request<Branch>("/api/v1/branches", ctx, {
@@ -966,4 +956,100 @@ export const api = {
       }`,
       ctx,
     ),
+  listNotifications: (
+    ctx: ApiHeaders,
+    query: { includeDismissed?: boolean; limit?: number; offset?: number } = {},
+  ) =>
+    request<NotificationDto[]>(
+      withQuery("/api/v1/notifications", {
+        includeDismissed:
+          query.includeDismissed === undefined
+            ? undefined
+            : String(query.includeDismissed),
+        limit: query.limit === undefined ? undefined : String(query.limit),
+        offset: query.offset === undefined ? undefined : String(query.offset),
+      }),
+      ctx,
+    ),
+  unreadNotificationCount: (ctx: ApiHeaders) =>
+    request<{ count: number }>("/api/v1/notifications/unread-count", ctx),
+  markNotificationRead: (ctx: ApiHeaders, id: string) =>
+    request<{ ok: true }>(`/api/v1/notifications/${id}/read`, ctx, {
+      method: "POST",
+    }),
+  markAllNotificationsRead: (ctx: ApiHeaders) =>
+    request<{ updated: number }>("/api/v1/notifications/read-all", ctx, {
+      method: "POST",
+    }),
+  dismissNotification: (ctx: ApiHeaders, id: string) =>
+    request<{ ok: true }>(`/api/v1/notifications/${id}/dismiss`, ctx, {
+      method: "POST",
+    }),
+  executeNotificationAction: (
+    body: { token: string; name?: string; password?: string },
+    ctx?: ApiHeaders,
+  ) =>
+    request<{ ok: true; notificationId: string; actionId: string }>(
+      "/api/v1/notification-actions/execute",
+      ctx ?? { orgId: "" },
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+        headers: ctx?.orgId
+          ? undefined
+          : { "Content-Type": "application/json" },
+      },
+    ),
+  getNotificationPreferences: (ctx: ApiHeaders) =>
+    request<NotificationPreferenceDto[]>(
+      "/api/v1/notification-preferences",
+      ctx,
+    ),
+  putNotificationPreferences: (
+    ctx: ApiHeaders,
+    preferences: Array<{
+      eventType: string;
+      channel: "in_app" | "email";
+      enabled: boolean;
+    }>,
+  ) =>
+    request<NotificationPreferenceDto[]>(
+      "/api/v1/notification-preferences",
+      ctx,
+      {
+        method: "PUT",
+        body: JSON.stringify({ preferences }),
+      },
+    ),
+};
+
+export type NotificationActionDto = {
+  id: string;
+  label: string;
+  kind: "open" | "server";
+  token?: string;
+};
+
+export type NotificationDto = {
+  id: string;
+  orgId: string;
+  userId: string;
+  eventType: string;
+  title: string;
+  body: string;
+  data: Record<string, unknown>;
+  actions: NotificationActionDto[];
+  readAt: string | null;
+  dismissedAt: string | null;
+  createdAt: string;
+};
+
+export type NotificationPreferenceDto = {
+  id?: string;
+  userId?: string;
+  orgId?: string;
+  eventType: string;
+  channel: "in_app" | "email";
+  enabled: boolean;
+  source?: "preference" | "default";
 };

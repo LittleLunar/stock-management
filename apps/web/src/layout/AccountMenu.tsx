@@ -1,10 +1,16 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { getOrgId, getOrgName } from "../auth/session";
+import { useLogout, useMe } from "../hooks/auth";
+import { formatApiError } from "../lib/errors";
 import { Avatar, Button, Dropdown } from "../ui";
 
-function initialsFromId(id: string): string {
-  if (!id) return "?";
-  const compact = id.replace(/-/g, "");
-  return compact.slice(0, 2).toUpperCase();
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
 }
 
 function shortId(id: string): string {
@@ -15,10 +21,13 @@ function shortId(id: string): string {
 
 export function AccountMenu() {
   const { t } = useTranslation("common");
-  const orgId = localStorage.getItem("orgId") ?? "";
-  const userId =
-    localStorage.getItem("userId") ??
-    "00000000-0000-0000-0000-000000000001";
+  const { t: ta } = useTranslation("auth");
+  const navigate = useNavigate();
+  const { data: me } = useMe();
+  const logout = useLogout();
+  const orgId = getOrgId();
+  const orgName = getOrgName();
+  const displayName = me?.user.name ?? me?.user.email ?? t("account.label");
 
   return (
     <Dropdown>
@@ -32,32 +41,58 @@ export function AccountMenu() {
         >
           <Avatar size="sm" className="size-8">
             <Avatar.Fallback className="bg-[var(--app-brand)] text-xs text-[var(--app-brand-fg)]">
-              {initialsFromId(userId)}
+              {initialsFromName(displayName)}
             </Avatar.Fallback>
           </Avatar>
         </Button>
       </Dropdown.Trigger>
       <Dropdown.Popover placement="bottom end" className="min-w-52">
-        <Dropdown.Menu>
+        <Dropdown.Menu
+          onAction={(key) => {
+            if (key === "preferences") {
+              void navigate({ to: "/notification-preferences" });
+              return;
+            }
+            if (key === "logout") {
+              logout.mutate(undefined, {
+                onSuccess: () => {
+                  void navigate({ to: "/login" });
+                },
+                onError: (err) => {
+                  toast.error(formatApiError(err));
+                  void navigate({ to: "/login" });
+                },
+              });
+            }
+          }}
+        >
           <Dropdown.Item
             id="account"
-            textValue={t("account.label")}
+            textValue={displayName}
             isDisabled
-            label={t("account.label")}
+            label={displayName}
           />
-          {orgId ? (
+          {orgName || orgId ? (
             <Dropdown.Item
               id="org"
-              textValue={orgId}
+              textValue={orgName || orgId}
               isDisabled
-              label={t("account.org", { orgId: shortId(orgId) })}
+              label={
+                orgName
+                  ? t("account.orgName", { orgName })
+                  : t("account.org", { orgId: shortId(orgId) })
+              }
             />
           ) : null}
           <Dropdown.Item
-            id="user"
-            textValue={userId}
-            isDisabled
-            label={t("account.user", { userId: shortId(userId) })}
+            id="preferences"
+            textValue={t("account.preferences")}
+            label={t("account.preferences")}
+          />
+          <Dropdown.Item
+            id="logout"
+            textValue={ta("auth.logout")}
+            label={ta("auth.logout")}
           />
         </Dropdown.Menu>
       </Dropdown.Popover>

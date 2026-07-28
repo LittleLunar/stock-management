@@ -5,9 +5,11 @@ import {
   AllocationMismatchError,
   ConflictError,
   DomainError,
+  EmailNotVerifiedError,
   ForbiddenError,
   InsufficientCostError,
   InsufficientStockError,
+  InvalidCredentialsError,
   InvoiceAlreadyVoidedError,
   InvoiceNotDraftError,
   InvoiceNotPostedError,
@@ -18,7 +20,10 @@ import {
   MissingUnitCostError,
   NotFoundError,
   PeriodClosedError,
+  RateLimitedError,
   ThreeWayMatchError,
+  TokenExpiredError,
+  TokenInvalidError,
   UnauthorizedError,
   UnbalancedJournalError,
   UnsupportedCostingMethodError,
@@ -51,15 +56,42 @@ export function registerErrorHandler(app: FastifyInstance): void {
         .send(envelope(request, error.code, error.message));
     }
 
+    if (error instanceof InvalidCredentialsError) {
+      return reply
+        .status(401)
+        .send(envelope(request, error.code, error.message));
+    }
+
+    if (
+      error instanceof TokenExpiredError ||
+      error instanceof TokenInvalidError
+    ) {
+      return reply
+        .status(401)
+        .send(envelope(request, error.code, error.message));
+    }
+
     if (error instanceof UnauthorizedError) {
       return reply
         .status(401)
         .send(envelope(request, error.code, error.message));
     }
 
+    if (error instanceof EmailNotVerifiedError) {
+      return reply
+        .status(403)
+        .send(envelope(request, error.code, error.message));
+    }
+
     if (error instanceof ForbiddenError) {
       return reply
         .status(403)
+        .send(envelope(request, error.code, error.message));
+    }
+
+    if (error instanceof RateLimitedError) {
+      return reply
+        .status(429)
         .send(envelope(request, error.code, error.message));
     }
 

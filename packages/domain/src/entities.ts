@@ -116,6 +116,8 @@ export type User = {
   email: string;
   name: string;
   status: MasterStatus;
+  /** Null until email verification completes. */
+  emailVerifiedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };

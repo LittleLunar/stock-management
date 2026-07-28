@@ -21,7 +21,7 @@ Canonical feature inventory for stock-management. Wiki mirror: [[Feature Phases]
 | **Categories** | Product grouping |
 | **Suppliers** | Supplier master + optional supplier–SKU links |
 | **Customers** | Master data stub |
-| **App shell** | Auth, layout, empty dashboard |
+| **App shell** | Layout, dashboard; auth via JWT (see Cross-cutting) |
 
 ---
 
@@ -112,6 +112,23 @@ Canonical feature inventory for stock-management. Wiki mirror: [[Feature Phases]
 | **Returns from POS** | Restock or scrap |
 | **Tax on sales** | When invoicing |
 | **Channel availability** | Per-branch sellable qty |
+
+---
+
+## Cross-cutting — Authentication & notifications
+
+Shipped on `feature/auth-and-notifications` (2026-07-27). Specs: `docs/superpowers/specs/2026-07-27-authentication-design.md`, `…-notifications-design.md`. Wiki: [[Authentication]], [[Notifications]].
+
+| Area | Features |
+|------|----------|
+| **Auth** | Email/password signup (org + HQ admin); verify email; login; forgot/reset password; JWT access + rotating HTTP-only refresh cookie; `/me` memberships; web session restore + `/login?next=` |
+| **Membership invites** | Create invite; accept (create user + password) / decline; email CTA |
+| **Notifications** | Outbox `notification.dispatch`; decorator channels (in-app → email); event policies; list/read/dismiss/unread-count; per-user channel preferences UI |
+| **Realtime** | WebSocket `/api/v1/notifications/ws` + 30s poll fallback; shell notification bell |
+| **Signed actions** | HMAC action tokens; execute approve/reject/cancel/invite; `/notification-action` page |
+
+**Parked (not blocking):** `approval.assigned` recipient role heuristics; invite accept via action token still needs name+password; Task 2–7 minor follow-ups (inactive login gate, refresh txn, unique→Conflict, sync invite mailer when email channel wires, etc.).
+
 
 ---
 

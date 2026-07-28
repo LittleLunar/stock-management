@@ -7,6 +7,20 @@ updated: 2026-07-27
 
 # Wiki Log
 
+## [2026-07-27] update | Auth + notifications finalize (Task 8)
+
+Preferences UI (`/notification-preferences`), EN/TH i18n, `docs/FEATURES.md` cross-cutting inventory, and wiki status refresh for [[Authentication]] / [[Notifications]] / [[Getting Started]] / [[Phase A]] / [[Feature Phases]]. Parked: approval.assigned heuristics; invite accept password; earlier task minors.
+
+## [2026-07-27] ingest | Auth + notifications design specs
+
+Added design specs for [[Authentication]] and [[Notifications]] (email/password JWT +
+rotating refresh cookie; outbox decorator channels, WebSocket, signed approval/invite
+actions). New concept pages; updated [[Tech Stack]], [[Getting Started]], [[Phase A]],
+[[Feature Phases]], [[index]]. Specs:
+`docs/superpowers/specs/2026-07-27-authentication-design.md`,
+`docs/superpowers/specs/2026-07-27-notifications-design.md`. Plan:
+`docs/superpowers/plans/2026-07-27-auth-and-notifications.md`.
+
 ## [2026-07-27] update | Org bootstrap membership + db:clear
 
 Fixed Phase E1 chicken-and-egg: `POST /orgs` now creates stub user + HQ

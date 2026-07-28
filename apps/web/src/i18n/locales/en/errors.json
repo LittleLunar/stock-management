@@ -23,5 +23,10 @@
   "errors.LOT_QUARANTINED": "Lot is quarantined and cannot be sold or issued",
   "errors.LOCATION_QUARANTINED": "Cannot sell or issue from a quarantine location",
   "errors.VALIDATION_ERROR": "Request validation failed",
-  "errors.INTERNAL_ERROR": "Internal server error"
+  "errors.INTERNAL_ERROR": "Internal server error",
+  "errors.INVALID_CREDENTIALS": "Invalid email or password",
+  "errors.EMAIL_NOT_VERIFIED": "Verify your email before signing in",
+  "errors.TOKEN_EXPIRED": "This link or token has expired",
+  "errors.TOKEN_INVALID": "This link or token is invalid",
+  "errors.RATE_LIMITED": "Too many attempts. Try again later"
 }

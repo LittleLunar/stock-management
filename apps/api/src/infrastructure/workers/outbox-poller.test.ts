@@ -70,10 +70,10 @@ describe("processOutboxBatch", () => {
     expect(info).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: "evt-1",
-        payload: { documentId: "gr-1" },
       }),
       "outbox event processed",
     );
+    expect(info.mock.calls[0]?.[0]).not.toHaveProperty("payload");
   });
 
   it("invokes processJournal before markProcessed", async () => {
@@ -196,5 +196,52 @@ describe("processOutboxBatch journal then webhook", () => {
         }),
     });
     expect(markFailed).toHaveBeenCalledWith("e2", "hook down");
+  });
+});
+
+describe("processOutboxBatch journal then webhook then notifications", () => {
+  it("calls processNotifications after webhooks when provided", async () => {
+    const order: string[] = [];
+    const event: PendingOutboxEvent = {
+      id: "e1",
+      orgId: "o1",
+      eventType: "notification.dispatch",
+      aggregateType: "user",
+      aggregateId: "u1",
+      payload: { eventType: "user.welcome" },
+    };
+    const store: OutboxPollerStore = {
+      async claimPending() {
+        return [event];
+      },
+      async markProcessed(id) {
+        order.push(`processed:${id}`);
+      },
+      async markFailed() {
+        order.push("failed");
+      },
+    };
+    await processOutboxBatch({
+      log: { info() {}, error() {} },
+      runInTransaction: async (fn) =>
+        fn({
+          store,
+          processJournal: async () => {
+            order.push("journal");
+          },
+          processWebhooks: async () => {
+            order.push("webhook");
+          },
+          processNotifications: async () => {
+            order.push("notifications");
+          },
+        }),
+    });
+    expect(order).toEqual([
+      "journal",
+      "webhook",
+      "notifications",
+      "processed:e1",
+    ]);
   });
 });

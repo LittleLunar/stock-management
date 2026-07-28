@@ -3,7 +3,7 @@ tags:
   - feature
   - phase-a
 created: 2026-07-25
-updated: 2026-07-26
+updated: 2026-07-27
 ---
 
 # Phase A
@@ -14,6 +14,8 @@ Platform skeleton — multi-branch foundation, no stock yet.
 
 Migrating to [[Clean Architecture]] complete (2026-07-26): packages-first (`domain` / `application`), API adapters under `infrastructure` + `interfaces/http`. Masters UI remains thin HTTP client.
 
+**Auth:** email/password JWT + rotating refresh cookie — see [[Authentication]] (shipped with [[Notifications]] on `feature/auth-and-notifications`). Legacy header stub retired for identity.
+
 ## Features
 
 - Org settings (currency, timezone, fiscal year)
@@ -22,7 +24,7 @@ Migrating to [[Clean Architecture]] complete (2026-07-26): packages-first (`doma
 - Users & roles (branch-scoped memberships)
 - Products (SKU, UOM, barcodes, lot/serial/expiry flags)
 - Categories, suppliers (and customer stub)
-- App shell (auth stub headers, layout)
+- App shell (layout; JWT auth pages + session)
 
 ## Architecture
 
@@ -32,7 +34,8 @@ Follows [[Clean Architecture]]: use cases in `packages/application`, entities in
 
 - CA migration: `docs/superpowers/plans/2026-07-26-clean-architecture-migration.md`
 - Original scaffold (historical): `docs/superpowers/plans/2026-07-25-phase-a-platform-skeleton.md`
+- Auth + notifications: `docs/superpowers/plans/2026-07-27-auth-and-notifications.md`
 
 ## Related
 
-[[Org Branch Location]] · [[Tech Stack]] · [[Feature Phases]] · [[Clean Architecture]]
+[[Org Branch Location]] · [[Tech Stack]] · [[Feature Phases]] · [[Clean Architecture]] · [[Authentication]] · [[Notifications]]

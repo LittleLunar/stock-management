@@ -4,6 +4,7 @@ import { initReactI18next } from "react-i18next";
 import enCommon from "./locales/en/common.json";
 import enNav from "./locales/en/nav.json";
 import enErrors from "./locales/en/errors.json";
+import enAuth from "./locales/en/auth.json";
 import enMasters from "./locales/en/masters.json";
 import enInventory from "./locales/en/inventory.json";
 import enPurchasing from "./locales/en/purchasing.json";
@@ -14,6 +15,7 @@ import enSettings from "./locales/en/settings.json";
 import thCommon from "./locales/th/common.json";
 import thNav from "./locales/th/nav.json";
 import thErrors from "./locales/th/errors.json";
+import thAuth from "./locales/th/auth.json";
 import thMasters from "./locales/th/masters.json";
 import thInventory from "./locales/th/inventory.json";
 import thPurchasing from "./locales/th/purchasing.json";
@@ -31,6 +33,7 @@ const resources = {
     common: enCommon,
     nav: enNav,
     errors: enErrors,
+    auth: enAuth,
     masters: enMasters,
     inventory: enInventory,
     purchasing: enPurchasing,
@@ -42,6 +45,7 @@ const resources = {
     common: thCommon,
     nav: thNav,
     errors: thErrors,
+    auth: thAuth,
     masters: thMasters,
     inventory: thInventory,
     purchasing: thPurchasing,
@@ -55,6 +59,7 @@ export const NAMESPACES = [
   "common",
   "nav",
   "errors",
+  "auth",
   "masters",
   "inventory",
   "purchasing",

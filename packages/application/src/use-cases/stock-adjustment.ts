@@ -5,6 +5,7 @@ import {
   NotFoundError,
   assertCanApproveAdjustment,
   assertCanPostAdjustment,
+  assertCanRejectAdjustment,
   assertCanSubmitAdjustment,
   assertLayersFullyOpen,
   assertLotSerialRules,
@@ -27,6 +28,7 @@ import { costingOutboxFields } from "../costing/outbox-cost-fields.js";
 import type { BranchListFilter } from "../access/list-scope.js";
 import { assertOutboundSellable } from "../fefo/assert-outbound-sellable.js";
 import type { StockAdjustmentPort } from "../ports/inventory.js";
+import type { EnqueueNotificationIntent } from "../ports/notification.js";
 import type { UnitOfWork } from "../ports/unit-of-work.js";
 import type { ApprovalPolicyUseCases } from "./approval-policy.js";
 
@@ -36,7 +38,10 @@ export type StockAdjustmentResult = {
 };
 
 export class StockAdjustmentUseCases {
-  constructor(private readonly repo: StockAdjustmentPort) {}
+  constructor(
+    private readonly repo: StockAdjustmentPort,
+    private readonly notifications?: EnqueueNotificationIntent,
+  ) {}
 
   list(orgId: string, filter?: BranchListFilter) {
     return this.repo.list(orgId, filter);
@@ -69,13 +74,32 @@ export class StockAdjustmentUseCases {
   async submitForApproval(orgId: string, id: string) {
     const adj = await this.get(orgId, id);
     assertCanSubmitAdjustment(adj);
-    return this.repo.updateStatus(orgId, id, "pending_approval", new Date());
+    const updated = await this.repo.updateStatus(
+      orgId,
+      id,
+      "pending_approval",
+      new Date(),
+    );
+    await this.notifications?.enqueue({
+      eventType: "approval.assigned",
+      orgId,
+      entityRef: { type: "stock_adjustment", id },
+      payload: { branchId: adj.branchId },
+    });
+    return updated;
   }
 
   async approve(orgId: string, id: string) {
     const adj = await this.get(orgId, id);
     assertCanApproveAdjustment(adj);
     return this.repo.updateStatus(orgId, id, "approved", new Date());
+  }
+
+  /** Reject pending approval — returns the document to draft. */
+  async reject(orgId: string, id: string) {
+    const adj = await this.get(orgId, id);
+    assertCanRejectAdjustment(adj);
+    return this.repo.updateStatus(orgId, id, "draft", new Date());
   }
 }
 

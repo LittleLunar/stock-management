@@ -21,8 +21,8 @@ import type {
 } from "@stock-management/domain";
 import { stockTransfersRoutes } from "./stock-transfers.routes.js";
 import {
-  createContextPlugin,
   createTestContextPlugin,
+  createTestContextPluginWith,
 } from "../plugins/context.js";
 import { registerErrorHandler } from "../plugins/error-handler.js";
 import { requestIdPlugin } from "../plugins/request-id.js";
@@ -583,7 +583,7 @@ describe("stock transfer routes", () => {
 
   it("rejects replenishment when caller lacks toBranch grant without creating a row", async () => {
     const harness = makeHarness("transit", { toBranchId: STORE_BRANCH_ID });
-    const branchScopedContext = createContextPlugin({
+    const branchScopedContext = createTestContextPluginWith({
       findActiveByUser: async (orgId, userId) => ({
         id: "00000000-0000-4000-8000-ffffffffbbbb",
         orgId,
@@ -627,7 +627,7 @@ describe("stock transfer routes", () => {
     apps.push(hqApp);
     const created = await createDraft(hqApp);
 
-    const otherBranchContext = createContextPlugin({
+    const otherBranchContext = createTestContextPluginWith({
       findActiveByUser: async (orgId, userId) => ({
         id: "00000000-0000-4000-8000-ffffffffcccc",
         orgId,
@@ -662,7 +662,7 @@ describe("stock transfer routes", () => {
     apps.push(hqApp);
     const created = await createDraft(hqApp);
 
-    const otherBranchContext = createContextPlugin({
+    const otherBranchContext = createTestContextPluginWith({
       findActiveByUser: async (orgId, userId) => ({
         id: "00000000-0000-4000-8000-ffffffffdddd",
         orgId,

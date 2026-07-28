@@ -16,17 +16,24 @@
     "db:clear": "tsx scripts/clear-data.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/websocket": "^11.2.0",
     "@stock-management/application": "workspace:*",
     "@stock-management/domain": "workspace:*",
     "@stock-management/shared": "workspace:*",
+    "argon2": "^0.45.1",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.2.1",
     "fastify-plugin": "^6.0.0",
+    "jose": "^6.2.4",
     "postgres": "^3.4.9",
+    "ws": "^8.18.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/ws": "^8.18.1",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
     "pino-pretty": "^13.0.0",
